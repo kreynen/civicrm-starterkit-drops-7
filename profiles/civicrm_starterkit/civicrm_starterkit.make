@@ -1,6 +1,6 @@
 ; This version of the .make will build a local copy of the distribution
 ; using the versions of modules and patches listed.
-; Modules and libraries will be in sites/all 
+; Modules and libraries will be in sites/all
 ; This is used to test the packaging BEFORE committing
 ; drush make --no-core civicrm_starterkit.make
 
@@ -19,8 +19,7 @@ libraries[civicrm][directory_name] = civicrm
 
 ;PANTHEON RELATED PATCHES
 ; Add Pantheon settings to civicrm.settings.php (http://forum.civicrm.org/index.php?topic=31570.0)
-; Redis caching settings for Pantheon
-libraries[civicrm][patch][pantheonsettings] = https://www.drupal.org/files/issues/2082713-pantheon-settings-civicrm-46-2.patch
+libraries[civicrm][patch][pantheonsettings] = https://www.drupal.org/files/issues/2082713-pantheon-settings-civicrm-46-3.patch
 
 ; Add Redis caching
 libraries[civicrm][patch][redis] = https://www.drupal.org/files/issues/2468687-redis-caching-civi46.patch
@@ -32,11 +31,14 @@ libraries[civicrm][patch][config] = https://www.drupal.org/files/issues/2096467-
 ; provide modulepath to populate settings
 libraries[civicrm][patch][2063371] = http://drupal.org/files/2063371-add-modulePath-var-4-4.patch
 libraries[civicrm][patch][1978796] = http://drupal.org/files/1978796-session.save-as_file.patch
+
 ; Related to https://issues.civicrm.org/jira/browse/CRM-9683
 libraries[civicrm][patch][2130213] = http://drupal.org/files/issues/2130213-ignore-timezone-on-install-2.patch
+
 ;IMPROVING PROFILE INSTALL UX WHEN INSTALLING FROM A PROFILE
 libraries[civicrm][patch][1849424-use] = https://www.drupal.org/files/issues/1849424-use-vars-in-link-civi46.patch
 libraries[civicrm][patch][1849424-pass] = http://drupal.org/files/1849424-pass-vars-in-link-2.patch
+
 ; Populate with Pantheon environment settings on install
 libraries[civicrm][patch][1978838] = http://drupal.org/files/issues/1978838-pre-populate-db-settings-2.patch
 
@@ -45,7 +47,8 @@ libraries[civicrm][patch][2177647] = https://drupal.org/files/issues/2177647-ses
 libraries[civicrm][patch][cron] = https://www.drupal.org/files/issues/2819697-cron-civi46.patch
 
 ; Necessary if in profiles/*/modules/civicrm
-libraries[civicrm][patch][1844558] = https://drupal.org/files/issues/1844558-run-civicrm-from-profile-dir-config-3.patch
+; Define the path to the civicrm.settings.php file because CiviCRM is not in the expected location.
+libraries[civicrm][patch][1844558] = https://www.drupal.org/files/issues/1844558-settings_location-for-profiles.patch
 libraries[civicrm][patch][1967972] = http://drupal.org/files/1967972-bootsrap-fixes.patch
 
 ; May be necessary where extension, etc paths are cached but Pantheon changes binding
@@ -133,4 +136,3 @@ libraries[tinymce][download][type] = get
 libraries[tinymce][download][url] = "http://download.ephox.com/tinymce/community/tinymce_4.5.7.zip"
 libraries[tinymce][destination] = libraries
 libraries[tinymce][directory_name] = tinymce
-

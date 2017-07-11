@@ -1,5 +1,5 @@
 The following patches have been applied to this project:
-- https://www.drupal.org/files/issues/2082713-pantheon-settings-civicrm-46-2.patch
+- https://www.drupal.org/files/issues/2082713-pantheon-settings-civicrm-46-3.patch
 - https://www.drupal.org/files/issues/2468687-redis-caching-civi46.patch
 - https://www.drupal.org/files/issues/2096467-skip-config-cache-civi46.patch
 - http://drupal.org/files/2063371-add-modulePath-var-4-4.patch
@@ -10,7 +10,7 @@ The following patches have been applied to this project:
 - http://drupal.org/files/issues/1978838-pre-populate-db-settings-2.patch
 - https://drupal.org/files/issues/2177647-sessions-fix.patch
 - https://www.drupal.org/files/issues/2819697-cron-civi46.patch
-- https://drupal.org/files/issues/1844558-run-civicrm-from-profile-dir-config-3.patch
+- https://www.drupal.org/files/issues/1844558-settings_location-for-profiles.patch
 - http://drupal.org/files/1967972-bootsrap-fixes.patch
 - https://www.drupal.org/files/issues/2347897-binding-fix-for-extension-civi46.patch
 

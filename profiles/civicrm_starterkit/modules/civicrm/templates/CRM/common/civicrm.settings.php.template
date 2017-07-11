@@ -98,9 +98,14 @@ if (defined('PANTHEON_ENVIRONMENT')) {
   $civicrm_root = '/srv/bindings/' . $binding . '/code/%%modulePath%%';
   define('CIVICRM_TEMPLATE_COMPILEDIR', '/srv/bindings/' . $binding . '/files/private/civicrm/templates_c/');
 
-  // Use Drupal base url and path
-  global $base_url, $base_path;
-  define( 'CIVICRM_UF_BASEURL', $base_url . '/');
+  // Use Drupal base url or default to defined URL.
+  global $base_url;
+  if (!empty($base_url)) {
+    define( 'CIVICRM_UF_BASEURL'      , $base_url . '/');
+  } else {
+    define( 'CIVICRM_UF_BASEURL'      , '%%baseURL%%');
+  }
+
   define( 'CIVICRM_SITE_KEY', '%%siteKey%%' );
 
   /**
@@ -115,7 +120,7 @@ if (defined('PANTHEON_ENVIRONMENT')) {
   global $civicrm_setting;
   $civicrm_setting['Directory Preferences']['uploadDir'] = '/srv/bindings/' . $binding . '/files/private/civicrm/upload/';
   $civicrm_setting['Directory Preferences']['customFileUploadDir'] = '/srv/bindings/' . $binding . '/files/private/civicrm/custom/';
-  $civicrm_setting['Directory Preferences']['imageUploadDir'] = '/srv/bindings/' . $binding . '/files/private/civicrm/persist/contribute/';
+  $civicrm_setting['Directory Preferences']['imageUploadDir'] = '/srv/bindings/' . $binding . '/files/civicrm/persist/contribute/';
   $civicrm_setting['Directory Preferences']['extensionsDir'] = '/srv/bindings/' . $binding . '/code/sites/all/extensions/';
   $civicrm_setting['URL Preferences']['extensionsURL'] = $base_url . '/sites/all/extensions';
   $civicrm_setting['URL Preferences']['userFrameworkResourceURL'] = $base_url . '/profiles/civicrm_starterkit/modules/civicrm';
