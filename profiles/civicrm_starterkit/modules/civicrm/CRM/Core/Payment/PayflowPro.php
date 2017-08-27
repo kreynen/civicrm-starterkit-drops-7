@@ -1,7 +1,7 @@
 <?php
 /*
    +----------------------------------------------------------------------------+
-   | PayflowPro Core Payment Module for CiviCRM version 4.6                     |
+   | PayflowPro Core Payment Module for CiviCRM version 4.7                     |
    +----------------------------------------------------------------------------+
    | Licensed to CiviCRM under the Academic Free License version 3.0            |
    |                                                                            |
@@ -10,7 +10,7 @@
   */
 
 /**
- * Class CRM_Core_Payment_PayflowPro
+ * Class CRM_Core_Payment_PayflowPro.
  */
 class CRM_Core_Payment_PayflowPro extends CRM_Core_Payment {
   // (not used, implicit in the API, might need to convert?)
@@ -25,16 +25,11 @@ class CRM_Core_Payment_PayflowPro extends CRM_Core_Payment {
    */
   static private $_singleton = NULL;
 
-  /*
+  /**
    * Constructor
    *
    * @param string $mode
    *   The mode of operation: live or test.
-   *
-   * @return void
-   */
-  /**
-   * @param $mode
    * @param $paymentProcessor
    */
   public function __construct($mode, &$paymentProcessor) {
@@ -129,7 +124,7 @@ class CRM_Core_Payment_PayflowPro extends CRM_Core_Payment {
     );
 
     if ($params['installments'] == 1) {
-      $params['is_recur'] == FALSE;
+      $params['is_recur'] = FALSE;
     }
 
     if ($params['is_recur'] == TRUE) {
@@ -260,7 +255,7 @@ class CRM_Core_Payment_PayflowPro extends CRM_Core_Payment {
     /*
      * Check to see if we have a duplicate before we send
      */
-    if ($this->_checkDupe($params['invoiceID'])) {
+    if ($this->checkDupe($params['invoiceID'], CRM_Utils_Array::value('contributionID', $params))) {
       return self::errorExit(9003, 'It appears that this transaction is a duplicate.  Have you already submitted the form once?  If so there may have been a connection problem.  Check your email for a receipt.  If you do not receive a receipt within 2 hours you can try your transaction again.  If you continue to have problems please contact the site administrator.');
     }
 
@@ -273,6 +268,10 @@ class CRM_Core_Payment_PayflowPro extends CRM_Core_Payment {
      * Payment successfully sent to gateway - process the response now
      */
     $result = strstr($responseData, "RESULT");
+    if (empty($result)) {
+      return self::errorExit(9016, "No RESULT code from PayPal.");
+    }
+
     $nvpArray = array();
     while (strlen($result)) {
       // name
@@ -343,22 +342,6 @@ class CRM_Core_Payment_PayflowPro extends CRM_Core_Payment {
     }
 
     return self::errorExit(9014, "Check the code - all transactions should have been headed off before they got here. Something slipped through the net");
-  }
-
-  /**
-   * Checks to see if invoice_id already exists in db.
-   *
-   * @param int $invoiceId
-   *   The ID to check.
-   *
-   * @return bool
-   *   True if ID exists, else false
-   */
-  public function _checkDupe($invoiceId) {
-    //copied from Eway but not working and not really sure it should!
-    $contribution = new CRM_Contribute_DAO_Contribution();
-    $contribution->invoice_id = $invoiceId;
-    return $contribution->find();
   }
 
   /*
@@ -516,11 +499,11 @@ class CRM_Core_Payment_PayflowPro extends CRM_Core_Payment {
     if (ini_get('open_basedir') == '' && ini_get('safe_mode') == 'Off') {
       curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 0);
     }
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME, 'verifySSL'));
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, Civi::settings()->get('verifySSL'));
     // this line makes it work under https
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payflow_query);
     //adding POST data
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME, 'verifySSL') ? 2 : 0);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, Civi::settings()->get('verifySSL') ? 2 : 0);
     //verifies ssl certificate
     curl_setopt($ch, CURLOPT_FORBID_REUSE, TRUE);
     //forces closure of connection when done
@@ -544,6 +527,9 @@ class CRM_Core_Payment_PayflowPro extends CRM_Core_Payment {
         // we got a good response, drop out of loop.
         break;
       }
+    }
+    if ($responseHeaders['http_code'] != 200) {
+      return self::errorExit(9015, "Error connecting to the payflo API server.");
     }
 
     /*

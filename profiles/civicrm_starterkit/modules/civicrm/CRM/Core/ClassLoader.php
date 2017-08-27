@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -29,7 +29,7 @@
  *
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -41,6 +41,14 @@ class CRM_Core_ClassLoader {
    * @var object
    */
   private static $_singleton = NULL;
+
+  /**
+   * The classes in CiviTest have ucky, non-standard naming.
+   *
+   * @var array
+   *   Array(string $className => string $filePath).
+   */
+  private $civiTestClasses;
 
   /**
    * @param bool $force
@@ -63,6 +71,23 @@ class CRM_Core_ClassLoader {
    */
   protected function __construct() {
     $this->_registered = FALSE;
+    $this->civiTestClasses = array(
+      'CiviCaseTestCase',
+      'CiviDBAssert',
+      'CiviMailUtils',
+      'CiviReportTestCase',
+      'CiviSeleniumTestCase',
+      'CiviTestSuite',
+      'CiviUnitTestCase',
+      'CiviEndToEndTestCase',
+      'Contact',
+      'ContributionPage',
+      'Custom',
+      'Event',
+      'Membership',
+      'Participant',
+      'PaypalPro',
+    );
   }
 
   /**
@@ -157,7 +182,7 @@ class CRM_Core_ClassLoader {
     if (
       // Only load classes that clearly belong to CiviCRM.
       // Note: api/v3 does not use classes, but api_v3's test-suite does
-      (0 === strncmp($class, 'CRM_', 4) || 0 === strncmp($class, 'api_v3_', 7) || 0 === strncmp($class, 'WebTest_', 8)) &&
+      (0 === strncmp($class, 'CRM_', 4) || 0 === strncmp($class, 'api_v3_', 7) || 0 === strncmp($class, 'WebTest_', 8) || 0 === strncmp($class, 'E2E_', 4)) &&
       // Do not load PHP 5.3 namespaced classes.
       // (in a future version, maybe)
       FALSE === strpos($class, '\\')
@@ -168,6 +193,20 @@ class CRM_Core_ClassLoader {
       // intelligible errors.
       if (FALSE != stream_resolve_include_path($file)) {
         require_once $file;
+      }
+    }
+    elseif (in_array($class, $this->civiTestClasses)) {
+      $file = "tests/phpunit/CiviTest/{$class}.php";
+      if (FALSE != stream_resolve_include_path($file)) {
+        require_once $file;
+      }
+    }
+    elseif ($class === 'CiviSeleniumSettings') {
+      if (!empty($GLOBALS['_CV'])) {
+        require_once 'tests/phpunit/CiviTest/CiviSeleniumSettings.auto.php';
+      }
+      elseif (CRM_Utils_File::isIncludable('tests/phpunit/CiviTest/CiviSeleniumSettings.php')) {
+        require_once 'tests/phpunit/CiviTest/CiviSeleniumSettings.php';
       }
     }
   }

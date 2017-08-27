@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Campaign_Page_Petition_Confirm extends CRM_Core_Page {
   /**
@@ -40,13 +38,13 @@ class CRM_Campaign_Page_Petition_Confirm extends CRM_Core_Page {
   public function run() {
     CRM_Utils_System::addHTMLHead('<META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">');
 
-    $contact_id = CRM_Utils_Request::retrieve('cid', 'Integer', CRM_Core_DAO::$_nullObject);
-    $subscribe_id = CRM_Utils_Request::retrieve('sid', 'Integer', CRM_Core_DAO::$_nullObject);
-    $hash = CRM_Utils_Request::retrieve('h', 'String', CRM_Core_DAO::$_nullObject);
-    $activity_id = CRM_Utils_Request::retrieve('a', 'String', CRM_Core_DAO::$_nullObject);
-    $petition_id = CRM_Utils_Request::retrieve('pid', 'String', CRM_Core_DAO::$_nullObject);
+    $contact_id = CRM_Utils_Request::retrieve('cid', 'Integer');
+    $subscribe_id = CRM_Utils_Request::retrieve('sid', 'Integer');
+    $hash = CRM_Utils_Request::retrieve('h', 'String');
+    $activity_id = CRM_Utils_Request::retrieve('a', 'String');
+    $petition_id = CRM_Utils_Request::retrieve('pid', 'String');
     if (!$petition_id) {
-      $petition_id = CRM_Utils_Request::retrieve('p', 'String', CRM_Core_DAO::$_nullObject);
+      $petition_id = CRM_Utils_Request::retrieve('p', 'String');
     }
 
     if (!$contact_id ||

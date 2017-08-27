@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -25,7 +25,7 @@
  +--------------------------------------------------------------------+
  */
 
-if (defined('PANTHEON_ENVIRONMENT')) {
+if (!empty($_SERVER['PRESSFLOW_SETTINGS'])) {
   ini_set('session.save_handler', 'files');
 }
 session_start();
@@ -33,6 +33,7 @@ session_start();
 require_once '../civicrm.config.php';
 require_once 'CRM/Core/Config.php';
 require_once 'CRM/Utils/Request.php';
+
 $config = CRM_Core_Config::singleton();
 
 CRM_Utils_System::authenticateScript(TRUE);

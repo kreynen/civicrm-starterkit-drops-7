@@ -4,10 +4,14 @@
  * Create SQL files to create and populate a new schema.
  */
 class CRM_Core_CodeGen_Schema extends CRM_Core_CodeGen_BaseTask {
+
   /**
+   * CRM_Core_CodeGen_Schema constructor.
+   *
+   * @param \CRM_Core_CodeGen_Main $config
    */
-  public function __construct() {
-    parent::__construct();
+  public function __construct($config) {
+    parent::__construct($config);
     $this->locales = $this->findLocales();
   }
 
@@ -108,14 +112,8 @@ class CRM_Core_CodeGen_Schema extends CRM_Core_CodeGen_BaseTask {
     require_once 'CRM/Core/Config.php';
     $config = CRM_Core_Config::singleton(FALSE);
     $locales = array();
-    if (substr($config->gettextResourceDir, 0, 1) === '/') {
-      $localeDir = $config->gettextResourceDir;
-    }
-    else {
-      $localeDir = '../' . $config->gettextResourceDir;
-    }
+    $localeDir = CRM_Core_I18n::getResourceDir();
     if (file_exists($localeDir)) {
-      $config->gettextResourceDir = $localeDir;
       $locales = preg_grep('/^[a-z][a-z]_[A-Z][A-Z]$/', scandir($localeDir));
     }
 

@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -124,10 +124,8 @@ CRM.$(function($) {
       {$form.nick_name.html}
     </td>
     <td>
-      {if $buildContactSubType}
       {$form.contact_sub_type.label}<br />
       {$form.contact_sub_type.html}
-      {/if}
     </td>
   </tr>
 </table>

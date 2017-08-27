@@ -1,7 +1,7 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -97,6 +97,8 @@ function civicrm_views_data_alter(&$data) {
   ) {
     include_once 'components/civicrm.contribute.inc';
     _civicrm_contribute_data($data, $enabled);
+    include_once 'components/civicrm.lineitem.inc';
+    _civicrm_lineitem_data($data, $enabled);
   }
   if (isset($enabled['CiviEvent'])) {
     include_once 'components/civicrm.event.inc';
@@ -302,8 +304,11 @@ function civicrm_views_add_date_arguments(&$data, $value) {
  *   Array with the new custom field appended
  */
 function civicrm_views_custom_data_cache(&$data, $entity_type, $group_id, $sub_type) {
+  if (CRM_Core_Config::isUpgradeMode()) {
+    return;
+  }
   // From http://forum.civicrm.org/index.php/topic,17658.msg73901.html#msg73901, CRM-7860.
-  $tree = CRM_Core_BAO_CustomGroup::getTree($entity_type, CRM_Core_DAO::$_nullObject, NULL, $group_id, $sub_type, NULL);
+  $tree = CRM_Core_BAO_CustomGroup::getTree($entity_type, NULL, NULL, $group_id, $sub_type, NULL);
 
   $join_table = civicrm_views_get_join_table($entity_type);
   foreach ($tree as $groupkey => $current_group) {

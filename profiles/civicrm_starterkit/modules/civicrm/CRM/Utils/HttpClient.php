@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -34,9 +34,7 @@
  * want to deal with that so late in the 4.3 dev cycle.
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Utils_HttpClient {
 
@@ -50,7 +48,8 @@ class CRM_Utils_HttpClient {
   protected static $singleton;
 
   /**
-   * @var int|NULL seconds; or NULL to use system default
+   * @var int|NULL
+   *   seconds; or NULL to use system default
    */
   protected $connectionTimeout;
 
@@ -93,15 +92,12 @@ class CRM_Utils_HttpClient {
 
     $fp = @fopen($localFile, "w");
     if (!$fp) {
-      CRM_Core_Session::setStatus(ts('Unable to write to %1.<br />Is the location writable?', array(1 => $localFile)), ts('Write Error'), 'error');
       return self::STATUS_WRITE_ERROR;
     }
     curl_setopt($ch, CURLOPT_FILE, $fp);
 
     curl_exec($ch);
     if (curl_errno($ch)) {
-      CRM_Core_Session::setStatus(ts('Unable to download extension from %1. Error Message: %2',
-        array(1 => $remoteFile, 2 => curl_error($ch))), ts('Download Error'), 'error');
       return self::STATUS_DL_ERROR;
     }
     else {
@@ -135,7 +131,7 @@ class CRM_Utils_HttpClient {
     list($ch, $caConfig) = $this->createCurl($remoteFile);
 
     if (preg_match('/^https:/', $remoteFile) && !$caConfig->isEnableSSL()) {
-      //CRM_Core_Error::fatal('Cannot install this extension - does not support SSL');
+      // CRM_Core_Error::fatal('Cannot install this extension - does not support SSL');
       return array(self::STATUS_DL_ERROR, NULL);
     }
 
@@ -171,7 +167,7 @@ class CRM_Utils_HttpClient {
     list($ch, $caConfig) = $this->createCurl($remoteFile);
 
     if (preg_match('/^https:/', $remoteFile) && !$caConfig->isEnableSSL()) {
-      //CRM_Core_Error::fatal('Cannot install this extension - does not support SSL');
+      // CRM_Core_Error::fatal('Cannot install this extension - does not support SSL');
       return array(self::STATUS_DL_ERROR, NULL);
     }
 
@@ -197,7 +193,7 @@ class CRM_Utils_HttpClient {
    */
   protected function createCurl($remoteFile) {
     $caConfig = CA_Config_Curl::probe(array(
-      'verify_peer' => (bool) CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME, 'verifySSL', NULL, TRUE),
+      'verify_peer' => (bool) Civi::settings()->get('verifySSL'),
     ));
 
     $ch = curl_init();

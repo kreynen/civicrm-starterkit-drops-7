@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -25,22 +25,26 @@
  +--------------------------------------------------------------------+
  */
 
+
 use Dompdf\Dompdf;
 use Dompdf\Options;
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Utils_PDF_Utils {
 
   /**
-   * @param $text
+   * @param array $text
+   *   List of HTML snippets.
    * @param string $fileName
+   *   The logical filename to display.
+   *   Ex: "HelloWorld.pdf".
    * @param bool $output
+   *   FALSE to display PDF. TRUE to return as string.
    * @param null $pdfFormat
+   *   Unclear. Possibly PdfFormat or formValues.
    *
    * @return string|void
    */
@@ -198,7 +202,7 @@ class CRM_Utils_PDF_Utils {
    * @return string
    */
   public static function _html2pdf_dompdf($paper_size, $orientation, $html, $output, $fileName) {
-    // CRM-12165 - Remote file support needed for image handling
+    // CRM-12165 - Remote file support required for image handling.
     $options = new Options();
     $options->set('isRemoteEnabled', TRUE);
 
@@ -241,8 +245,8 @@ class CRM_Utils_PDF_Utils {
       return $pdf;
     }
     else {
-      header('Content-Type: application/pdf');
-      header('Content-Disposition: attachment; filename="' . $fileName . '"');
+      CRM_Utils_System::setHttpHeader('Content-Type', 'application/pdf');
+      CRM_Utils_System::setHttpHeader('Content-Disposition', 'attachment; filename="' . $fileName . '"');
       echo $pdf;
     }
   }
@@ -311,122 +315,6 @@ class CRM_Utils_PDF_Utils {
       $value = round($value, $precision);
     }
     return $value;
-  }
-
-  /**
-   * @param string $fileName
-   * @param $searchPath
-   * @param $values
-   * @param int $numPages
-   * @param bool $echo
-   * @param string $output
-   * @param string $creator
-   * @param string $author
-   * @param string $title
-   */
-  public static function &pdflib(
-    $fileName,
-    $searchPath,
-    &$values,
-    $numPages = 1,
-    $echo = TRUE,
-    $output = 'College_Match_App',
-    $creator = 'CiviCRM',
-    $author = 'http://www.civicrm.org/',
-    $title = '2006 College Match Scholarship Application'
-  ) {
-    try {
-      $pdf = new PDFlib();
-      $pdf->set_parameter("compatibility", "1.6");
-      $pdf->set_parameter("licensefile", "/home/paras/bin/license/pdflib.txt");
-
-      if ($pdf->begin_document('', '') == 0) {
-        CRM_Core_Error::statusBounce("PDFlib Error: " . $pdf->get_errmsg());
-      }
-
-      $config = CRM_Core_Config::singleton();
-      $pdf->set_parameter('resourcefile', $config->templateDir . '/Quest/pdf/pdflib.upr');
-      $pdf->set_parameter('textformat', 'utf8');
-
-      /* Set the search path for fonts and PDF files */
-
-      $pdf->set_parameter('SearchPath', $searchPath);
-
-      /* This line is required to avoid problems on Japanese systems */
-
-      $pdf->set_parameter('hypertextencoding', 'winansi');
-
-      $pdf->set_info('Creator', $creator);
-      $pdf->set_info('Author', $author);
-      $pdf->set_info('Title', $title);
-
-      $blockContainer = $pdf->open_pdi($fileName, '', 0);
-      if ($blockContainer == 0) {
-        CRM_Core_Error::statusBounce('PDFlib Error: ' . $pdf->get_errmsg());
-      }
-
-      for ($i = 1; $i <= $numPages; $i++) {
-        $page = $pdf->open_pdi_page($blockContainer, $i, '');
-        if ($page == 0) {
-          CRM_Core_Error::statusBounce('PDFlib Error: ' . $pdf->get_errmsg());
-        }
-
-        /* dummy page size */
-        $pdf->begin_page_ext(20, 20, '');
-
-        /* This will adjust the page size to the block container's size. */
-
-        $pdf->fit_pdi_page($page, 0, 0, 'adjustpage');
-
-        $status = array();
-        /* Fill all text blocks with dynamic data */
-
-        foreach ($values as $key => $value) {
-          if (is_array($value)) {
-            continue;
-          }
-
-          // pdflib does like the forward slash character, hence convert
-          $value = str_replace('/', '_', $value);
-
-          $res = $pdf->fill_textblock($page,
-            $key,
-            $value,
-            'embedding encoding=winansi'
-          );
-
-        }
-
-        $pdf->end_page_ext('');
-        $pdf->close_pdi_page($page);
-      }
-
-      $pdf->end_document('');
-      $pdf->close_pdi($blockContainer);
-
-      $buf = $pdf->get_buffer();
-      $len = strlen($buf);
-
-      if ($echo) {
-        header('Content-type: application/pdf');
-        header("Content-Length: $len");
-        header("Content-Disposition: inline; filename={$output}.pdf");
-        echo $buf;
-        CRM_Utils_System::civiExit();
-      }
-      else {
-        return $buf;
-      }
-    }
-    catch (PDFlibException$excp) {
-      CRM_Core_Error::statusBounce('PDFlib Error: Exception' .
-        "[" . $excp->get_errnum() . "] " . $excp->get_apiname() . ": " .
-        $excp->get_errmsg()
-      );
-    }
-    catch (Exception$excp) {
-      CRM_Core_Error::statusBounce("PDFlib Error: " . $excp->get_errmsg());
-    }
   }
 
 }

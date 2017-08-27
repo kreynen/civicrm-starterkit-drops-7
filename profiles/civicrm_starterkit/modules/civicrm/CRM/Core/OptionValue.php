@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Core_OptionValue {
 
@@ -64,9 +62,10 @@ class CRM_Core_OptionValue {
    *   Has links like edit, delete, disable ..etc.
    * @param string $orderBy
    *   For orderBy clause.
-   * @param  bool $skipEmptyComponents
+   * @param bool $skipEmptyComponents
    *   Whether to skip OptionValue rows with empty Component name
    *   (i.e. when Extension providing the Component is disabled)
+   *
    * @return array
    *   Array of option-values
    *
@@ -149,6 +148,7 @@ class CRM_Core_OptionValue {
 
       $optionValue[$dao->id]['label'] = htmlspecialchars($optionValue[$dao->id]['label']);
       $optionValue[$dao->id]['order'] = $optionValue[$dao->id]['weight'];
+      $optionValue[$dao->id]['icon'] = CRM_Utils_Array::value('icon', $optionValue[$dao->id], '');
       $optionValue[$dao->id]['action'] = CRM_Core_Action::formLink($links, $action,
         array(
           'id' => $dao->id,
@@ -192,6 +192,7 @@ class CRM_Core_OptionValue {
    *
    */
   public static function addOptionValue(&$params, &$groupParams, &$action, &$optionValueID) {
+    $ids = array();
     $params['is_active'] = CRM_Utils_Array::value('is_active', $params, FALSE);
     // checking if the group name with the given id or name (in $groupParams) exists
     if (!empty($groupParams)) {
@@ -258,14 +259,23 @@ class CRM_Core_OptionValue {
    * @param int $optionGroupID
    * @param string $fieldName
    *   The name of the field in the DAO.
+   * @param bool $domainSpecific
+   *   Filter this check to the current domain.
+   *   Some optionGroups allow for same labels or same names but
+   *   they must be in different domains, so filter the check to
+   *   the current domain.
    *
    * @return bool
    *   true if object exists
    */
-  public static function optionExists($value, $daoName, $daoID, $optionGroupID, $fieldName = 'name') {
+  public static function optionExists($value, $daoName, $daoID, $optionGroupID, $fieldName = 'name', $domainSpecific) {
     $object = new $daoName();
     $object->$fieldName = $value;
     $object->option_group_id = $optionGroupID;
+
+    if ($domainSpecific) {
+      $object->domain_id = CRM_Core_Config::domainID();
+    }
 
     if ($object->find(TRUE)) {
       return ($daoID && $object->id == $daoID) ? TRUE : FALSE;
@@ -281,8 +291,7 @@ class CRM_Core_OptionValue {
    * @param string $mode
    * @param string $contactType
    *
-   * @return bool
-   *   true if object exists
+   * @return array
    */
   public static function getFields($mode = '', $contactType = 'Individual') {
     $key = "$mode $contactType";
@@ -297,10 +306,14 @@ class CRM_Core_OptionValue {
 
       $nameTitle = array();
       if ($mode == 'contribute') {
+        // This is part of a move towards standardising option values but we
+        // should derive them from the fields array so am deprecating it again...
+        // note that the reason this was needed was that payment_instrument_id was
+        // not set to exportable.
         $nameTitle = array(
           'payment_instrument' => array(
             'name' => 'payment_instrument',
-            'title' => ts('Payment Instrument'),
+            'title' => ts('Payment Method'),
             'headerPattern' => '/^payment|(p(ayment\s)?instrument)$/i',
           ),
         );
@@ -356,8 +369,6 @@ class CRM_Core_OptionValue {
    * Build select query in case of option-values
    *
    * @param $query
-   *
-   * @return void
    */
   public static function select(&$query) {
     if (!empty($query->_params) || !empty($query->_returnProperties)) {

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -56,6 +56,27 @@ abstract class CRM_Utils_System_DrupalBase extends CRM_Utils_System_Base {
      */
     $this->is_drupal = TRUE;
     $this->supports_form_extensions = TRUE;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  public function getDefaultFileStorage() {
+    $config = CRM_Core_Config::singleton();
+    $baseURL = CRM_Utils_System::languageNegotiationURL($config->userFrameworkBaseURL, FALSE, TRUE);
+
+    $siteName = $this->parseDrupalSiteNameFromRequest('/files/civicrm');
+    if ($siteName) {
+      $filesURL = $baseURL . "sites/$siteName/files/civicrm/";
+    }
+    else {
+      $filesURL = $baseURL . "sites/default/files/civicrm/";
+    }
+
+    return array(
+      'url' => $filesURL,
+      'path' => CRM_Utils_File::baseFilePath(),
+    );
   }
 
   /**
@@ -110,7 +131,7 @@ abstract class CRM_Utils_System_DrupalBase extends CRM_Utils_System_Base {
     // Handle relative urls that are within the CiviCRM module directory
     elseif (strpos($url, $base) === 0) {
       $internal = TRUE;
-      $url = $this->appendCoreDirectoryToResourceBase(substr(drupal_get_path('module', 'civicrm'), 0, -6)) . trim(substr($url, strlen($base)), '/');
+      $url = $this->appendCoreDirectoryToResourceBase(dirname(drupal_get_path('module', 'civicrm')) . '/') . trim(substr($url, strlen($base)), '/');
     }
     // Strip query string
     $q = strpos($url, '?');
@@ -151,7 +172,6 @@ abstract class CRM_Utils_System_DrupalBase extends CRM_Utils_System_Base {
     $query = NULL,
     $absolute = FALSE,
     $fragment = NULL,
-    $htmlize = TRUE,
     $frontend = FALSE,
     $forceBackend = FALSE
   ) {
@@ -164,13 +184,9 @@ abstract class CRM_Utils_System_DrupalBase extends CRM_Utils_System_Base {
       $fragment = '#' . $fragment;
     }
 
-    if (!isset($config->useFrameworkRelativeBase)) {
-      $base = parse_url($config->userFrameworkBaseURL);
-      $config->useFrameworkRelativeBase = $base['path'];
-    }
     $base = $absolute ? $config->userFrameworkBaseURL : $config->useFrameworkRelativeBase;
 
-    $separator = $htmlize ? '&amp;' : '&';
+    $separator = '&';
 
     if (!$config->cleanURL) {
       if (isset($path)) {
@@ -257,7 +273,7 @@ abstract class CRM_Utils_System_DrupalBase extends CRM_Utils_System_Base {
           'cms:view user account',
         ))
     ) {
-      return CRM_Utils_System::url('user/' . $uid);
+      return $this->url('user/' . $uid);
     };
   }
 
@@ -286,6 +302,8 @@ abstract class CRM_Utils_System_DrupalBase extends CRM_Utils_System_Base {
 
   /**
    * Append Drupal js to coreResourcesList.
+   *
+   * @param array $list
    */
   public function appendCoreResources(&$list) {
     $list[] = 'js/crm.drupal.js';
@@ -434,6 +452,29 @@ abstract class CRM_Utils_System_DrupalBase extends CRM_Utils_System_Base {
   }
 
   /**
+   * @inheritDoc
+   */
+  public function setUFLocale($civicrm_language) {
+    global $language;
+
+    $langcode = substr($civicrm_language, 0, 2);
+    $languages = language_list();
+
+    if (isset($languages[$langcode])) {
+      $language = $languages[$langcode];
+
+      // Config must be re-initialized to reset the base URL
+      // otherwise links will have the wrong language prefix/domain.
+      $config = CRM_Core_Config::singleton();
+      $config->free();
+
+      return TRUE;
+    }
+
+    return FALSE;
+  }
+
+  /**
    * Perform any post login activities required by the UF -
    * e.g. for drupal: records a watchdog message about the new session, saves the login timestamp,
    * calls hook_user op 'login' and generates a new session.
@@ -482,6 +523,10 @@ abstract class CRM_Utils_System_DrupalBase extends CRM_Utils_System_Base {
   /**
    * Fixme: Why are we overriding the parent function? Seems inconsistent.
    * This version supplies slightly different params to $this->url (not absolute and html encoded) but why?
+   *
+   * @param string $action
+   *
+   * @return string
    */
   public function postURL($action) {
     if (!empty($action)) {
@@ -519,6 +564,84 @@ abstract class CRM_Utils_System_DrupalBase extends CRM_Utils_System_Base {
    */
   public function getUserObject($userID) {
     return user_load($userID);
+  }
+
+  /**
+   * Parse the name of the drupal site.
+   *
+   * @param string $civicrm_root
+   *
+   * @return null|string
+   * @deprecated
+   */
+  public function parseDrupalSiteNameFromRoot($civicrm_root) {
+    $siteName = NULL;
+    if (strpos($civicrm_root,
+        DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . 'all' . DIRECTORY_SEPARATOR . 'modules'
+      ) === FALSE
+    ) {
+      $startPos = strpos($civicrm_root,
+        DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR
+      );
+      $endPos = strpos($civicrm_root,
+        DIRECTORY_SEPARATOR . 'modules' . DIRECTORY_SEPARATOR
+      );
+      if ($startPos && $endPos) {
+        // if component is in sites/SITENAME/modules
+        $siteName = substr($civicrm_root,
+          $startPos + 7,
+          $endPos - $startPos - 7
+        );
+      }
+    }
+    return $siteName;
+  }
+
+  /**
+   * Determine if Drupal multi-site applies to the current request -- and,
+   * specifically, determine the name of the multisite folder.
+   *
+   * @param string $flagFile
+   *   Check if $flagFile exists inside the site dir.
+   * @return null|string
+   *   string, e.g. `bar.example.com` if using multisite.
+   *   NULL if using the default site.
+   */
+  private function parseDrupalSiteNameFromRequest($flagFile = '') {
+    $phpSelf = array_key_exists('PHP_SELF', $_SERVER) ? $_SERVER['PHP_SELF'] : '';
+    $httpHost = array_key_exists('HTTP_HOST', $_SERVER) ? $_SERVER['HTTP_HOST'] : '';
+    if (empty($httpHost)) {
+      $httpHost = parse_url(CIVICRM_UF_BASEURL, PHP_URL_HOST);
+      if (parse_url(CIVICRM_UF_BASEURL, PHP_URL_PORT)) {
+        $httpHost .= ':' . parse_url(CIVICRM_UF_BASEURL, PHP_URL_PORT);
+      }
+    }
+
+    $confdir = $this->cmsRootPath() . '/sites';
+
+    if (file_exists($confdir . "/sites.php")) {
+      include $confdir . "/sites.php";
+    }
+    else {
+      $sites = array();
+    }
+
+    $uri = explode('/', $phpSelf);
+    $server = explode('.', implode('.', array_reverse(explode(':', rtrim($httpHost, '.')))));
+    for ($i = count($uri) - 1; $i > 0; $i--) {
+      for ($j = count($server); $j > 0; $j--) {
+        $dir = implode('.', array_slice($server, -$j)) . implode('.', array_slice($uri, 0, $i));
+        if (file_exists("$confdir/$dir" . $flagFile)) {
+          \Civi::$statics[__CLASS__]['drupalSiteName'] = $dir;
+          return \Civi::$statics[__CLASS__]['drupalSiteName'];
+        }
+        // check for alias
+        if (isset($sites[$dir]) && file_exists("$confdir/{$sites[$dir]}" . $flagFile)) {
+          \Civi::$statics[__CLASS__]['drupalSiteName'] = $sites[$dir];
+          return \Civi::$statics[__CLASS__]['drupalSiteName'];
+        }
+      }
+    }
   }
 
 }

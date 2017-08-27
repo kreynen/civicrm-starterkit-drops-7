@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  *
  */
 
@@ -58,8 +58,8 @@ class CRM_Core_Page_AJAX_Location {
     }
 
     // Verify user permission on related contact
-    $employers = CRM_Contact_BAO_Relationship::getPermissionedEmployer($user);
-    if (!isset($employers[$cid])) {
+    $organizations = CRM_Contact_BAO_Relationship::getPermissionedContacts($user, NULL, NULL, 'Organization');
+    if (!isset($organizations[$cid])) {
       CRM_Utils_System::civiExit();
     }
 
@@ -128,6 +128,7 @@ class CRM_Core_Page_AJAX_Location {
       'street_address',
       'supplemental_address_1',
       'supplemental_address_2',
+      'supplemental_address_3',
       'city',
       'postal_code',
       'county',
@@ -145,7 +146,8 @@ class CRM_Core_Page_AJAX_Location {
         }
         $elements["onbehalf_{$field}-{$locTypeId}"] = array(
           'type' => $type,
-          'value' => isset($location['address'][1]) ? $location['address'][1][$addField] : NULL,
+          'value' => isset($location['address'][1]) ? CRM_Utils_Array::value($addField,
+            $location['address'][1]) : NULL,
         );
         unset($profileFields["{$field}-{$locTypeId}"]);
       }
@@ -179,8 +181,8 @@ class CRM_Core_Page_AJAX_Location {
           }
           elseif ($htmlType == 'Select Date') {
             $elements["onbehalf_{$key}"]['type'] = $htmlType;
-            $elements["onbehalf_{$key}"]['value'] = $defaults[$key];
-            $elements["onbehalf_{$key}_display"]['value'] = $defaults[$key];
+            //CRM-18349, date value must be ISO formatted before being set as a default value for crmDatepicker custom field
+            $elements["onbehalf_{$key}"]['value'] = CRM_Utils_Date::processDate($defaults[$key], NULL, FALSE, 'Y-m-d G:i:s');
           }
           else {
             $elements["onbehalf_{$key}"]['type'] = $htmlType;

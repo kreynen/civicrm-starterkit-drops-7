@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -27,6 +27,9 @@
 
 /**
  * Class CRM_Extension_Exception
+ *
+ * @package CRM
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Extension_Exception extends CRM_Core_Exception {
 }

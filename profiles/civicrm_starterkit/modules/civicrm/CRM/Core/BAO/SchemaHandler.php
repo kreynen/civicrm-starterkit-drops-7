@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,17 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- *  This file contains functions for creating and altering CiviCRM-tables.
- */
-
-/**
- * structure, similar to what is used in GenCode.php
+ *  This file contains functions for creating and altering CiviCRM-tables structure.
  *
  * $table = array(
  *  'name'  => TABLE_NAME,
@@ -363,23 +357,38 @@ ALTER TABLE {$tableName}
   }
 
   /**
-   * Delete a CiviCRM-table
+   * Delete a CiviCRM-table.
    *
    * @param string $tableName
    *   Name of the table to be created.
    */
   public static function dropTable($tableName) {
     $sql = "DROP TABLE $tableName";
-    $dao = CRM_Core_DAO::executeQuery($sql);
+    CRM_Core_DAO::executeQuery($sql);
   }
 
   /**
    * @param string $tableName
    * @param string $columnName
+   * @param bool $l18n
+   *
    */
-  public static function dropColumn($tableName, $columnName) {
-    $sql = "ALTER TABLE $tableName DROP COLUMN $columnName";
-    CRM_Core_DAO::executeQuery($sql);
+  public static function dropColumn($tableName, $columnName, $l18n = FALSE) {
+    if (self::checkIfFieldExists($tableName, $columnName)) {
+      $sql = "ALTER TABLE $tableName DROP COLUMN $columnName";
+      if ($l18n) {
+        CRM_Core_DAO::executeQuery($sql);
+      }
+      else {
+        CRM_Core_DAO::executeQuery($sql, array(), TRUE, NULL, FALSE, FALSE);
+      }
+      $domain = new CRM_Core_DAO_Domain();
+      $domain->find(TRUE);
+      if ($domain->locales) {
+        $locales = explode(CRM_Core_DAO::VALUE_SEPARATOR, $domain->locales);
+        CRM_Core_I18n_Schema::rebuildMultilingualSchema($locales, NULL);
+      }
+    }
   }
 
   /**
@@ -397,7 +406,7 @@ ADD INDEX `FK_{$tableName}_entity_id` ( `entity_id` )";
 DROP INDEX `FK_{$tableName}_entity_id` ,
 ADD UNIQUE INDEX `unique_entity_id` ( `entity_id` )";
     }
-    $dao = CRM_Core_DAO::executeQuery($sql);
+    CRM_Core_DAO::executeQuery($sql);
   }
 
   /**
@@ -419,9 +428,9 @@ ADD UNIQUE INDEX `unique_entity_id` ( `entity_id` )";
    * @todo add support for length & multilingual on combined keys.
    *
    * @param string $createIndexPrefix
-   * @param array $substrLenghts
+   * @param array $substrLengths
    */
-  public static function createIndexes($tables, $createIndexPrefix = 'index', $substrLenghts = array()) {
+  public static function createIndexes($tables, $createIndexPrefix = 'index', $substrLengths = array()) {
     $queries = array();
     $domain = new CRM_Core_DAO_Domain();
     $domain->find(TRUE);
@@ -455,8 +464,8 @@ ADD UNIQUE INDEX `unique_entity_id` ( `entity_id` )";
         else {
           // handle indices over substrings, CRM-6245
           // $lengthName is appended to index name, $lengthSize is the field size modifier
-          $lengthName = isset($substrLenghts[$table][$fieldName]) ? "_{$substrLenghts[$table][$fieldName]}" : '';
-          $lengthSize = isset($substrLenghts[$table][$fieldName]) ? "({$substrLenghts[$table][$fieldName]})" : '';
+          $lengthName = isset($substrLengths[$table][$fieldName]) ? "_{$substrLengths[$table][$fieldName]}" : '';
+          $lengthSize = isset($substrLengths[$table][$fieldName]) ? "({$substrLengths[$table][$fieldName]})" : '';
         }
 
         $names = array(
@@ -495,6 +504,32 @@ ADD UNIQUE INDEX `unique_entity_id` ( `entity_id` )";
     foreach ($queries as $query) {
       $dao->query($query, FALSE);
     }
+  }
+
+  /**
+   * Get indexes for tables
+   * @param array $tables
+   *   array of table names to find indexes for
+   *
+   * @return array('tableName' => array('index1', 'index2'))
+   */
+  public static function getIndexes($tables) {
+    $indexes = array();
+    foreach ($tables as $table) {
+      $query = "SHOW INDEX FROM $table";
+      $dao = CRM_Core_DAO::executeQuery($query);
+
+      $tableIndexes = array();
+      while ($dao->fetch()) {
+        $tableIndexes[$dao->Key_name]['name'] = $dao->Key_name;
+        $tableIndexes[$dao->Key_name]['field'][] = $dao->Column_name .
+         ($dao->Sub_part ? '(' . $dao->Sub_part . ')' : '');
+        $tableIndexes[$dao->Key_name]['unique'] = ($dao->Non_unique == 0 ? 1 : 0);
+      }
+      $indexes[$table] = $tableIndexes;
+      $dao->free();
+    }
+    return $indexes;
   }
 
   /**
@@ -572,7 +607,7 @@ MODIFY      {$columnName} varchar( $length )
    * @param string $tableName
    * @param array $indexName
    *
-   * @return \CRM_Core_DAO|object
+   * @return bool
    */
   public static function checkIfIndexExists($tableName, $indexName) {
     $result = CRM_Core_DAO::executeQuery(
@@ -586,12 +621,12 @@ MODIFY      {$columnName} varchar( $length )
   }
 
   /**
-   * Check if the table has a specified column
+   * Check if the table has a specified column.
    *
    * @param string $tableName
    * @param string $columnName
    *
-   * @return \CRM_Core_DAO|object
+   * @return bool
    */
   public static function checkIfFieldExists($tableName, $columnName) {
     $result = CRM_Core_DAO::executeQuery(
@@ -605,13 +640,12 @@ MODIFY      {$columnName} varchar( $length )
   }
 
   /**
-   * Remove a foreign key from a table if it exists
-   *
-   * @param $table_name
-   * @param $constraint_name
+   * Check if a foreign key Exists
+   * @param string $table_name
+   * @param string $constraint_name
+   * @return bool TRUE if FK is found
    */
-  public static function safeRemoveFK($table_name, $constraint_name) {
-
+  public static function checkFKExists($table_name, $constraint_name) {
     $config = CRM_Core_Config::singleton();
     $dbUf = DB::parseDSN($config->dsn);
     $query = "
@@ -629,10 +663,103 @@ MODIFY      {$columnName} varchar( $length )
     $dao = CRM_Core_DAO::executeQuery($query, $params);
 
     if ($dao->fetch()) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  /**
+   * Remove a foreign key from a table if it exists.
+   *
+   * @param $table_name
+   * @param $constraint_name
+   *
+   * @return bool
+   */
+  public static function safeRemoveFK($table_name, $constraint_name) {
+    if (self::checkFKExists($table_name, $constraint_name)) {
       CRM_Core_DAO::executeQuery("ALTER TABLE {$table_name} DROP FOREIGN KEY {$constraint_name}", array());
       return TRUE;
     }
     return FALSE;
+  }
+
+  /**
+   * Add index signature hash to DAO file calculation.
+   *
+   * @param string $table table name
+   * @param array $indices index array spec
+   */
+  public static function addIndexSignature($table, &$indices) {
+    foreach ($indices as $indexName => $index) {
+      $indices[$indexName]['sig'] = $table . "::" .
+        (array_key_exists('unique', $index) ? $index['unique'] : 0) . "::" .
+        implode("::", $index['field']);
+    }
+  }
+
+  /**
+   * Compare the indices specified in the XML files with those in the DB.
+   *
+   * @return array
+   *   index specifications
+   */
+  public static function getMissingIndices() {
+    $requiredSigs = $existingSigs = array();
+    // Get the indices defined (originally) in the xml files
+    $requiredIndices = CRM_Core_DAO_AllCoreTables::indices();
+    foreach ($requiredIndices as $table => $indices) {
+      $reqSigs[] = CRM_Utils_Array::collect('sig', $indices);
+    }
+    CRM_Utils_Array::flatten($reqSigs, $requiredSigs);
+
+    // Get the indices in the database
+    $existingIndices = CRM_Core_BAO_SchemaHandler::getIndexes(array_keys($requiredIndices));
+    foreach ($existingIndices as $table => $indices) {
+      CRM_Core_BAO_SchemaHandler::addIndexSignature($table, $indices);
+      $extSigs[] = CRM_Utils_Array::collect('sig', $indices);
+    }
+    CRM_Utils_Array::flatten($extSigs, $existingSigs);
+
+    // Compare
+    $missingSigs = array_diff($requiredSigs, $existingSigs);
+    // Get missing indices
+    $missingIndices = array();
+    foreach ($missingSigs as $sig) {
+      $sigParts = explode('::', $sig);
+      foreach ($requiredIndices[$sigParts[0]] as $index) {
+        if ($index['sig'] == $sig) {
+          $missingIndices[$sigParts[0]][] = $index;
+          continue;
+        }
+      }
+    }
+    return $missingIndices;
+  }
+
+  /**
+   * Create missing indices.
+   *
+   * @param array $missingIndices as returned by getMissingIndices()
+   */
+  public static function createMissingIndices($missingIndices) {
+    $queries = array();
+    foreach ($missingIndices as $table => $indexList) {
+      foreach ($indexList as $index) {
+        $queries[] = "CREATE " .
+        (array_key_exists('unique', $index) && $index['unique'] ? 'UNIQUE ' : '') .
+        "INDEX {$index['name']} ON {$table} (" .
+          implode(", ", $index['field']) .
+        ")";
+      }
+    }
+
+    /* FIXME potential problem if index name already exists, so check before creating */
+    $dao = new CRM_Core_DAO();
+    foreach ($queries as $query) {
+      $dao->query($query, FALSE);
+    }
+    $dao->free();
   }
 
 }

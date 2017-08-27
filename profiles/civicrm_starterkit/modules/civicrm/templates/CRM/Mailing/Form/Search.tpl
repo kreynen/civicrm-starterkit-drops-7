@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -62,6 +62,15 @@
            </td>
         {/if}
     </tr>
+
+    {* language *}
+    {if $form.language}
+      <tr>
+        <td>{$form.language.label} {help id="id-language"}<br />
+            {$form.language.html|crmAddClass:big}
+        </td>
+      </tr>
+    {/if}
 
     {* campaign in mailing search *}
     {include file="CRM/Campaign/Form/addCampaignToComponent.tpl"

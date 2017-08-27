@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -32,7 +32,7 @@
 {/if}
 {assign var=defaultZoom value=12}
 {literal}
-<script src="http://openlayers.org/api/OpenLayers.js" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/2.13.1/OpenLayers.js" type="text/javascript"></script>
 <script type="text/javascript">
     var popup = new Popup();
 
@@ -69,7 +69,14 @@
 
     function initMap() {
         var map = new OpenLayers.Map("osm_map");
-        map.addLayer(new OpenLayers.Layer.OSM());
+        map.addLayer(new OpenLayers.Layer.OSM("CARTO OSM", [
+          "https://cartodb-basemaps-1.global.ssl.fastly.net/light_all/${z}/${x}/${y}.png",
+          "https://cartodb-basemaps-2.global.ssl.fastly.net/light_all/${z}/${x}/${y}.png",
+          "https://cartodb-basemaps-3.global.ssl.fastly.net/light_all/${z}/${x}/${y}.png",
+          "https://cartodb-basemaps-4.global.ssl.fastly.net/light_all/${z}/${x}/${y}.png",
+        ], {
+            attribution: 'Data &copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>. Map tiles &copy; <a href="https://carto.com/attribution" target="_blank">CARTO</a>.'
+        }));
 
         var lonLat = new OpenLayers.LonLat(
             {/literal}{$center.lng}{literal},

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -156,7 +156,6 @@ function _civicrm_api3_constant_get_spec(&$params) {
     'fromEmailAddress',
     'gender',
     'group',
-    'groupIterator',
     'honor',
     'IMProvider',
     'individualPrefix',

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,8 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
+ * @copyright CiviCRM LLC (c) 2004-2017
  *
  */
 
@@ -122,7 +121,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
   protected $_isPermissionedChecksum = FALSE;
 
   /**
-   * THe context from which we came from, allows us to go there if redirect not set
+   * THe context from which we came from, allows us to go there if redirect not set.
    *
    * @var string
    */
@@ -135,11 +134,9 @@ class CRM_Profile_Form extends CRM_Core_Form {
    */
   protected $_ctype = NULL;
 
-  protected $_defaults = NULL;
-
   /**
    * Store profile ids if multiple profile ids are passed using comma separated.
-   * Currently lets implement this functionality only for dialog mode
+   * Currently lets implement this functionality only for dialog mode.
    */
   protected $_profileIds = array();
 
@@ -163,7 +160,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
   protected $_recordId = NULL;
 
   /**
-   * Action for multi record profile (create/edit/delete)
+   * Action for multi record profile (create/edit/delete).
    *
    * @var string
    */
@@ -183,13 +180,16 @@ class CRM_Profile_Form extends CRM_Core_Form {
   protected $_session = NULL;
 
   /**
+   * Explicitly declare the entity api name.
+   */
+  public function getDefaultEntity() {
+    return 'Profile';
+  }
+
+  /**
    * Pre processing work done here.
    *
    * gets session variables for table name, id of entity in table, type of entity and stores them.
-   *
-   * @param
-   *
-   * @return void
    */
   public function preProcess() {
     $this->_id = $this->get('id');
@@ -263,7 +263,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
     }
     $this->_isContactActivityProfile = CRM_Core_BAO_UFField::checkContactActivityProfileType($this->_gid);
 
-    //get values for ufGroupName, captch and dupe update.
+    //get values for ufGroupName, captcha and dupe update.
     if ($this->_gid) {
       $dao = new CRM_Core_DAO_UFGroup();
       $dao->id = $this->_gid;
@@ -284,7 +284,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
 
     $gids = empty($this->_profileIds) ? $this->_gid : $this->_profileIds;
 
-    // if we dont have a gid use the default, else just use that specific gid
+    // if we don't have a gid use the default, else just use that specific gid
     if (($this->_mode == self::MODE_REGISTER || $this->_mode == self::MODE_CREATE) && !$this->_gid) {
       $this->_ctype = CRM_Utils_Request::retrieve('ctype', 'String', $this, FALSE, 'Individual', 'REQUEST');
       $this->_fields = CRM_Core_BAO_UFGroup::getRegistrationFields($this->_action, $this->_mode, $this->_ctype);
@@ -308,7 +308,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
         ($this->_action == CRM_Core_Action::ADD) ? CRM_Core_Permission::CREATE : CRM_Core_Permission::EDIT
       );
       $multiRecordFieldListing = FALSE;
-      //using selector for listing of multirecord fields
+      //using selector for listing of multi-record fields
       if ($this->_mode == self::MODE_EDIT && $this->_gid) {
         CRM_Core_BAO_UFGroup::shiftMultiRecordFields($this->_fields, $this->_multiRecordFields);
 
@@ -320,7 +320,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
             $this->_recordId = NULL;
             $this->set('recordId', NULL);
           }
-          //record id is neccessary for _multiRecord view and update/edit action
+          //record id is necessary for _multiRecord view and update/edit action
           if (!$this->_recordId
             && ($this->_multiRecord == CRM_Core_Action::UPDATE || $this->_multiRecord == CRM_Core_Action::DELETE)
           ) {
@@ -366,12 +366,12 @@ class CRM_Profile_Form extends CRM_Core_Form {
         }
         elseif (!empty($this->_multiRecordFields)
           && (!$this->_multiRecord || !in_array($this->_multiRecord, array(
-                CRM_Core_Action::DELETE,
-                CRM_Core_Action::UPDATE,
-              )))
+            CRM_Core_Action::DELETE,
+            CRM_Core_Action::UPDATE,
+          )))
         ) {
           CRM_Core_Resources::singleton()->addScriptFile('civicrm', 'js/crm.livePage.js', 1, 'html-header');
-          //multirecord listing page
+          //multi-record listing page
           $multiRecordFieldListing = TRUE;
           $page = new CRM_Profile_Page_MultipleRecordFieldsListing();
           $cs = $this->get('cs');
@@ -423,8 +423,6 @@ class CRM_Profile_Form extends CRM_Core_Form {
    * Set default values for the form. Note that in edit/view mode
    * the default values are retrieved from the database
    *
-   *
-   * @return void
    */
   public function setDefaultsValues() {
     $this->_defaults = array();
@@ -502,7 +500,11 @@ class CRM_Profile_Form extends CRM_Core_Form {
             ) {
               $entityId = $this->_activityId;
             }
-            $url = CRM_Core_BAO_CustomField::getFileURL($entityId, $key);
+
+            $url = '';
+            if (isset($value)) {
+              $url = CRM_Core_BAO_CustomField::getFileURL($entityId, $key, $value);
+            }
 
             if ($url) {
               $customFiles[$name]['displayURL'] = ts("Attached File") . ": {$url['file_url']}";
@@ -572,13 +574,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
     }
 
     if (!empty($this->_defaults['image_URL'])) {
-      list($imageWidth, $imageHeight) = getimagesize(CRM_Utils_String::unstupifyUrl($this->_defaults['image_URL']));
-      list($imageThumbWidth, $imageThumbHeight) = CRM_Contact_BAO_Contact::getThumbSize($imageWidth, $imageHeight);
-      $this->assign("imageWidth", $imageWidth);
-      $this->assign("imageHeight", $imageHeight);
-      $this->assign("imageThumbWidth", $imageThumbWidth);
-      $this->assign("imageThumbHeight", $imageThumbHeight);
-      $this->assign("imageURL", $this->_defaults['image_URL']);
+      $this->assign("imageURL", CRM_Utils_File::getImageURL($this->_defaults['image_URL']));
       $this->removeFileRequiredRules('image_URL');
     }
 
@@ -596,7 +592,6 @@ class CRM_Profile_Form extends CRM_Core_Form {
   /**
    * Build the form object.
    *
-   * @return void
    */
   public function buildQuickForm() {
     $this->add('hidden', 'gid', $this->_gid);
@@ -708,7 +703,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
     $admin = TRUE;
     if ($this->_mode == self::MODE_EDIT) {
       $admin = FALSE;
-      // show all fields that are visibile:
+      // show all fields that are visible:
       // if we are a admin OR the same user OR acl-user with access to the profile
       // or we have checksum access to this contact (i.e. the user without a login) - CRM-5909
       if (
@@ -818,7 +813,8 @@ class CRM_Profile_Form extends CRM_Core_Form {
     $this->setDefaultsValues();
 
     $action = CRM_Utils_Request::retrieve('action', 'String', $this, FALSE, NULL);
-    if ($this->_mode == self::MODE_CREATE) {
+
+    if ($this->_mode == self::MODE_CREATE || $this->_mode == self::MODE_EDIT) {
       CRM_Core_BAO_CMSUser::buildForm($this, $this->_gid, $emailPresent, $action);
     }
     else {
@@ -914,7 +910,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
       $register = TRUE;
     }
 
-    // dont check for duplicates during registration validation: CRM-375
+    // don't check for duplicates during registration validation: CRM-375
     if (!$register && empty($fields['_qf_Edit_upload_duplicate'])) {
       // fix for CRM-3240
       if (!empty($fields['email-Primary'])) {
@@ -932,7 +928,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
       if (!$ctype) {
         $ctype = 'Individual';
       }
-      $dedupeParams = CRM_Dedupe_Finder::formatParams($fields, $ctype);
+
       if ($form->_mode == CRM_Profile_Form::MODE_CREATE) {
         // fix for CRM-2888
         $exceptions = array();
@@ -942,17 +938,11 @@ class CRM_Profile_Form extends CRM_Core_Form {
         $exceptions = array($form->_session->get('userID'));
       }
 
-      // for dialog mode we should always use fuzzy rule.
-      $ruleType = 'Unsupervised';
-      if ($form->_context == 'dialog') {
-        $ruleType = 'Supervised';
-      }
-
-      $dedupeParams['check_permission'] = FALSE;
-      $ids = CRM_Dedupe_Finder::dupesByParams($dedupeParams,
-        $ctype,
-        $ruleType,
+      $ids = CRM_Contact_BAO_Contact::getDuplicateContacts(
+        $fields, $ctype,
+        ($form->_context === 'dialog' ? 'Supervised' : 'Unsupervised'),
         $exceptions,
+        FALSE,
         $form->_ruleGroupID
       );
       if ($ids) {
@@ -970,20 +960,20 @@ class CRM_Profile_Form extends CRM_Core_Form {
 
             $duplicateContactsLinks = '<div class="matching-contacts-found">';
             $duplicateContactsLinks .= ts('One matching contact was found. ', array(
-                'count' => count($contactLinks['rows']),
-                'plural' => '%count matching contacts were found.<br />',
-              ));
+              'count' => count($contactLinks['rows']),
+              'plural' => '%count matching contacts were found.<br />',
+            ));
             if ($contactLinks['msg'] == 'view') {
               $duplicateContactsLinks .= ts('You can View the existing contact.', array(
-                  'count' => count($contactLinks['rows']),
-                  'plural' => 'You can View the existing contacts.',
-                ));
+                'count' => count($contactLinks['rows']),
+                'plural' => 'You can View the existing contacts.',
+              ));
             }
             else {
               $duplicateContactsLinks .= ts('You can View or Edit the existing contact.', array(
-                  'count' => count($contactLinks['rows']),
-                  'plural' => 'You can View or Edit the existing contacts.',
-                ));
+                'count' => count($contactLinks['rows']),
+                'plural' => 'You can View or Edit the existing contacts.',
+              ));
             }
             $duplicateContactsLinks .= '</div>';
             $duplicateContactsLinks .= '<table class="matching-contacts-actions">';
@@ -1076,8 +1066,6 @@ class CRM_Profile_Form extends CRM_Core_Form {
   /**
    * Process the user submitted custom data values.
    *
-   *
-   * @return void
    */
   public function postProcess() {
     $params = $this->controller->exportValues($this->_name);
@@ -1319,7 +1307,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
 
     //create CMS user (if CMS user option is selected in profile)
     if (!empty($params['cms_create_account']) &&
-      $this->_mode == self::MODE_CREATE
+      ($this->_mode == self::MODE_CREATE || $this->_mode == self::MODE_EDIT)
     ) {
       $params['contactID'] = $this->_id;
       if (!CRM_Core_BAO_CMSUser::create($params, $this->_mail)) {
@@ -1365,9 +1353,6 @@ class CRM_Profile_Form extends CRM_Core_Form {
    *
    * @return string
    */
-  /**
-   * @return string
-   */
   public function getTemplateFileName() {
     $fileName = $this->checkTemplateFileExists();
     return $fileName ? $fileName : parent::getTemplateFileName();
@@ -1377,9 +1362,6 @@ class CRM_Profile_Form extends CRM_Core_Form {
    * Default extra tpl file basically just replaces .tpl with .extra.tpl
    * i.e. we dont override
    *
-   * @return string
-   */
-  /**
    * @return string
    */
   public function overrideExtraTemplateFileName() {

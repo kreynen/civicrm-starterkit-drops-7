@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * Page for displaying list of payment processors
+ * Page for displaying list of payment processors.
  */
 class CRM_Admin_Page_PaymentProcessor extends CRM_Core_Page_Basic {
 
@@ -97,8 +95,6 @@ class CRM_Admin_Page_PaymentProcessor extends CRM_Core_Page_Basic {
    * This method is called after the page is created. It checks for the
    * type of action and executes that action.
    * Finally it calls the parent's run method.
-   *
-   * @return void
    */
   public function run() {
     // set title and breadcrumb
@@ -125,8 +121,6 @@ class CRM_Admin_Page_PaymentProcessor extends CRM_Core_Page_Basic {
    * Browse all payment processors.
    *
    * @param null $action
-   *
-   * @return void
    */
   public function browse($action = NULL) {
     // get all custom groups sorted by weight
@@ -162,7 +156,7 @@ class CRM_Admin_Page_PaymentProcessor extends CRM_Core_Page_Basic {
         'PaymentProcessor',
         $dao->id
       );
-      $paymentProcessor[$dao->id]['financialAccount'] = CRM_Financial_BAO_FinancialTypeAccount::getFinancialAccount($dao->id, 'civicrm_payment_processor');
+      $paymentProcessor[$dao->id]['financialAccount'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($dao->id, NULL, 'civicrm_payment_processor', 'financial_account_id.name');
     }
 
     $this->assign('rows', $paymentProcessor);

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Contact_Form_Edit_TagsAndGroups {
 
@@ -42,8 +40,7 @@ class CRM_Contact_Form_Edit_TagsAndGroups {
   const GROUP = 1, TAG = 2, ALL = 3;
 
   /**
-   * build form elements.
-   * params object $form object of the form
+   * Build form elements.
    *
    * @param CRM_Core_Form $form
    *   The form object that we are operating on.
@@ -178,6 +175,7 @@ class CRM_Contact_Form_Edit_TagsAndGroups {
       $form->assign('tag', $tree);
       $form->assign('entityID', $contactId);
       $form->assign('entityTable', 'civicrm_contact');
+      $form->assign('allTags', CRM_Core_BAO_Tag::getTagsUsedFor('civicrm_contact', FALSE));
 
       if ($isRequired) {
         $form->addRule($fName, ts('%1 is a required field.', array(1 => $tagName)), 'required');
@@ -228,8 +226,6 @@ class CRM_Contact_Form_Edit_TagsAndGroups {
    *   This is used in batch profile(i.e to build multiple blocks).
    *
    * @param string $groupElementType
-   *
-   * @return void
    */
   public static function setDefaults($id, &$defaults, $type = self::ALL, $fieldName = NULL, $groupElementType = 'checkbox') {
     $type = (int ) $type;
@@ -273,9 +269,7 @@ class CRM_Contact_Form_Edit_TagsAndGroups {
    *
    *
    * @param CRM_Core_Form $form
-   * @param $defaults
-   *
-   * @return void
+   * @param array $defaults
    */
   public static function setDefaultValues(&$form, &$defaults) {
     $contactEditOptions = $form->get('contactEditOptions');

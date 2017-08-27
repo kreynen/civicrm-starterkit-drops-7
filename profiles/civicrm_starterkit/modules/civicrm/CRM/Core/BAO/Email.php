@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,19 +28,18 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class contains functions for email handling
+ * This class contains functions for email handling.
  */
 class CRM_Core_BAO_Email extends CRM_Core_DAO_Email {
 
   /**
-   * Create email address - note that the create function calls 'add' but
-   * has more business logic
+   * Create email address.
+   *
+   * Note that the create function calls 'add' but  has more business logic.
    *
    * @param array $params
    *   Input parameters.
@@ -73,10 +72,11 @@ class CRM_Core_BAO_Email extends CRM_Core_DAO_Email {
 
     $email = new CRM_Core_DAO_Email();
     $email->copyValues($params);
-
-    // lower case email field to optimize queries
-    $strtolower = function_exists('mb_strtolower') ? 'mb_strtolower' : 'strtolower';
-    $email->email = $strtolower($email->email);
+    if (!empty($email->email)) {
+      // lower case email field to optimize queries
+      $strtolower = function_exists('mb_strtolower') ? 'mb_strtolower' : 'strtolower';
+      $email->email = $strtolower($email->email);
+    }
 
     /*
      * since we're setting bulkmail for 1 of this contact's emails, first reset all their other emails to is_bulkmail false
@@ -84,7 +84,7 @@ class CRM_Core_BAO_Email extends CRM_Core_DAO_Email {
      *  are about to reset it to avoid contaminating the changelog if logging is enabled
      * (only 1 email address can have is_bulkmail = true)
      */
-    if ($email->is_bulkmail != 'null' && $params['contact_id'] && !self::isMultipleBulkMail()) {
+    if ($email->is_bulkmail != 'null' && !empty($params['contact_id']) && !self::isMultipleBulkMail()) {
       $sql = "
 UPDATE civicrm_email
 SET    is_bulkmail = 0
@@ -117,9 +117,9 @@ WHERE  contact_id = {$params['contact_id']}
    * @param array $entityBlock
    *   Input parameters to find object.
    *
-   * @return bool
+   * @return array
    */
-  public static function &getValues($entityBlock) {
+  public static function getValues($entityBlock) {
     return CRM_Core_BAO_Block::getValues('email', $entityBlock);
   }
 
@@ -235,8 +235,6 @@ ORDER BY e.is_primary DESC, email_id ASC ";
    *
    * @param object $email
    *   Email object.
-   *
-   * @return void
    */
   public static function holdEmail(&$email) {
     //check for update mode
@@ -285,8 +283,7 @@ AND    reset_date IS NULL
    *   an array of email ids
    */
   public static function getFromEmail() {
-    $session = CRM_Core_Session::singleton();
-    $contactID = $session->get('userID');
+    $contactID = CRM_Core_Session::singleton()->getLoggedInContactID();
     $fromEmailValues = array();
 
     // add all configured FROM email addresses
@@ -301,7 +298,7 @@ AND    reset_date IS NULL
       $contactEmails = self::allEmails($contactID);
       $fromDisplayName = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $contactID, 'display_name');
 
-      foreach ($contactEmails as $emailId => $emailVal) {
+      foreach ($contactEmails as $emailVal) {
         $email = trim($emailVal['email']);
         if (!$email || $emailVal['on_hold']) {
           continue;
@@ -322,11 +319,15 @@ AND    reset_date IS NULL
    * @return object
    */
   public static function isMultipleBulkMail() {
-    return CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::MAILING_PREFERENCES_NAME, 'civimail_multiple_bulk_emails', NULL, FALSE);
+    return Civi::settings()->get('civimail_multiple_bulk_emails');
   }
 
   /**
    * Call common delete function.
+   *
+   * @param int $id
+   *
+   * @return bool
    */
   public static function del($id) {
     return CRM_Contact_BAO_Contact::deleteObjectWithPrimary('Email', $id);

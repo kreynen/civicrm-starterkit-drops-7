@@ -20,13 +20,16 @@ namespace Civi\Angular\Page;
 class Modules extends \CRM_Core_Page {
 
   /**
-   * See class description.
+   * Generate asset content (when accessed via older, custom
+   * "civicrm/ajax/anulgar-modules" route).
+   *
+   * @deprecated
    */
   public function run() {
     /**
      * @var \Civi\Angular\Manager $angular
      */
-    $angular = \Civi\Core\Container::singleton()->get('angular');
+    $angular = \Civi::service('angular');
     $moduleNames = $this->parseModuleNames(\CRM_Utils_Request::retrieve('modules', 'String'), $angular);
 
     switch (\CRM_Utils_Request::retrieve('format', 'String')) {
@@ -57,6 +60,40 @@ class Modules extends \CRM_Core_Page {
     }
 
     \CRM_Utils_System::civiExit();
+  }
+
+  /**
+   * Generate asset content (when accessed via AssetBuilder).
+   *
+   * @param \Civi\Core\Event\GenericHookEvent $event
+   * @see CRM_Utils_hook::buildAsset()
+   * @see \Civi\Core\AssetBuilder
+   */
+  public static function buildAngularModules($event) {
+    $page = new Modules();
+    $angular = \Civi::service('angular');
+
+    switch ($event->asset) {
+      case 'angular-modules.json':
+        $moduleNames = $page->parseModuleNames(\CRM_Utils_Array::value('modules', $event->params), $angular);
+        $event->mimeType = 'application/json';
+        $event->content = json_encode($page->getMetadata($moduleNames, $angular));
+        break;
+
+      case 'angular-modules.js':
+        $moduleNames = $page->parseModuleNames(\CRM_Utils_Array::value('modules', $event->params), $angular);
+        $event->mimeType = 'application/javascript';
+        $event->content = $page->digestJs($angular->getResources($moduleNames, 'js', 'path'));
+        break;
+
+      case 'angular-modules.css':
+        $moduleNames = $page->parseModuleNames(\CRM_Utils_Array::value('modules', $event->params), $angular);
+        $event->mimeType = 'text/css';
+        $event->content = \CRM_Utils_File::concat($angular->getResources($moduleNames, 'css', 'path'), "\n");
+
+      default:
+        // Not our problem.
+    }
   }
 
   /**
@@ -132,9 +169,9 @@ class Modules extends \CRM_Core_Page {
   public function send($type, $data) {
     // Encourage browsers to cache for a long time - 1 year
     $ttl = 60 * 60 * 24 * 364;
-    header('Expires: ' . gmdate('D, d M Y H:i:s \G\M\T', time() + $ttl));
-    header("Content-Type:	$type");
-    header("Cache-Control: max-age=$ttl, public");
+    \CRM_Utils_System::setHttpHeader('Expires', gmdate('D, d M Y H:i:s \G\M\T', time() + $ttl));
+    \CRM_Utils_System::setHttpHeader("Content-Type", $type);
+    \CRM_Utils_System::setHttpHeader("Cache-Control", "max-age=$ttl, public");
     echo $data;
   }
 

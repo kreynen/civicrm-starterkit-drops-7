@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Core_BAO_OptionValue extends CRM_Core_DAO_OptionValue {
 
@@ -42,8 +40,9 @@ class CRM_Core_BAO_OptionValue extends CRM_Core_DAO_OptionValue {
   }
 
   /**
-   * Create option value - note that the create function calls 'add' but
-   * has more business logic
+   * Create option value.
+   *
+   * Note that the create function calls 'add' but has more business logic.
    *
    * @param array $params
    *   Input parameters.
@@ -153,7 +152,7 @@ class CRM_Core_BAO_OptionValue extends CRM_Core_DAO_OptionValue {
    *   Value we want to set the is_active field.
    *
    * @return Object
-   *   DAO object on sucess, null otherwise
+   *   DAO object on success, null otherwise
    */
   public static function setIsActive($id, $is_active) {
     return CRM_Core_DAO::setFieldValue('CRM_Core_DAO_OptionValue', $id, 'is_active', $is_active);
@@ -170,7 +169,7 @@ class CRM_Core_BAO_OptionValue extends CRM_Core_DAO_OptionValue {
    *
    * @return CRM_Core_DAO_OptionValue
    */
-  public static function add(&$params, &$ids) {
+  public static function add(&$params, $ids = array()) {
     // CRM-10921: do not reset attributes to default if this is an update
     //@todo consider if defaults are being set in the right place. 'dumb' defaults like
     // these would be usefully set @ the api layer so they are visible to api users
@@ -181,6 +180,10 @@ class CRM_Core_BAO_OptionValue extends CRM_Core_DAO_OptionValue {
       $params['is_default'] = CRM_Utils_Array::value('is_default', $params, FALSE);
       $params['is_optgroup'] = CRM_Utils_Array::value('is_optgroup', $params, FALSE);
       $params['filter'] = CRM_Utils_Array::value('filter', $params, FALSE);
+    }
+    // Update custom field data to reflect the new value
+    elseif (isset($params['value'])) {
+      CRM_Core_BAO_CustomOption::updateValue($ids['optionValue'], $params['value']);
     }
 
     // action is taken depending upon the mode
@@ -237,9 +240,13 @@ class CRM_Core_BAO_OptionValue extends CRM_Core_DAO_OptionValue {
   public static function del($optionValueId) {
     $optionValue = new CRM_Core_DAO_OptionValue();
     $optionValue->id = $optionValueId;
+    if (!$optionValue->find()) {
+      return FALSE;
+    }
     if (self::updateRecords($optionValueId, CRM_Core_Action::DELETE)) {
       CRM_Core_PseudoConstant::flush();
-      return $optionValue->delete();
+      $optionValue->delete();
+      return TRUE;
     }
     return FALSE;
   }
@@ -419,8 +426,6 @@ class CRM_Core_BAO_OptionValue extends CRM_Core_DAO_OptionValue {
    * @param int $opGroupId
    * @param array $opWeights
    *   Options value , weight pair.
-   *
-   * @return void
    */
   public static function updateOptionWeights($opGroupId, $opWeights) {
     if (!is_array($opWeights) || empty($opWeights)) {
@@ -530,6 +535,7 @@ class CRM_Core_BAO_OptionValue extends CRM_Core_DAO_OptionValue {
     $existingValues = civicrm_api3('OptionValue', 'get', array(
       'option_group_id' => $params['option_group_id'],
       'name' => $params['name'],
+      'return' => 'id',
     ));
     if (!$existingValues['count']) {
       civicrm_api3('OptionValue', 'create', $params);

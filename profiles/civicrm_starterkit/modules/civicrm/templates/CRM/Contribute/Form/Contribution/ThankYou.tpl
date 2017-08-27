@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -49,7 +49,7 @@
     </div><br /><br />
   {/if}
 
-  <div id="help">
+  <div class="help">
     {* PayPal_Standard sets contribution_mode to 'notify'. We don't know if transaction is successful until we receive the IPN (payment notification) *}
     {if $is_pay_later}
       <div class="bold">{$pay_later_receipt}</div>
@@ -62,7 +62,7 @@
           {/if}
         </div>
       {/if}
-    {elseif $contributeMode EQ 'notify' OR ($contributeMode EQ 'direct' && $is_recur) }
+    {elseif $isPendingOutcome}
       <div>{ts 1=$paymentProcessor.name}Your contribution has been submitted to %1 for processing. Please print this page for your records.{/ts}</div>
         {if $is_email_receipt}
       <div>
@@ -79,7 +79,7 @@
         <div>
           {if $onBehalfEmail AND ($onBehalfEmail neq $email)}
             {ts 1=$email 2=$onBehalfEmail}An email receipt has also been sent to %1 and to %2{/ts}
-          {else}
+          {elseif $email}
             {ts 1=$email}An email receipt has also been sent to %1{/ts}
           {/if}
         </div>
@@ -118,7 +118,7 @@
             {if $totalTaxAmount}
               {ts}Tax Amount{/ts}: <strong>{$totalTaxAmount|crmMoney}</strong><br />
             {/if}
-            {ts}Amount{/ts}: <strong>{$amount|crmMoney} {if $amount_level} - {$amount_level} {/if}</strong><br />
+            {if $installments}{ts}Installment Amount{/ts}{else}{ts}Amount{/ts}{/if}: <strong>{$amount|crmMoney}{if $amount_level } &ndash; {$amount_level}{/if}</strong>
           {/if}
         {/if}
         {if $receive_date}
@@ -188,7 +188,13 @@
     </div>
   {/if}
 
-  {if $honor_block_is_active}
+  {if $onbehalfProfile|@count}
+    <div class="crm-group onBehalf_display-group label-left crm-profile-view">
+      {include file="CRM/UF/Form/Block.tpl" fields=$onbehalfProfile prefix='onbehalf'}
+     </div>
+  {/if}
+
+  {if $honoreeProfileFields|@count}
     <div class="crm-group honor_block-group">
       <div class="header-dark">
         {$soft_credit_type}
@@ -231,17 +237,6 @@
         {/if}
         <br />
       </div>
-    </div>
-  {/if}
-
-  {if $onbehalfProfile}
-    <div class="crm-group onBehalf_display-group label-left crm-profile-view">
-      {include file="CRM/UF/Form/Block.tpl" fields=$onbehalfProfile prefix='onbehalf'}
-      <div class="crm-section organization_email-section">
-        <div class="label">{ts}Organization Email{/ts}</div>
-        <div class="content">{$onBehalfEmail}</div>
-        <div class="clear"></div>
-       </div>
     </div>
   {/if}
 

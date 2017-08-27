@@ -16,7 +16,7 @@ class SequenceListener implements CaseChangeListener {
   /**
    * @param bool $reset
    *   Whether to forcibly rebuild the entire container.
-   * @return \Symfony\Component\DependencyInjection\TaggedContainerInterface
+   * @return SequenceListener
    */
   public static function singleton($reset = FALSE) {
     if ($reset || self::$singleton === NULL) {
@@ -36,6 +36,7 @@ class SequenceListener implements CaseChangeListener {
    * @param \Civi\CCase\Event\CaseChangeEvent $event
    *
    * @throws \CiviCRM_API3_Exception
+   * @return void
    */
   public function onCaseChange(\Civi\CCase\Event\CaseChangeEvent $event) {
     /** @var \Civi\CCase\Analyzer $analyzer */
@@ -64,7 +65,15 @@ class SequenceListener implements CaseChangeListener {
       }
     }
 
-    // OK, the activity has completed every step in the sequence!
+    //CRM-17452 - Close the case only if all the activities are complete
+    $activities = $analyzer->getActivities();
+    foreach ($activities as $activity) {
+      if ($activity['status_id'] != $actStatuses['Completed']) {
+        return;
+      }
+    }
+
+    // OK, the all activities have completed
     civicrm_api3('Case', 'create', array(
       'id' => $analyzer->getCaseId(),
       'status_id' => 'Closed',

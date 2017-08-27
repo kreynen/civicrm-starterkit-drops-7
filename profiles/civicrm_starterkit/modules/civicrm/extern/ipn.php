@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -27,11 +27,11 @@
 
 /**
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  */
 
-if (!empty($_SERVER['PRESSFLOW_SETTINGS'])) {
+if (defined('PANTHEON_ENVIRONMENT')) {
   ini_set('session.save_handler', 'files');
 }
 session_start();
@@ -41,17 +41,17 @@ require_once '../civicrm.config.php';
 /* Cache the real UF, override it with the SOAP environment */
 
 $config = CRM_Core_Config::singleton();
+
+CRM_Utils_System::loadBootStrap(array(), FALSE);
+
 $log = new CRM_Utils_SystemLogger();
-if (empty($_GET)) {
-  $log->alert('payment_notification processor_name=PayPal', $_REQUEST);
-  $paypalIPN = new CRM_Core_Payment_PayPalProIPN($_REQUEST);
-}
-else {
-  $log->alert('payment_notification PayPal_Standard', $_REQUEST);
-  $paypalIPN = new CRM_Core_Payment_PayPalIPN();
-  // @todo upgrade standard per Pro
-}
+$log->alert('payment_notification processor_name=PayPal', $_REQUEST);
+$paypalIPN = new CRM_Core_Payment_PayPalProIPN($_REQUEST);
 try {
+  //CRM-18245
+  if ($config->userFramework == 'Joomla') {
+    CRM_Utils_System::loadBootStrap();
+  }
   $paypalIPN->main();
 }
 catch (CRM_Core_Exception $e) {

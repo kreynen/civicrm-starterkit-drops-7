@@ -12,4 +12,5 @@ return array(
     $vendorDir . '/pear/auth_sasl',
     $vendorDir . '/pear/net_socket',
     $vendorDir . '/pear/net_smtp',
+    $vendorDir . '/pear/validate_finance_creditcard',
 );

@@ -5,6 +5,7 @@ Required vars: activitySet
 <table>
   <thead>
   <tr>
+    <th></th>
     <th>{{ts('Activity')}}</th>
     <th>{{ts('Status')}}</th>
     <th>{{ts('Reference')}}</th>
@@ -17,15 +18,18 @@ Required vars: activitySet
   <tbody ui-sortable ng-model="activitySet.activityTypes">
   <tr ng-repeat="activity in activitySet.activityTypes">
     <td>
-      <span class="icon ui-icon-grip-dotted-vertical"></span>
-      {{ activity.name }}
+      <i class="crm-i fa-arrows grip-n-drag"></i>
+    </td>
+    <td>
+      <i class="crm-i {{ activityTypes[activity.name].icon }}"></i>
+      {{ activity.label }}
     </td>
     <td>
       <select
         ui-jq="select2"
         ui-options="{dropdownAutoWidth : true}"
         ng-model="activity.status"
-        ng-options="actStatus.name as actStatus.name for actStatus in activityStatuses|orderBy:'name'"
+        ng-options="actStatus.name as actStatus.label for actStatus in activityStatuses|orderBy:'label'"
         >
         <option value=""></option>
       </select>
@@ -35,7 +39,7 @@ Required vars: activitySet
         ui-jq="select2"
         ui-options="{dropdownAutoWidth : true}"
         ng-model="activity.reference_activity"
-        ng-options="actTypeName as actTypeName for actTypeName in activityTypeNames"
+        ng-options="activityType.name as activityType.label for activityType in activitySet.activityTypes"
         ng-hide="activity.name == 'Open Case'"
         ng-required="activity.name != 'Open Case'"
         >
@@ -43,20 +47,20 @@ Required vars: activitySet
     </td>
     <td>
       <input
-        class="number"
+        class="number crm-form-text"
         type="text"
         ng-pattern="/^-?[0-9]*$/"
         ng-model="activity.reference_offset"
         ng-hide="activity.name == 'Open Case'"
         ng-required="activity.name != 'Open Case'"
-        />
+        >
     </td>
     <td>
       <select
         ui-jq="select2"
         ui-options="{dropdownAutoWidth : true}"
         ng-model="activity.reference_select"
-        ng-options="key as value for (key,value) in {newest: 'Newest', oldest: 'Oldest'}"
+        ng-options="key as value for (key,value) in {newest: ts('Newest'), oldest: ts('Oldest')}"
         ng-hide="activity.name == 'Open Case'"
         ng-required="activity.name != 'Open Case'"
         >
@@ -64,7 +68,7 @@ Required vars: activitySet
     </td>
     <td>
       <a class="crm-hover-button"
-         crm-icon="trash"
+         crm-icon="fa-trash"
          ng-show="isActivityRemovable(activitySet, activity)"
          ng-click="removeItem(activitySet.activityTypes, activity)"
          title="{{ts('Remove')}}">
@@ -76,12 +80,12 @@ Required vars: activitySet
   <tfoot>
   <tr class="addRow">
     <td colspan="6">
-      <span crm-add-name
-           crm-options="activityTypeNames"
+      <span crm-add-name=""
+           crm-options="activityTypeOptions"
            crm-var="newActivity"
            crm-on-add="addActivity(activitySet, newActivity)"
            placeholder="{{ts('Add activity')}}"
-              />
+      ></span>
     </td>
   </tr>
   </tfoot>

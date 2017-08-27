@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,21 +28,16 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class generates form components for Relationship Type
- *
+ * This class generates form components for Relationship Type.
  */
 class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
@@ -101,6 +96,9 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
     if ($this->_action & CRM_Core_Action::VIEW) {
       $this->freeze();
     }
+
+    $this->assign('relationship_type_id', $this->_id);
+
   }
 
   /**
@@ -132,9 +130,6 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
 
   /**
    * Process the form submission.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     if ($this->_action & CRM_Core_Action::DELETE) {
@@ -142,7 +137,6 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
       CRM_Core_Session::setStatus(ts('Selected Relationship type has been deleted.'), ts('Record Deleted'), 'success');
     }
     else {
-      $params = array();
       $ids = array();
 
       // store the submitted values in an array
@@ -168,7 +162,9 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
       $params['contact_sub_type_a'] = $cTypeA[1] ? $cTypeA[1] : 'NULL';
       $params['contact_sub_type_b'] = $cTypeB[1] ? $cTypeB[1] : 'NULL';
 
-      CRM_Contact_BAO_RelationshipType::add($params, $ids);
+      $result = CRM_Contact_BAO_RelationshipType::add($params, $ids);
+
+      $this->ajaxResponse['relationshipType'] = $result->toArray();
 
       CRM_Core_Session::setStatus(ts('The Relationship Type has been saved.'), ts('Saved'), 'success');
     }

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,28 +28,22 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class does pre processing for viewing an activity or their revisions
- *
+ * This class does pre processing for viewing an activity or their revisions.
  */
 class CRM_Case_Form_ActivityView extends CRM_Core_Form {
 
   /**
    * Process the view.
-   *
-   *
-   * @return void
    */
   public function preProcess() {
     $contactID = CRM_Utils_Request::retrieve('cid', 'Integer', $this, TRUE);
     $activityID = CRM_Utils_Request::retrieve('aid', 'Integer', $this, TRUE);
-    $revs = CRM_Utils_Request::retrieve('revs', 'Boolean', CRM_Core_DAO::$_nullObject);
-    $caseID = CRM_Utils_Request::retrieve('caseID', 'Boolean', CRM_Core_DAO::$_nullObject);
+    $revs = CRM_Utils_Request::retrieve('revs', 'Boolean');
+    $caseID = CRM_Utils_Request::retrieve('caseID', 'Boolean');
     $activitySubject = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity',
       $activityID,
       'subject'

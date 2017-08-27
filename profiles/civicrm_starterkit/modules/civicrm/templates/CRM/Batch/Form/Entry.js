@@ -31,6 +31,45 @@ CRM.$(function($) {
     $('#soft_credit_type_'+ rowNum).val($('#sct_default_id').val());
   });
 
+  // Could be replaced if there ever is a PCP API.
+  // See templates/CRM/Contribute/Form/PCP.js.tpl
+  var pcpURL = CRM.url('civicrm/ajax/rest', 'className=CRM_Contact_Page_AJAX&fnName=getPCPList&json=1&context=contact&reset=1');
+  $('input[name^="pcp_made_through_id"]').each(function() {
+    // Figure out the name of the corresponding pcp_made_through[X] field
+    var thisMadeThroughName = $(this).attr('name').replace('through_id', 'through');
+    $(this).crmSelect2({
+      minimumInputLength: 1,
+      ajax: {
+        url: pcpURL,
+        data: function(term, page) {
+          return {term: term, page_num: page};
+        },
+        results: function(response) {
+          return response;
+        }
+      },
+      initSelection: function(el, callback) {
+        callback({id: $(el).val(), text: $('[name="'+thisMadeThroughName+'"]').val()});
+      }
+    })
+    // This is just a cheap trick to store the name when the form reloads
+    .on('change', function() {
+      var fieldNameVal = $(this).select2('data');
+      if (!fieldNameVal) {
+        fieldNameVal = '';
+      }
+      $('[name="'+thisMadeThroughName+'"]').val(fieldNameVal.text);
+    });
+  });
+
+  $('input[name^="pcp_display_in_roll"]').each(function() {
+    showHidePCPRoll(this);
+    $(this).change(function() {
+      showHidePCPRoll(this);
+    });
+  });
+
+
   // validate rows
   validateRow();
 
@@ -74,10 +113,18 @@ CRM.$(function($) {
 
   //set the focus on first element
   $('#primary_contact_1').focus();
-
 });
 
-
+function showHidePCPRoll(elem) {
+  CRM.$(function($) {
+    if ($(elem).prop('checked')) {
+      $(elem).parents('.crm-grid-cell').children('.pcp_roll_display').show();
+    }
+    else {
+      $(elem).parents('.crm-grid-cell').children('.pcp_roll_display').hide();
+    }
+  });
+}
 
 function setPaymentBlock(form, memType) {
   var rowID = form.closest('div.crm-grid-row').attr('entity_id');
@@ -124,6 +171,7 @@ function checkColumns(parentRow) {
 
   parentRow.find('div .required').each(function () {
     //special case to handle contact autocomplete select
+    // @todo WHY OH WHY is this duplicated on the tpl file?
     var fieldId = cj(this).attr('id');
     if (fieldId.substring(0, 16) == 'primary_contact_') {
       // if display value is set then make sure we also check if contact id is set
@@ -216,9 +264,6 @@ function setFieldValue(fname, fieldValue, blockNo) {
   //check if it is date element
   var isDateElement = elementId.attr('format');
 
-  // check if it is wysiwyg element
-  var editor = elementId.attr('editor');
-
   //get the element type
   var elementType = elementId.attr('type');
 
@@ -244,25 +289,8 @@ function setFieldValue(fname, fieldValue, blockNo) {
       }
     }
     else {
-      if (editor) {
-        switch (editor) {
-          case 'ckeditor':
-            elemtId = elementId.attr('id');
-            oEditor = CKEDITOR.instances[elemtId];
-            oEditor.setData(htmlContent);
-            break;
-          case 'tinymce':
-            var elemtId = element.attr('id');
-            tinyMCE.get(elemtId).setContent(htmlContent);
-            break;
-          case 'joomlaeditor':
-            // TO DO
-          case 'drupalwysiwyg':
-            // TO DO
-            break;
-          default:
-            elementId.val(fieldValue);
-        }
+      if (elementId.is('textarea')) {
+        CRM.wysiwyg.setVal(elementId, fieldValue);
       }
       else {
         elementId.val(fieldValue);

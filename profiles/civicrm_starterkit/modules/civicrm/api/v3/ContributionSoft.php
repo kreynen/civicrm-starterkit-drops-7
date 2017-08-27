@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -62,11 +62,14 @@ function _civicrm_api3_contribution_soft_create_spec(&$params) {
  * Deletes an existing Soft Credit.
  *
  * @param array $params
+ *
+ * @return array
+ *   Api formatted result.
+ *
+ * @throws API_Exception
  */
 function civicrm_api3_contribution_soft_delete($params) {
-  // Non standard BAO - we have to write custom code to cope.
-  CRM_Contribute_BAO_ContributionSoft::del(array('id' => $params['id']));
-
+  return _civicrm_api3_basic_delete(_civicrm_api3_get_BAO(__FUNCTION__), $params);
 }
 
 /**

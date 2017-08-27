@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class contains the functions for Case Type management
- *
+ * This class contains the functions for Case Type management.
  */
 class CRM_Case_BAO_CaseType extends CRM_Case_DAO_CaseType {
 
@@ -109,7 +106,7 @@ class CRM_Case_BAO_CaseType extends CRM_Case_DAO_CaseType {
    *
    * @param string $name
    * @param array $definition
-   *   The case-type defintion expressed as an array-tree.
+   *   The case-type definition expressed as an array-tree.
    * @return string
    *   XML
    */
@@ -131,6 +128,14 @@ class CRM_Case_BAO_CaseType extends CRM_Case_DAO_CaseType {
         $xmlFile .= "</ActivityType>\n";
       }
       $xmlFile .= "</ActivityTypes>\n";
+    }
+
+    if (!empty($definition['statuses'])) {
+      $xmlFile .= "<Statuses>\n";
+      foreach ($definition['statuses'] as $value) {
+        $xmlFile .= "<Status>$value</Status>\n";
+      }
+      $xmlFile .= "</Statuses>\n";
     }
 
     if (isset($definition['activitySets'])) {
@@ -225,6 +230,11 @@ class CRM_Case_BAO_CaseType extends CRM_Case_DAO_CaseType {
       foreach ($xml->ActivityTypes->ActivityType as $activityTypeXML) {
         $definition['activityTypes'][] = json_decode(json_encode($activityTypeXML), TRUE);
       }
+    }
+
+    // set statuses
+    if (isset($xml->Statuses)) {
+      $definition['statuses'] = (array) $xml->Statuses->Status;
     }
 
     // set activity sets

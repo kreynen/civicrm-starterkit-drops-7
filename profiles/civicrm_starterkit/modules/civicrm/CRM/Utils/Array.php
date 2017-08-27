@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -29,7 +29,7 @@
  * Provides a collection of static methods for array manipulation.
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Utils_Array {
 
@@ -106,7 +106,7 @@ class CRM_Utils_Array {
    * @return int|string|null
    *   Returns the key, which could be an int or a string, or NULL on failure.
    */
-  public static function key($value, &$list) {
+  public static function key($value, $list) {
     if (is_array($list)) {
       $key = array_search($value, $list);
 
@@ -131,7 +131,6 @@ class CRM_Utils_Array {
    *   (optional) Indentation depth counter.
    * @param string $seperator
    *   (optional) String to be appended after open/close tags.
-   *
    *
    * @return string
    *   XML fragment representing $list.
@@ -345,8 +344,11 @@ class CRM_Utils_Array {
   }
 
   /**
-   * @param $subset
-   * @param $superset
+   * Is array A a subset of array B.
+   *
+   * @param array $subset
+   * @param array $superset
+   *
    * @return bool
    *   TRUE if $subset is a subset of $superset
    */
@@ -388,12 +390,18 @@ class CRM_Utils_Array {
   }
 
   /**
-   * convert associative array names to values.
-   * and vice-versa.
+   * Convert associative array names to values and vice-versa.
    *
    * This function is used by both the web form layer and the api. Note that
    * the api needs the name => value conversion, also the view layer typically
    * requires value => name conversion
+   *
+   * @param array $defaults
+   * @param string $property
+   * @param $lookup
+   * @param $reverse
+   *
+   * @return bool
    */
   public static function lookupValue(&$defaults, $property, $lookup, $reverse) {
     $id = $property . '_id';
@@ -407,7 +415,7 @@ class CRM_Utils_Array {
 
     $look = $reverse ? array_flip($lookup) : $lookup;
 
-    //trim lookup array, ignore . ( fix for CRM-1514 ), eg for prefix/suffix make sure Dr. and Dr both are valid
+    // trim lookup array, ignore . ( fix for CRM-1514 ), eg for prefix/suffix make sure Dr. and Dr both are valid
     $newLook = array();
     foreach ($look as $k => $v) {
       $newLook[trim($k, ".")] = $v;
@@ -465,15 +473,23 @@ class CRM_Utils_Array {
    *
    * @param array $array
    *   Array to be sorted.
-   * @param string $field
+   * @param string|array $field
    *   Name of the attribute used for sorting.
    *
    * @return array
    *   Sorted array
    */
   public static function crmArraySortByField($array, $field) {
-    $code = "return strnatcmp(\$a['$field'], \$b['$field']);";
-    uasort($array, create_function('$a,$b', $code));
+    $fields = (array) $field;
+    uasort($array, function ($a, $b) use ($fields) {
+      foreach ($fields as $f) {
+        $v = strnatcmp($a[$f], $b[$f]);
+        if ($v !== 0) {
+          return $v;
+        }
+      }
+      return 0;
+    });
     return $array;
   }
 
@@ -606,8 +622,37 @@ class CRM_Utils_Array {
           $result[$key] = $record->{$prop};
         }
         else {
-          $result[$key] = $record[$prop];
+          $result[$key] = self::value($prop, $record);
         }
+      }
+    }
+    return $result;
+  }
+
+  /**
+   * Iterates over a list of objects and executes some method on each.
+   *
+   * Comparison:
+   *   - This is like array_map(), except it executes the objects' method
+   *     instead of a free-form callable.
+   *   - This is like Array::collect(), except it uses a method
+   *     instead of a property.
+   *
+   * @param string $method
+   *   The method to execute.
+   * @param array|Traversable $objects
+   *   A list of objects.
+   * @param array $args
+   *   An optional list of arguments to pass to the method.
+   *
+   * @return array
+   *   Keys are the original keys of $objects; values are the method results.
+   */
+  public static function collectMethod($method, $objects, $args = array()) {
+    $result = array();
+    if (is_array($objects)) {
+      foreach ($objects as $key => $object) {
+        $result[$key] = call_user_func_array(array($object, $method), $args);
       }
     }
     return $result;
@@ -837,7 +882,7 @@ class CRM_Utils_Array {
 
   /**
    * Diff multidimensional arrays
-   * ( array_diff does not support multidimensional array)
+   * (array_diff does not support multidimensional array)
    *
    * @param array $array1
    * @param array $array2
@@ -888,17 +933,17 @@ class CRM_Utils_Array {
   }
 
   /**
-   * Rewrite the keys in an array by filtering through a function.
+   * Rewrite the keys in an array.
    *
    * @param array $array
-   * @param callable $func
-   *   Function($key, $value). Returns the new key.
+   * @param string|callable $indexBy
+   *   Either the value to key by, or a function($key, $value) that returns the new key.
    * @return array
    */
-  public static function rekey($array, $func) {
+  public static function rekey($array, $indexBy) {
     $result = array();
     foreach ($array as $key => $value) {
-      $newKey = $func($key, $value);
+      $newKey = is_callable($indexBy) ? $indexBy($key, $value) : $value[$indexBy];
       $result[$newKey] = $value;
     }
     return $result;
@@ -965,6 +1010,31 @@ class CRM_Utils_Array {
   }
 
   /**
+   * Convert a simple dictionary into separate key+value records.
+   *
+   * @param array $array
+   *   Ex: array('foo' => 'bar').
+   * @param string $keyField
+   *   Ex: 'key'.
+   * @param string $valueField
+   *   Ex: 'value'.
+   * @return array
+   *   Ex: array(
+   *     0 => array('key' => 'foo', 'value' => 'bar')
+   *   ).
+   */
+  public static function toKeyValueRows($array, $keyField = 'key', $valueField = 'value') {
+    $result = array();
+    foreach ($array as $key => $value) {
+      $result[] = array(
+        $keyField => $key,
+        $valueField => $value,
+      );
+    }
+    return $result;
+  }
+
+  /**
    * Convert array where key(s) holds the actual value and value(s) as 1 into array of actual values
    *  Ex: array('foobar' => 1, 4 => 1) formatted into array('foobar', 4)
    *
@@ -974,6 +1044,9 @@ class CRM_Utils_Array {
    * @param array $array
    */
   public static function formatArrayKeys(&$array) {
+    if (!is_array($array)) {
+      return;
+    }
     $keys = array_keys($array, 1);
     if (count($keys) > 1 ||
       (count($keys) == 1 &&
@@ -981,7 +1054,7 @@ class CRM_Utils_Array {
           is_string(current($keys)) ||
           (current($keys) == 1 && $array[1] == 1) // handle (0 => 4), (1 => 1)
         )
-       )
+      )
     ) {
       $array = $keys;
     }
@@ -1009,6 +1082,76 @@ class CRM_Utils_Array {
       return $keys;
     }
     return $input;
+  }
+
+  /**
+   * Ensure that array is encoded in utf8 format.
+   *
+   * @param array $array
+   *
+   * @return array $array utf8-encoded.
+   */
+  public static function encode_items($array) {
+    foreach ($array as $key => $value) {
+      if (is_array($value)) {
+        $array[$key] = self::encode_items($value);
+      }
+      elseif (is_string($value)) {
+        $array[$key] = mb_convert_encoding($value, mb_detect_encoding($value, mb_detect_order(), TRUE), 'UTF-8');
+      }
+      else {
+        $array[$key] = $value;
+      }
+    }
+    return $array;
+  }
+
+  /**
+   * Build tree of elements.
+   *
+   * @param array $elements
+   * @param int|null $parentId
+   *
+   * @return array
+   */
+  public static function buildTree($elements, $parentId = NULL) {
+    $branch = array();
+
+    foreach ($elements as $element) {
+      if ($element['parent_id'] == $parentId) {
+        $children = self::buildTree($elements, $element['id']);
+        if ($children) {
+          $element['children'] = $children;
+        }
+        $branch[] = $element;
+      }
+    }
+
+    return $branch;
+  }
+
+  /**
+   * Find search string in tree.
+   *
+   * @param string $search
+   * @param array $tree
+   * @param string $field
+   *
+   * @return array|null
+   */
+  public static function findInTree($search, $tree, $field = 'id') {
+    foreach ($tree as $item) {
+      if ($item[$field] == $search) {
+        return $item;
+      }
+      if (!empty($item['children'])) {
+        $found = self::findInTree($search, $item['children']);
+        if ($found) {
+          return $found;
+        }
+      }
+    }
+    return NULL;
   }
 
 }

@@ -103,7 +103,7 @@ class ContainerAwareEventDispatcher extends EventDispatcher
     }
 
     /**
-     * {@inheritdoc}
+     * @see EventDispatcherInterface::hasListeners()
      */
     public function hasListeners($eventName = null)
     {
@@ -119,12 +119,12 @@ class ContainerAwareEventDispatcher extends EventDispatcher
     }
 
     /**
-     * {@inheritdoc}
+     * @see EventDispatcherInterface::getListeners()
      */
     public function getListeners($eventName = null)
     {
         if (null === $eventName) {
-            foreach ($this->listenerIds as $serviceEventName => $args) {
+            foreach (array_keys($this->listenerIds) as $serviceEventName) {
                 $this->lazyLoad($serviceEventName);
             }
         } else {
@@ -153,6 +153,21 @@ class ContainerAwareEventDispatcher extends EventDispatcher
                 }
             }
         }
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * Lazily loads listeners for this event from the dependency injection
+     * container.
+     *
+     * @throws \InvalidArgumentException if the service is not defined
+     */
+    public function dispatch($eventName, Event $event = null)
+    {
+        $this->lazyLoad($eventName);
+
+        return parent::dispatch($eventName, $event);
     }
 
     public function getContainer()

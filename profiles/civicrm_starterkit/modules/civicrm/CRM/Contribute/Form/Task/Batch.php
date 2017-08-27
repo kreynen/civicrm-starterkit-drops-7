@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class provides the functionality for batch profile update for contributions
+ * This class provides the functionality for batch profile update for contributions.
  */
 class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
 
@@ -57,8 +55,6 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
 
   /**
    * Build all the data structures needed to build the form.
-   *
-   * @return void
    */
   public function preProcess() {
     // initialize the task and row fields
@@ -82,9 +78,6 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
 
   /**
    * Build the form object.
-   *
-   *
-   * @return void
    */
   public function buildQuickForm() {
     $ufGroupId = $this->get('ufGroupId');
@@ -92,7 +85,7 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
     if (!$ufGroupId) {
       CRM_Core_Error::fatal('ufGroupId is missing');
     }
-    $this->_title = ts('Batch Update for Contributions') . ' - ' . CRM_Core_BAO_UFGroup::getTitle($ufGroupId);
+    $this->_title = ts('Update multiple contributions') . ' - ' . CRM_Core_BAO_UFGroup::getTitle($ufGroupId);
     CRM_Utils_System::setTitle($this->_title);
 
     $this->addDefaultButtons(ts('Save'));
@@ -111,7 +104,7 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
       }
 
       //fix to reduce size as we are using this field in grid
-      if (is_array($field['attributes']) && $this->_fields[$name]['attributes']['size'] > 19) {
+      if (is_array($field['attributes']) && !empty($this->_fields[$name]['attributes']['size']) && $this->_fields[$name]['attributes']['size'] > 19) {
         //shrink class to "form-text-medium"
         $this->_fields[$name]['attributes']['size'] = 19;
       }
@@ -145,11 +138,17 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
       );
     }
 
+    // It is possible to have fields that are required in CiviCRM not be required in the
+    // profile. Overriding that here. Perhaps a better approach would be to
+    // make them required in the schema & read that up through getFields functionality.
+    $requiredFields = array('receive_date');
+
     //fix for CRM-2752
     $customFields = CRM_Core_BAO_CustomField::getFields('Contribution');
     foreach ($this->_contributionIds as $contributionId) {
       $typeId = CRM_Core_DAO::getFieldValue("CRM_Contribute_DAO_Contribution", $contributionId, 'financial_type_id');
       foreach ($this->_fields as $name => $field) {
+        $entityColumnValue = array();
         if ($customFieldID = CRM_Core_BAO_CustomField::getKeyID($name)) {
           $customValue = CRM_Utils_Array::value($customFieldID, $customFields);
           if (!empty($customValue['extends_entity_column_value'])) {
@@ -159,13 +158,16 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
           }
 
           if (!empty($entityColumnValue[$typeId]) ||
-            CRM_Utils_System::isNull($entityColumnValue[$typeId])
+            CRM_Utils_System::isNull(CRM_Utils_Array::value($typeId, $entityColumnValue))
           ) {
             CRM_Core_BAO_UFGroup::buildProfile($this, $field, NULL, $contributionId);
           }
         }
         else {
           // handle non custom fields
+          if (in_array($field['name'], $requiredFields)) {
+            $field['is_required'] = TRUE;
+          }
           CRM_Core_BAO_UFGroup::buildProfile($this, $field, NULL, $contributionId);
         }
       }
@@ -177,7 +179,7 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
     $buttonName = $this->controller->getButtonName('submit');
 
     if ($suppressFields && $buttonName != '_qf_Batch_next') {
-      CRM_Core_Session::setStatus(ts("File or Autocomplete-Select type field(s) in the selected profile are not supported for Batch Update."), ts('Unsupported Field Type'), 'error');
+      CRM_Core_Session::setStatus(ts("File or Autocomplete-Select type field(s) in the selected profile are not supported for Update multiple contributions."), ts('Unsupported Field Type'), 'error');
     }
 
     $this->addDefaultButtons(ts('Update Contributions'));
@@ -185,9 +187,6 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
 
   /**
    * Set default values for the form.
-   *
-   *
-   * @return void
    */
   public function setDefaultValues() {
     if (empty($this->_fields)) {
@@ -196,7 +195,6 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
 
     $defaults = array();
     foreach ($this->_contributionIds as $contributionId) {
-      $details[$contributionId] = array();
       CRM_Core_BAO_UFGroup::setProfileDefaults(NULL, $this->_fields, $defaults, FALSE, $contributionId, 'Contribute');
     }
 
@@ -205,54 +203,31 @@ class CRM_Contribute_Form_Task_Batch extends CRM_Contribute_Form_Task {
 
   /**
    * Process the form after the input has been submitted and validated.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     $params = $this->exportValues();
-    $dates = array(
-      'receive_date',
-      'receipt_date',
-      'thankyou_date',
-      'cancel_date',
-    );
     if (isset($params['field'])) {
-      foreach ($params['field'] as $key => $value) {
+      foreach ($params['field'] as $contributionID => $value) {
 
-        $value['custom'] = CRM_Core_BAO_CustomField::postProcess($value,
-          CRM_Core_DAO::$_nullObject,
-          $key,
-          'Contribution'
-        );
-
-        $ids['contribution'] = $key;
-        foreach ($dates as $val) {
-          if (isset($value[$val])) {
-            $value[$val] = CRM_Utils_Date::processDate($value[$val]);
-          }
-        }
+        $value['id'] = $contributionID;
         if (!empty($value['financial_type'])) {
           $value['financial_type_id'] = $value['financial_type'];
         }
 
-        if (!empty($value['payment_instrument'])) {
-          $value['payment_instrument_id'] = $value['payment_instrument'];
-        }
+        $value['options'] = array(
+          'reload' => 1,
+        );
+        $contribution = civicrm_api3('Contribution', 'create', $value);
+        $contribution = $contribution['values'][$contributionID];
 
-        if (!empty($value['contribution_source'])) {
-          $value['source'] = $value['contribution_source'];
-        }
-
-        unset($value['financial_type']);
-        unset($value['contribution_source']);
-        $contribution = CRM_Contribute_BAO_Contribution::add($value, $ids);
-
-        // add custom field values
-        if (!empty($value['custom']) &&
-          is_array($value['custom'])
-        ) {
-          CRM_Core_BAO_CustomValueTable::store($value['custom'], 'civicrm_contribution', $contribution->id);
+        // @todo add check as to whether the status is updated.
+        if (!empty($value['contribution_status_id'])) {
+          // @todo - use completeorder api or make api call do this.
+          CRM_Contribute_BAO_Contribution::transitionComponentWithReturnMessage($contribution['id'],
+            $value['contribution_status_id'],
+            CRM_Utils_Array::value("field[{$contributionID}][contribution_status_id]", $this->_defaultValues),
+            $contribution['receive_date']
+          );
         }
       }
       CRM_Core_Session::setStatus(ts("Your updates have been saved."), ts('Saved'), 'success');

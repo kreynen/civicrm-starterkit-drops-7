@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,15 +28,34 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Report_Form_Mailing_Detail extends CRM_Report_Form {
+
+  protected $_customGroupExtends = array(
+    'Contact',
+    'Individual',
+    'Household',
+    'Organization',
+  );
 
   protected $_exposeContactID = FALSE;
 
   /**
+   * This report has not been optimised for group filtering.
+   *
+   * The functionality for group filtering has been improved but not
+   * all reports have been adjusted to take care of it. This report has not
+   * and will run an inefficient query until fixed.
+   *
+   * CRM-19170
+   *
+   * @var bool
+   */
+  protected $groupFilterNotOptimised = TRUE;
+
+  /**
+   * Class constructor.
    */
   public function __construct() {
     $this->_columns = array();
@@ -79,23 +98,38 @@ class CRM_Report_Form_Mailing_Detail extends CRM_Report_Form {
       'fields' => array(
         'mailing_name' => array(
           'name' => 'name',
-          'title' => ts('Mailing'),
+          'title' => ts('Mailing Name'),
+          'default' => TRUE,
+        ),
+        'mailing_subject' => array(
+          'name' => 'subject',
+          'title' => ts('Mailing Subject'),
           'default' => TRUE,
         ),
       ),
       'filters' => array(
         'mailing_id' => array(
           'name' => 'id',
-          'title' => ts('Mailing'),
+          'title' => ts('Mailing Name'),
           'operatorType' => CRM_Report_Form::OP_MULTISELECT,
           'type' => CRM_Utils_Type::T_INT,
           'options' => CRM_Mailing_BAO_Mailing::getMailingsList(),
+        ),
+        'mailing_subject' => array(
+          'name' => 'subject',
+          'title' => ts('Mailing Subject'),
+          'type' => CRM_Utils_Type::T_STRING,
+          'operator' => 'like',
         ),
       ),
       'order_bys' => array(
         'mailing_name' => array(
           'name' => 'name',
-          'title' => ts('Mailing'),
+          'title' => ts('Mailing Name'),
+        ),
+        'mailing_subject' => array(
+          'name' => 'subject',
+          'title' => ts('Mailing Subject'),
         ),
       ),
       'grouping' => 'mailing-fields',
@@ -229,7 +263,6 @@ class CRM_Report_Form_Mailing_Detail extends CRM_Report_Form {
       'fields' => array(
         'email' => array(
           'title' => ts('Email'),
-          'required' => TRUE,
         ),
       ),
       'grouping' => 'contact-fields',
@@ -304,7 +337,7 @@ class CRM_Report_Form_Mailing_Detail extends CRM_Report_Form {
     $this->_from .= "
         INNER JOIN civicrm_mailing_event_queue
           ON civicrm_mailing_event_queue.contact_id = {$this->_aliases['civicrm_contact']}.id
-        INNER JOIN civicrm_email {$this->_aliases['civicrm_email']}
+        LEFT JOIN civicrm_email {$this->_aliases['civicrm_email']}
           ON civicrm_mailing_event_queue.email_id = {$this->_aliases['civicrm_email']}.id";
 
     if (array_key_exists('delivery_id', $this->_params['fields'])) {
@@ -434,7 +467,7 @@ class CRM_Report_Form_Mailing_Detail extends CRM_Report_Form {
     $mailing->query($query);
 
     while ($mailing->fetch()) {
-      $data[mysql_real_escape_string($mailing->name)] = $mailing->name;
+      $data[CRM_Core_DAO::escapeString($mailing->name)] = $mailing->name;
     }
 
     return $data;
@@ -452,6 +485,15 @@ class CRM_Report_Form_Mailing_Detail extends CRM_Report_Form {
   public function alterDisplay(&$rows) {
     $entryFound = FALSE;
     foreach ($rows as $rowNum => $row) {
+
+      // If the email address has been deleted
+      if (array_key_exists('civicrm_email_email', $row)) {
+        if (empty($rows[$rowNum]['civicrm_email_email'])) {
+          $rows[$rowNum]['civicrm_email_email'] = '<del>Email address deleted</del>';
+        }
+        $entryFound = TRUE;
+      }
+
       // make count columns point to detail report
       // convert display name to links
       if (array_key_exists('civicrm_contact_sort_name', $row) &&

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -105,9 +105,8 @@ function _civicrm_api3_attachment_create_spec(&$spec) {
  * @see Civi\API\Subscriber\DynamicFKAuthorization
  */
 function civicrm_api3_attachment_create($params) {
-
   if (empty($params['id'])) {
-    // When creating we need either entity_table or field_name
+    // When creating we need either entity_table or field_name.
     civicrm_api3_verify_one_mandatory($params, NULL, array('entity_table', 'field_name'));
   }
 
@@ -160,7 +159,10 @@ function civicrm_api3_attachment_create($params) {
     file_put_contents($path, $content);
   }
   elseif (is_string($moveFile)) {
-    rename($moveFile, $path);
+    // CRM-17432 Do not use rename() since it will break file permissions.
+    // Also avoid move_uplaoded_file() because the API can use options.move-file.
+    copy($moveFile, $path);
+    unlink($moveFile);
   }
 
   // Save custom field to entity
@@ -428,6 +430,7 @@ function _civicrm_api3_attachment_format_result($fileDao, $entityFileDao, $retur
     'upload_date' => is_numeric($fileDao->upload_date) ? CRM_Utils_Date::mysqlToIso($fileDao->upload_date) : $fileDao->upload_date,
     'entity_table' => $entityFileDao->entity_table,
     'entity_id' => $entityFileDao->entity_id,
+    'icon' => CRM_Utils_File::getIconFromMimeType($fileDao->mime_type),
   );
   $result['url'] = CRM_Utils_System::url(
     'civicrm/file', 'reset=1&id=' . $result['id'] . '&eid=' . $result['entity_id'],

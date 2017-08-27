@@ -2,9 +2,10 @@
 Controller: CaseTypeCtrl
 Required vars: caseType
 -->
-<table>
+<table class="row-highlight">
   <thead>
   <tr>
+    <th></th>
     <th>{{ts('Activity Type')}}</th>
     <th>{{ts('Max Instances')}}</th>
     <th></th>
@@ -14,27 +15,31 @@ Required vars: caseType
   <tbody ui-sortable ng-model="caseType.definition.activityTypes">
   <tr ng-repeat="activityType in caseType.definition.activityTypes">
     <td>
-      <span class="icon ui-icon-grip-dotted-vertical"></span>
+      <i class="crm-i fa-arrows grip-n-drag"></i>
+    </td>
+    <td>
+      <i class="crm-i {{ activityTypes[activityType.name].icon }}"></i>
       {{ activityType.name }}
     </td>
     <td>
-      <input class="number" type="text" ng-pattern="/^[0-9]*$/" ng-model="activityType.max_instances" />
+      <input class="crm-form-text number" type="text" ng-pattern="/^[1-9][0-9]*$/" ng-model="activityType.max_instances">
     </td>
     <td>
-      <a crm-icon="trash" class="crm-hover-button" ng-click="removeItem(caseType.definition.activityTypes, activityType)" title="{{ts('Remove')}}"></a>
+      <a crm-icon="fa-trash" class="crm-hover-button" ng-click="removeItem(caseType.definition.activityTypes, activityType)" title="{{ts('Remove')}}"></a>
     </td>
   </tr>
   </tbody>
 
   <tfoot>
   <tr class="addRow">
+    <td></td>
     <td colspan="3">
       <span crm-add-name
-           crm-options="activityTypeNames"
+           crm-options="activityTypeOptions"
            crm-var="newActivity"
            crm-on-add="addActivityType(newActivity)"
            placeholder="{{ts('Add activity type')}}"
-              />
+      ></span>
     </td>
   </tr>
   </tfoot>

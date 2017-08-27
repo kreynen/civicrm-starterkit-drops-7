@@ -1,7 +1,7 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -30,6 +30,7 @@
  * civicrm_address
  * civicrm_email
  * civicrm_website
+ * civicrm_im
  * civicrm_phone
  * civicrm_group
  * civicrm_tag
@@ -197,6 +198,26 @@ function _civicrm_core_data(&$data, $enabled) {
     ),
   );
 
+  //Current Employer ID
+  $data['civicrm_contact']['employer_id'] = array(
+    'title' => t('Current Employer Id'),
+    'help' => t('Current Employer Id'),
+    'field' => array(
+      'handler' => 'civicrm_handler_field_contact_link',
+      'click sortable' => TRUE,
+    ),
+    'argument' => array(
+      'handler' => 'views_handler_argument_string',
+    ),
+    'filter' => array(
+      'handler' => 'views_handler_filter_string',
+      'allow empty' => TRUE,
+    ),
+    'sort' => array(
+      'handler' => 'views_handler_sort',
+    ),
+  );
+
   //DISPLAY Name for the Contact (Full Name with Prefixes and Suffixes)
   $data['civicrm_contact']['display_name'] = array(
     'title' => t('Display Name'),
@@ -221,26 +242,6 @@ function _civicrm_core_data(&$data, $enabled) {
   $data['civicrm_contact']['legal_name'] = array(
     'title' => t('Legal Name'),
     'help' => t('Legal Name of the Contact'),
-    'field' => array(
-      'handler' => 'civicrm_handler_field_contact_link',
-      'click sortable' => TRUE,
-    ),
-    'argument' => array(
-      'handler' => 'views_handler_argument_string',
-    ),
-    'filter' => array(
-      'handler' => 'views_handler_filter_string',
-      'allow empty' => TRUE,
-    ),
-    'sort' => array(
-      'handler' => 'views_handler_sort',
-    ),
-  );
-
-  //Current Employer ID
-  $data['civicrm_contact']['employer_id'] = array(
-    'title' => t('Current Employer ID'),
-    'help' => t('Current Employer ID'),
     'field' => array(
       'handler' => 'civicrm_handler_field_contact_link',
       'click sortable' => TRUE,
@@ -444,7 +445,7 @@ function _civicrm_core_data(&$data, $enabled) {
 
   //BOOLEAN : IS Deceased
   $data['civicrm_contact']['is_deceased'] = array(
-    'title' => t('Is Deceased'),
+    'title' => t('Deceased'),
     'help' => t('Is the contact deceased?'),
     'field' => array(
       'handler' => 'views_handler_field_boolean',
@@ -652,9 +653,7 @@ function _civicrm_core_data(&$data, $enabled) {
       'pseudo method' => 'subTypePairs',
     ),
     'filter' => array(
-      'handler' => 'civicrm_handler_filter_pseudo_constant',
-      'pseudo class' => 'CRM_Contact_BAO_ContactType',
-      'pseudo method' => 'subTypePairs',
+      'handler' => 'civicrm_handler_filter_custom_option',
     ),
     'sort' => array(
       'handler' => 'views_handler_sort',
@@ -665,6 +664,23 @@ function _civicrm_core_data(&$data, $enabled) {
   $data['civicrm_contact']['birth_date'] = array(
     'title' => t('Birth Date'),
     'help' => t('The contact\'s birth date.'),
+    'field' => array(
+      'handler' => 'civicrm_handler_field_datetime',
+      'click sortable' => TRUE,
+    ),
+    'filter' => array(
+      'handler' => 'civicrm_handler_filter_datetime',
+      'is date' => TRUE,
+    ),
+    'sort' => array(
+      'handler' => 'civicrm_handler_sort_date',
+    ),
+  );
+
+  //Deceased Date
+  $data['civicrm_contact']['deceased_date'] = array(
+    'title' => t('Deceased Date'),
+    'help' => t('The contact\'s deceased date.'),
     'field' => array(
       'handler' => 'civicrm_handler_field_datetime',
       'click sortable' => TRUE,
@@ -737,6 +753,11 @@ function _civicrm_core_data(&$data, $enabled) {
       'field' => 'contact_id',
     ),
   );
+  //CiviCRM Address
+  $data['civicrm_address']['table']['join']['civicrm_address'] = array(
+      'left_field' => 'id',
+      'field' => 'id',
+  );
 
   //CiviCRM Address Using Contacts as a pitstop before going on to Participants
   $data['civicrm_address']['table']['join']['civicrm_participant'] = array(
@@ -785,6 +806,19 @@ function _civicrm_core_data(&$data, $enabled) {
     'field' => 'contact_id',
   );
 
+  // ADDRESS ID
+  $data['civicrm_address']['id'] = array(
+    'title' => t('Address'),
+    'help' => t('Contact Address'),
+    'relationship' => array(
+      'base' => 'civicrm_contact',
+      'field' => 'id',
+      'relationship table' => 'civicrm_address',
+      'relationship field' => 'contact_id',
+      'handler' => 'civicrm_handler_relationship_address',
+      'label' => t('CiviCRM Address'),
+    ),
+  );
 
   //BOOLEAN : IS PRIMARY ADDRESS
   $data['civicrm_address']['is_primary'] = array(
@@ -953,13 +987,16 @@ function _civicrm_core_data(&$data, $enabled) {
       'pseudo method' => 'stateProvince',
     ),
     'sort' => array(
-      'handler' => 'views_handler_sort',
+      'join_table' => 'civicrm_state_province',
+      'join_left_field' => 'state_province_id',
+      'join_field' => 'id',
+      'handler' => 'civicrm_handler_sort_address_pseudoconstant',
     ),
   );
 
   //ZIP / POSTAL CODE
   $data['civicrm_address']['postal_code'] = array(
-    'title' => t('ZIP / Postal Code'),
+    'title' => t('Postal Code'),
     'help' => t('ZIP / Postal Code of the Address'),
     'field' => array(
       'handler' => 'civicrm_handler_field_address',
@@ -1041,7 +1078,10 @@ function _civicrm_core_data(&$data, $enabled) {
       'pseudo method' => 'country',
     ),
     'sort' => array(
-      'handler' => 'views_handler_sort',
+      'join_table' => 'civicrm_country',
+      'join_left_field' => 'country_id',
+      'join_field' => 'id',
+      'handler' => 'civicrm_handler_sort_address_pseudoconstant',
     ),
   );
 
@@ -1066,7 +1106,10 @@ function _civicrm_core_data(&$data, $enabled) {
       'pseudo method' => 'county',
     ),
     'sort' => array(
-      'handler' => 'views_handler_sort',
+      'join_table' => 'civicrm_county',
+      'join_left_field' => 'county_id',
+      'join_field' => 'id',
+      'handler' => 'civicrm_handler_sort_address_pseudoconstant',
     ),
   );
 
@@ -1149,6 +1192,12 @@ function _civicrm_core_data(&$data, $enabled) {
     ),
   );
 
+  //CiviCRM Email
+  $data['civicrm_email']['table']['join']['civicrm_email'] = array(
+      'left_field' => 'id',
+      'field' => 'id',
+  );
+
   //CiviCRM Email Using Contacts as a pitstop before going on to Participants
   $data['civicrm_email']['table']['join']['civicrm_participant'] = array(
     'left_table' => 'civicrm_contact',
@@ -1190,6 +1239,20 @@ function _civicrm_core_data(&$data, $enabled) {
     'field' => 'contact_id',
   );
 
+  // EMAIL ADDRESS ID
+  $data['civicrm_email']['id'] = array(
+    'title' => t('Email Address'),
+    'help' => t('Contact Email Address'),
+    'relationship' => array(
+      'base' => 'civicrm_contact',
+      'field' => 'id',
+      'relationship table' => 'civicrm_email',
+      'relationship field' => 'contact_id',
+      'handler' => 'civicrm_handler_relationship_mail',
+      'label' => t('CiviCRM Email'),
+    ),
+  );
+
   //BOOLEAN : IS PRIMARY EMAIL
   $data['civicrm_email']['is_primary'] = array(
     'title' => t('Is Primary Email'),
@@ -1206,6 +1269,7 @@ function _civicrm_core_data(&$data, $enabled) {
     ),
     'sort' => array(
       'handler' => 'views_handler_sort',
+      'handler' => 'civicrm_handler_sort_mail',
     ),
   );
 
@@ -1288,6 +1352,12 @@ function _civicrm_core_data(&$data, $enabled) {
       'left_field' => 'id',
       'field' => 'contact_id',
     ),
+  );
+
+  //CiviCRM Phone
+  $data['civicrm_phone']['table']['join']['civicrm_phone'] = array(
+      'left_field' => 'id',
+      'field' => 'id',
   );
 
   //CiviCRM Phone Using Contacts as a pitstop before going on to Participants
@@ -1400,7 +1470,7 @@ function _civicrm_core_data(&$data, $enabled) {
 
   //FULL PHONE NUMBER
   $data['civicrm_phone']['phone'] = array(
-    'title' => t('Phone Number'),
+    'title' => t('Phone'),
     'help' => t('Full Phone Number'),
     'field' => array(
       'handler' => 'civicrm_handler_field_phone',
@@ -1416,6 +1486,20 @@ function _civicrm_core_data(&$data, $enabled) {
     ),
     'sort' => array(
       'handler' => 'views_handler_sort',
+    ),
+  );
+
+  // PHONE ID
+  $data['civicrm_phone']['id'] = array(
+    'title' => t('Phone'),
+    'help' => t('Contact Phone Number'),
+    'relationship' => array(
+      'base' => 'civicrm_contact',
+      'field' => 'id',
+      'relationship table' => 'civicrm_phone',
+      'relationship field' => 'contact_id',
+      'handler' => 'civicrm_handler_relationship_phone',
+      'label' => t('CiviCRM Phone'),
     ),
   );
 
@@ -1495,7 +1579,211 @@ function _civicrm_core_data(&$data, $enabled) {
   );
 
 
-  // CHILLING OUT AT THE CIVICRM_WEBSITE TABLE
+  // CHILLING OUT AT THE CIVICRM_IM TABLE
+
+  $data['civicrm_im']['table']['group'] = t('CiviCRM Instant Messaging');
+
+  // Explain how this table joins to others.
+  $data['civicrm_im']['table']['join'] = array(
+      // Directly links to contact table.
+      'civicrm_contact' => array(
+          'left_field' => 'id',
+          'field' => 'contact_id',
+      ),
+  );
+
+  //CiviCRM Im
+  $data['civicrm_im']['table']['join']['civicrm_im'] = array(
+      'left_field' => 'id',
+      'field' => 'id',
+  );
+
+  //CiviCRM Im Using Contacts as a pitstop before going on to Participants
+  $data['civicrm_im']['table']['join']['civicrm_participant'] = array(
+      'left_table' => 'civicrm_contact',
+      'left_field' => 'id',
+      'field' => 'contact_id',
+  );
+
+  //CiviCRM Im Using Contacts as a pitstop before going on to Contributions
+  $data['civicrm_im']['table']['join']['civicrm_contribution'] = array(
+      'left_table' => 'civicrm_contact',
+      'left_field' => 'id',
+      'field' => 'contact_id',
+  );
+
+  //CiviCRM Im Using Contacts as a pitstop before going on to Activities
+  $data['civicrm_im']['table']['join']['civicrm_activity'] = array(
+      'left_table' => 'civicrm_contact',
+      'left_field' => 'id',
+      'field' => 'contact_id',
+  );
+
+
+  //CiviCRM Im Using Locations as a pitstop before going on to Events
+  $data['civicrm_im']['table']['join']['civicrm_event'] = array(
+      'left_table' => 'civicrm_loc_block',
+      'left_field' => 'im_id',
+      'field' => 'id',
+  );
+  //CiviCRM Im Using Contacts as a pitstop before going on to Memberhsips
+  $data['civicrm_im']['table']['join']['civicrm_membership'] = array(
+      'left_table' => 'civicrm_contact',
+      'left_field' => 'id',
+      'field' => 'contact_id',
+  );
+
+  //Display Im Details in User Views
+  $data['civicrm_im']['table']['join']['users'] = array(
+      'left_table' => 'civicrm_uf_match',
+      'left_field' => 'contact_id',
+      'field' => 'contact_id',
+  );
+
+
+  //BOOLEAN : IS PRIMARY IM
+  $data['civicrm_im']['is_primary'] = array(
+      'title' => t('Is Primary Instant Messaging'),
+      'help' => t('Is this the contact\'s primary Instant Messaging?'),
+      'field' => array(
+          'handler' => 'views_handler_field_boolean',
+          'click sortable' => TRUE,
+      ),
+      'argument' => array(
+          'handler' => 'views_handler_argument',
+      ),
+      'filter' => array(
+          'handler' => 'views_handler_filter_boolean_operator',
+      ),
+      'sort' => array(
+          'handler' => 'views_handler_sort',
+      ),
+  );
+
+  //BOOLEAN : IS BILLING IM
+  $data['civicrm_im']['is_billing'] = array(
+      'title' => t('Is Billing Instant Messaging'),
+      'help' => t('Is this the contact\'s billing Instant Messaging?'),
+      'field' => array(
+          'handler' => 'views_handler_field_boolean',
+          'click sortable' => TRUE,
+      ),
+      'argument' => array(
+          'handler' => 'views_handler_argument',
+      ),
+      'filter' => array(
+          'handler' => 'views_handler_filter_boolean_operator',
+      ),
+      'sort' => array(
+          'handler' => 'views_handler_sort',
+      ),
+  );
+
+  //IM'S LOCATION TYPE
+  $data['civicrm_im']['location_type'] = array(
+      'title' => t('Location Type'),
+      'real field' => 'location_type_id',
+      'help' => t('The Location of the Instant Messaging for the Contact'),
+      'field' => array(
+          'handler' => 'civicrm_handler_field_pseudo_constant',
+          'click sortable' => TRUE,
+          'pseudo class' => 'CRM_Core_PseudoConstant',
+          'pseudo method' => 'get',
+          'dao class' => 'CRM_Core_DAO_IM',
+      ),
+      'argument' => array(
+          'handler' => 'views_handler_argument',
+      ),
+      'filter' => array(
+          'handler' => 'civicrm_handler_filter_pseudo_constant',
+          'allow empty' => TRUE,
+          'pseudo class' => 'CRM_Core_PseudoConstant',
+          'pseudo method' => 'get',
+          'dao class' => 'CRM_Core_DAO_IM',
+      ),
+      'sort' => array(
+          'handler' => 'views_handler_sort',
+      ),
+  );
+
+  //NAME
+  $data['civicrm_im']['name'] = array(
+      'title' => t('Name'),
+      'help' => t('IM screen name'),
+      'field' => array(
+          'handler' => 'civicrm_handler_field_im',
+          'click sortable' => TRUE,
+      ),
+  );
+
+  // IM ID
+  $data['civicrm_im']['id'] = array(
+      'title' => t('Instant Messaging'),
+      'help' => t('Contact Instant Messaging'),
+      'relationship' => array(
+          'base' => 'civicrm_contact',
+          'field' => 'id',
+          'relationship table' => 'civicrm_im',
+          'relationship field' => 'contact_id',
+          'handler' => 'civicrm_handler_relationship_im',
+          'label' => t('CiviCRM Instant Messaging'),
+      ),
+  );
+
+  //CONTACT ID contact this IM belongs to
+  $data['civicrm_im']['contact_id'] = array(
+      'title' => t('Contact ID'),
+      'help' => t('Contact Instant Messaging belongs to '),
+      'field' => array(
+          'handler' => 'views_handler_field',
+          'click sortable' => TRUE,
+      ),
+      'argument' => array(
+          'handler' => 'views_handler_argument',
+      ),
+      'filter' => array(
+          'handler' => 'views_handler_filter_string',
+          'allow empty' => TRUE,
+      ),
+      'sort' => array(
+          'handler' => 'views_handler_sort',
+      ),
+      'relationship' => array(
+          'base' => 'civicrm_contact',
+          'base field' => 'id',
+          'handler' => 'views_handler_relationship',
+          'label' => t('Related Instant Messaging'),
+      ),
+  );
+
+  //IM Provider
+  $data['civicrm_im']['provider'] = array(
+      'title' => t('IM Provider'),
+      'real field' => 'provider_id',
+      'help' => t('Which IM Provider does this screen name belong to'),
+      'field' => array(
+          'handler' => 'civicrm_handler_field_pseudo_constant',
+          'click sortable' => TRUE,
+          'pseudo class' => 'CRM_Core_PseudoConstant',
+          'pseudo method' => 'get',
+          'dao class' => 'CRM_Core_DAO_IM',
+      ),
+      'argument' => array(
+          'handler' => 'views_handler_argument',
+      ),
+      'filter' => array(
+          'handler' => 'civicrm_handler_filter_pseudo_constant',
+          'allow empty' => TRUE,
+          'pseudo class' => 'CRM_Core_PseudoConstant',
+          'pseudo method' => 'get',
+          'dao class' => 'CRM_Core_DAO_IM',
+      ),
+      'sort' => array(
+          'handler' => 'views_handler_sort',
+      ),
+  );
+
+// CHILLING OUT AT THE CIVICRM_WEBSITE TABLE
 
   $data['civicrm_website']['table']['group'] = t('CiviCRM Website');
 
@@ -1506,6 +1794,12 @@ function _civicrm_core_data(&$data, $enabled) {
       'left_field' => 'id',
       'field' => 'contact_id',
     ),
+  );
+
+  //CiviCRM Website
+  $data['civicrm_website']['table']['join']['civicrm_website'] = array(
+      'left_field' => 'id',
+      'field' => 'id',
   );
 
   //CiviCRM Website Using Contacts as a pitstop before going on to Participants
@@ -1577,7 +1871,7 @@ function _civicrm_core_data(&$data, $enabled) {
     'title' => t('Website URL'),
     'help' => t('Website URL'),
     'field' => array(
-      'handler' => 'views_handler_field',
+      'handler' => 'civicrm_handler_field_website',
       'click sortable' => TRUE,
     ),
     'argument' => array(
@@ -1593,8 +1887,8 @@ function _civicrm_core_data(&$data, $enabled) {
     'relationship' => array(
       'base' => 'civicrm_contact',
       'base field' => 'id',
-      'handler' => 'views_handler_relationship',
-      'label' => t('Related Phone'),
+      'handler' => 'civicrm_handler_relationship_website',
+      'label' => t('Related Website'),
     ),
   );
   // CIVICRM Activities are here with all the activeness they can muster, base tabling it up.
@@ -2571,6 +2865,11 @@ function _civicrm_core_data(&$data, $enabled) {
     'left_field' => 'tag_id',
     'field' => 'id',
   );
+  $data['civicrm_tag']['table']['join']['civicrm_case'] = array(
+    'left_table' => 'civicrm_entity_tag',
+    'left_field' => 'tag_id',
+    'field' => 'id',
+  );
 
   $data['civicrm_entity_tag']['table']['join']['civicrm_contact'] = array(
     // Directly links to tag table
@@ -2592,6 +2891,18 @@ function _civicrm_core_data(&$data, $enabled) {
       array(
         'field' => 'entity_table',
         'value' => 'civicrm_activity',
+        'numeric' => FALSE,
+      ),
+    ),
+  );
+  $data['civicrm_entity_tag']['table']['join']['civicrm_case'] = array(
+    // Directly links to tag table
+    'left_field' => 'id',
+    'field' => 'entity_id',
+    'extra' => array(
+      array(
+        'field' => 'entity_table',
+        'value' => 'civicrm_case',
         'numeric' => FALSE,
       ),
     ),
@@ -2700,17 +3011,13 @@ function _civicrm_core_data(&$data, $enabled) {
     ),
   );
 
-
   // Pull in all the Custom fields
   $query = "select id, extends, extends_entity_column_value, style from civicrm_custom_group where is_active = 1";
 
   $dao = CRM_Core_DAO::executeQuery($query);
 
-
   while ($dao->fetch()) {
-    // call getTree using $dao->id as groupID and $dao->extends as entityType
-
+    // Call getTree using $dao->id as groupID, $dao->extends as entityType, with possible subtypes in $dao->extends_entity_column_value
     $data = civicrm_views_custom_data_cache($data, $dao->extends, $dao->id, $dao->extends_entity_column_value);
   }
 }
-

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -29,16 +29,12 @@
  * This class contains functions for managing Tag(tag) for a contact
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
 
   /**
-   *
-   * Given a contact id, it returns an array of tag id's the
-   * contact belongs to.
+   * Given a contact id, it returns an array of tag id's the contact belongs to.
    *
    * @param int $entityID
    *   Id of the entity usually the contactID.
@@ -47,9 +43,8 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
    *
    * @return array
    *   reference $tag array of category id's the contact belongs to.
-   *
    */
-  public static function &getTag($entityID, $entityTable = 'civicrm_contact') {
+  public static function getTag($entityID, $entityTable = 'civicrm_contact') {
     $tags = array();
 
     $entityTag = new CRM_Core_BAO_EntityTag();
@@ -86,6 +81,9 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
 
     // dont save the object if it already exists, CRM-1276
     if (!$entityTag->find(TRUE)) {
+      //invoke pre hook
+      CRM_Utils_Hook::pre('create', 'EntityTag', $params['tag_id'], $params);
+
       $entityTag->save();
 
       //invoke post hook on entityTag
@@ -116,17 +114,24 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
    *   (reference ) an assoc array of name/value pairs.
    */
   public static function del(&$params) {
+    //invoke pre hook
+    if (!empty($params['tag_id'])) {
+      CRM_Utils_Hook::pre('delete', 'EntityTag', $params['tag_id'], $params);
+    }
+
     $entityTag = new CRM_Core_BAO_EntityTag();
     $entityTag->copyValues($params);
     $entityTag->delete();
 
     //invoke post hook on entityTag
-    $object = array(0 => array(0 => $params['entity_id']), 1 => $params['entity_table']);
-    CRM_Utils_Hook::post('delete', 'EntityTag', $params['tag_id'], $object);
+    if (!empty($params['tag_id'])) {
+      $object = array(0 => array(0 => $params['entity_id']), 1 => $params['entity_table']);
+      CRM_Utils_Hook::post('delete', 'EntityTag', $params['tag_id'], $object);
+    }
   }
 
   /**
-   * Given an array of entity ids and entity table, add all the entity to the tags
+   * Given an array of entity ids and entity table, add all the entity to the tags.
    *
    * @param array $entityIds
    *   (reference ) the array of entity ids to be added.
@@ -134,16 +139,28 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
    *   The id of the tag.
    * @param string $entityTable
    *   Name of entity table default:civicrm_contact.
+   * @param bool $applyPermissions
+   *   Should permissions be applied in this function.
    *
    * @return array
-   *   (total, added, notAdded) count of enities added to tag
+   *   (total, added, notAdded) count of entities added to tag
    */
-  public static function addEntitiesToTag(&$entityIds, $tagId, $entityTable = 'civicrm_contact') {
+  public static function addEntitiesToTag(&$entityIds, $tagId, $entityTable, $applyPermissions) {
     $numEntitiesAdded = 0;
     $numEntitiesNotAdded = 0;
     $entityIdsAdded = array();
 
+    //invoke pre hook for entityTag
+    $preObject = array($entityIds, $entityTable);
+    CRM_Utils_Hook::pre('create', 'EntityTag', $tagId, $preObject);
+
     foreach ($entityIds as $entityId) {
+      // CRM-17350 - check if we have permission to edit the contact
+      // that this tag belongs to.
+      if ($applyPermissions && !self::checkPermissionOnEntityTag($entityId, $entityTable)) {
+        $numEntitiesNotAdded++;
+        continue;
+      }
       $tag = new CRM_Core_DAO_EntityTag();
 
       $tag->entity_id = $entityId;
@@ -163,15 +180,36 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
     $object = array($entityIdsAdded, $entityTable);
     CRM_Utils_Hook::post('create', 'EntityTag', $tagId, $object);
 
-    // reset the group contact cache for all groups
-    // if tags are being used in a smart group
-    CRM_Contact_BAO_GroupContactCache::remove();
+    CRM_Contact_BAO_GroupContactCache::opportunisticCacheFlush();
 
     return array(count($entityIds), $numEntitiesAdded, $numEntitiesNotAdded);
   }
 
   /**
-   * Given an array of entity ids and entity table, remove entity(s) tags
+   * Basic check for ACL permission on editing/creating/removing a tag.
+   *
+   * In the absence of something better contacts get a proper check and other entities
+   * default to 'edit all contacts'. This is currently only accessed from the api which previously
+   * applied edit all contacts to all - so while still too restrictive it represents a loosening.
+   *
+   * Current possible entities are attachments, activities, cases & contacts.
+   *
+   * @param int $entityID
+   * @param string $entityTable
+   *
+   * @return bool
+   */
+  public static function checkPermissionOnEntityTag($entityID, $entityTable) {
+    if ($entityTable == 'civicrm_contact') {
+      return CRM_Contact_BAO_Contact_Permission::allow($entityID, CRM_Core_Permission::EDIT);
+    }
+    else {
+      return CRM_Core_Permission::check('edit all contacts');
+    }
+  }
+
+  /**
+   * Given an array of entity ids and entity table, remove entity(s)tags.
    *
    * @param array $entityIds
    *   (reference ) the array of entity ids to be removed.
@@ -179,16 +217,28 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
    *   The id of the tag.
    * @param string $entityTable
    *   Name of entity table default:civicrm_contact.
+   * @param bool $applyPermissions
+   *   Should permissions be applied in this function.
    *
    * @return array
    *   (total, removed, notRemoved) count of entities removed from tags
    */
-  public static function removeEntitiesFromTag(&$entityIds, $tagId, $entityTable = 'civicrm_contact') {
+  public static function removeEntitiesFromTag(&$entityIds, $tagId, $entityTable, $applyPermissions) {
     $numEntitiesRemoved = 0;
     $numEntitiesNotRemoved = 0;
     $entityIdsRemoved = array();
 
+    //invoke pre hook for entityTag
+    $preObject = array($entityIds, $entityTable);
+    CRM_Utils_Hook::pre('delete', 'EntityTag', $tagId, $preObject);
+
     foreach ($entityIds as $entityId) {
+      // CRM-17350 - check if we have permission to edit the contact
+      // that this tag belongs to.
+      if ($applyPermissions && !self::checkPermissionOnEntityTag($entityId, $entityTable)) {
+        $numEntitiesNotRemoved++;
+        continue;
+      }
       $tag = new CRM_Core_DAO_EntityTag();
 
       $tag->entity_id = $entityId;
@@ -208,9 +258,7 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
     $object = array($entityIdsRemoved, $entityTable);
     CRM_Utils_Hook::post('delete', 'EntityTag', $tagId, $object);
 
-    // reset the group contact cache for all groups
-    // if tags are being used in a smart group
-    CRM_Contact_BAO_GroupContactCache::remove();
+    CRM_Contact_BAO_GroupContactCache::opportunisticCacheFlush();
 
     return array(count($entityIds), $numEntitiesRemoved, $numEntitiesNotRemoved);
   }
@@ -220,10 +268,8 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
    *
    * @param array $params
    *   (reference) an assoc array of name/value pairs.
-   * @param $entityTable
+   * @param string $entityTable
    * @param int $entityID
-   *
-   * @return void
    */
   public static function create(&$params, $entityTable, $entityID) {
     // get categories for the entity id
@@ -281,11 +327,16 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
 
   /**
    * Get contact tags.
+   *
+   * @param int $contactID
+   * @param bool $count
+   *
+   * @return array
    */
   public static function getContactTags($contactID, $count = FALSE) {
     $contactTags = array();
     if (!$count) {
-      $select = "SELECT name ";
+      $select = "SELECT ct.id, ct.name ";
     }
     else {
       $select = "SELECT count(*) as cnt";
@@ -306,7 +357,7 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
     }
 
     while ($dao->fetch()) {
-      $contactTags[] = $dao->name;
+      $contactTags[$dao->id] = $dao->name;
     }
 
     return $contactTags;
@@ -314,6 +365,12 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
 
   /**
    * Get child contact tags given parentId.
+   *
+   * @param int $parentId
+   * @param int $entityId
+   * @param string $entityTable
+   *
+   * @return array
    */
   public static function getChildEntityTags($parentId, $entityId, $entityTable = 'civicrm_contact') {
     $entityTags = array();
@@ -335,12 +392,20 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
   }
 
   /**
-   * Merge two tags: tag B into tag A.
+   * Merge two tags
+   *
+   * Tag A will inherit all of tag B's properties.
+   * Tag B will be deleted.
+   *
+   * @param int $tagAId
+   * @param int $tagBId
+   *
+   * @return array
    */
   public function mergeTags($tagAId, $tagBId) {
     $queryParams = array(
-      1 => array($tagBId, 'Integer'),
-      2 => array($tagAId, 'Integer'),
+      1 => array($tagAId, 'Integer'),
+      2 => array($tagBId, 'Integer'),
     );
 
     // re-compute used_for field
@@ -354,19 +419,21 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
     }
     $usedFor = array_merge($tags["tagA_used_for"], $tags["tagB_used_for"]);
     $usedFor = implode(',', array_unique($usedFor));
-    $tags["tagB_used_for"] = explode(",", $usedFor);
+    $tags["used_for"] = explode(",", $usedFor);
 
     // get all merge queries together
     $sqls = array(
       // 1. update entity tag entries
       "UPDATE IGNORE civicrm_entity_tag SET tag_id = %1 WHERE tag_id = %2",
-      // 2. update used_for info for tag B
-      "UPDATE civicrm_tag SET used_for = '{$usedFor}' WHERE id = %1",
-      // 3. remove tag A, if tag A is getting merged into B
+      // 2. move children
+      "UPDATE civicrm_tag SET parent_id = %1 WHERE parent_id = %2",
+      // 3. update used_for info for tag A & children
+      "UPDATE civicrm_tag SET used_for = '{$usedFor}' WHERE id = %1 OR parent_id = %1",
+      // 4. delete tag B
       "DELETE FROM civicrm_tag WHERE id = %2",
-      // 4. remove duplicate entity tag records
+      // 5. remove duplicate entity tag records
       "DELETE et2.* from civicrm_entity_tag et1 INNER JOIN civicrm_entity_tag et2 ON et1.entity_table = et2.entity_table AND et1.entity_id = et2.entity_id AND et1.tag_id = et2.tag_id WHERE et1.id < et2.id",
-      // 5. remove orphaned entity_tags
+      // 6. remove orphaned entity_tags
       "DELETE FROM civicrm_entity_tag WHERE tag_id = %2",
     );
     $tables = array('civicrm_entity_tag', 'civicrm_tag');
@@ -418,6 +485,16 @@ class CRM_Core_BAO_EntityTag extends CRM_Core_DAO_EntityTag {
     }
 
     $options = CRM_Core_PseudoConstant::get(__CLASS__, $fieldName, $params, $context);
+
+    // Special formatting for validate/match context
+    if ($fieldName == 'entity_table' && in_array($context, array('validate', 'match'))) {
+      $options = array();
+      foreach (self::buildOptions($fieldName) as $tableName => $label) {
+        $bao = CRM_Core_DAO_AllCoreTables::getClassForTable($tableName);
+        $apiName = CRM_Core_DAO_AllCoreTables::getBriefName($bao);
+        $options[$tableName] = $apiName;
+      }
+    }
 
     return $options;
   }

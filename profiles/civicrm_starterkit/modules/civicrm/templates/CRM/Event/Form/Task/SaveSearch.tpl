@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -41,7 +41,7 @@
         </ul>
       </div>
     {/if}
-    <p>{docURL page='user/current/organising-your-data/smart-groups/'}</p>
+    <p>{docURL page='user/organising-your-data/smart-groups/'}</p>
   </div>
 
  <table class="form-layout-compressed">

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -71,8 +71,10 @@ function _civicrm_api3_group_create_spec(&$params) {
  */
 function civicrm_api3_group_get($params) {
   $options = _civicrm_api3_get_options_from_params($params, TRUE, 'Group', 'get');
-  if ((empty($options['return']) || !in_array('member_count', $options['return'])) && empty($params['check_permissions'])) {
-    return _civicrm_api3_basic_get(_civicrm_api3_get_BAO(__FUNCTION__), $params, TRUE, 'Group');
+
+  if ($options['is_count']) {
+    $params['options']['is_count'] = 0;
+    $params['return'] = 'id';
   }
 
   $groups = _civicrm_api3_basic_get(_civicrm_api3_get_BAO(__FUNCTION__), $params, FALSE, 'Group');
@@ -80,7 +82,7 @@ function civicrm_api3_group_get($params) {
     if (!empty($params['check_permissions']) && !CRM_Contact_BAO_Group::checkPermission($group['id'])) {
       unset($groups[$id]);
     }
-    elseif (!empty($options['return']) && in_array('member_count', $options['return'])) {
+    if (!empty($options['return']) && in_array('member_count', $options['return'])) {
       $groups[$id]['member_count'] = CRM_Contact_BAO_Group::memberCount($id);
     }
   }
@@ -92,12 +94,14 @@ function civicrm_api3_group_get($params) {
  *
  * @param array $params
  *   [id]
- *
- * @return array
- *   API result array
+ * @return array API result array
+ * @throws API_Exception
  */
 function civicrm_api3_group_delete($params) {
-
+  $group = civicrm_api3_group_get(array('id' => $params['id']));
+  if ($group['count'] == 0) {
+    throw new API_Exception('Could not delete group ' . $params['id']);
+  }
   CRM_Contact_BAO_Group::discard($params['id']);
   return civicrm_api3_create_success(TRUE);
 }

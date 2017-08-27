@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,16 +28,12 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Contact_Page_View_UserDashBoard_GroupContact extends CRM_Contact_Page_View_UserDashBoard {
 
   /**
-   * called when action is browse.
-   *
-   * @return void
+   * Called when action is browse.
    */
   public function browse() {
     $count = CRM_Contact_BAO_GroupContact::getContactGroup(
@@ -47,21 +43,21 @@ class CRM_Contact_Page_View_UserDashBoard_GroupContact extends CRM_Contact_Page_
       $this->_onlyPublicGroups
     );
 
-    $in =& CRM_Contact_BAO_GroupContact::getContactGroup(
+    $in = CRM_Contact_BAO_GroupContact::getContactGroup(
       $this->_contactId,
       'Added',
       NULL, FALSE, TRUE,
       $this->_onlyPublicGroups
     );
 
-    $pending =& CRM_Contact_BAO_GroupContact::getContactGroup(
+    $pending = CRM_Contact_BAO_GroupContact::getContactGroup(
       $this->_contactId,
       'Pending',
       NULL, FALSE, TRUE,
       $this->_onlyPublicGroups
     );
 
-    $out =& CRM_Contact_BAO_GroupContact::getContactGroup(
+    $out = CRM_Contact_BAO_GroupContact::getContactGroup(
       $this->_contactId,
       'Removed',
       NULL, FALSE, TRUE,
@@ -127,10 +123,9 @@ class CRM_Contact_Page_View_UserDashBoard_GroupContact extends CRM_Contact_Page_
   }
 
   /**
-   * the main function that is called when the page loads,
-   * it decides the which action has to be taken for the page.
+   * The main function that is called when the page loads.
    *
-   * @return void
+   * It decides the which action has to be taken for the page.
    */
   public function run() {
     $this->edit();

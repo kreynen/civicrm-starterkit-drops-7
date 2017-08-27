@@ -18,15 +18,33 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Parameter;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\Exception\RuntimeException;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\ExpressionLanguage\Expression;
 
 /**
  * YamlDumper dumps a service container as a YAML string.
  *
  * @author Fabien Potencier <fabien@symfony.com>
+ *
+ * @api
  */
 class YamlDumper extends Dumper
 {
     private $dumper;
+
+    /**
+     * Constructor.
+     *
+     * @param ContainerBuilder $container The service container to dump
+     *
+     * @api
+     */
+    public function __construct(ContainerBuilder $container)
+    {
+        parent::__construct($container);
+
+        $this->dumper = new YmlDumper();
+    }
 
     /**
      * Dumps the service container as an YAML string.
@@ -34,17 +52,11 @@ class YamlDumper extends Dumper
      * @param array $options An array of options
      *
      * @return string A YAML string representing of the service container
+     *
+     * @api
      */
     public function dump(array $options = array())
     {
-        if (!class_exists('Symfony\Component\Yaml\Dumper')) {
-            throw new RuntimeException('Unable to dump the container as the Symfony Yaml Component is not installed.');
-        }
-
-        if (null === $this->dumper) {
-            $this->dumper = new YmlDumper();
-        }
-
         return $this->addParameters()."\n".$this->addServices();
     }
 
@@ -59,12 +71,8 @@ class YamlDumper extends Dumper
     private function addService($id, $definition)
     {
         $code = "    $id:\n";
-        if ($class = $definition->getClass()) {
-            if ('\\' === substr($class, 0, 1)) {
-                $class = substr($class, 1);
-            }
-
-            $code .= sprintf("        class: %s\n", $this->dumper->dump($class));
+        if ($definition->getClass()) {
+            $code .= sprintf("        class: %s\n", $definition->getClass());
         }
 
         if (!$definition->isPublic()) {
@@ -88,7 +96,7 @@ class YamlDumper extends Dumper
         }
 
         if ($definition->getFile()) {
-            $code .= sprintf("        file: %s\n", $this->dumper->dump($definition->getFile()));
+            $code .= sprintf("        file: %s\n", $definition->getFile());
         }
 
         if ($definition->isSynthetic()) {
@@ -100,7 +108,7 @@ class YamlDumper extends Dumper
         }
 
         if ($definition->getFactoryClass()) {
-            $code .= sprintf("        factory_class: %s\n", $this->dumper->dump($definition->getFactoryClass()));
+            $code .= sprintf("        factory_class: %s\n", $definition->getFactoryClass());
         }
 
         if ($definition->isLazy()) {
@@ -108,11 +116,11 @@ class YamlDumper extends Dumper
         }
 
         if ($definition->getFactoryMethod()) {
-            $code .= sprintf("        factory_method: %s\n", $this->dumper->dump($definition->getFactoryMethod()));
+            $code .= sprintf("        factory_method: %s\n", $definition->getFactoryMethod());
         }
 
         if ($definition->getFactoryService()) {
-            $code .= sprintf("        factory_service: %s\n", $this->dumper->dump($definition->getFactoryService()));
+            $code .= sprintf("        factory_service: %s\n", $definition->getFactoryService());
         }
 
         if ($definition->getArguments()) {
@@ -128,7 +136,15 @@ class YamlDumper extends Dumper
         }
 
         if (ContainerInterface::SCOPE_CONTAINER !== $scope = $definition->getScope()) {
-            $code .= sprintf("        scope: %s\n", $this->dumper->dump($scope));
+            $code .= sprintf("        scope: %s\n", $scope);
+        }
+
+        if (null !== $decorated = $definition->getDecoratedService()) {
+            list($decorated, $renamedId) = $decorated;
+            $code .= sprintf("        decorates: %s\n", $decorated);
+            if (null !== $renamedId) {
+                $code .= sprintf("        decoration_inner_name: %s\n", $renamedId);
+            }
         }
 
         if ($callable = $definition->getConfigurator()) {
@@ -157,10 +173,10 @@ class YamlDumper extends Dumper
     private function addServiceAlias($alias, $id)
     {
         if ($id->isPublic()) {
-            return sprintf("    %s: '@%s'\n", $alias, $id);
+            return sprintf("    %s: @%s\n", $alias, $id);
+        } else {
+            return sprintf("    %s:\n        alias: %s\n        public: false", $alias, $id);
         }
-
-        return sprintf("    %s:\n        alias: %s\n        public: false", $alias, $id);
     }
 
     /**
@@ -228,6 +244,8 @@ class YamlDumper extends Dumper
             return $this->getServiceCall((string) $value, $value);
         } elseif ($value instanceof Parameter) {
             return $this->getParameterCall((string) $value);
+        } elseif ($value instanceof Expression) {
+            return $this->getExpressionCall((string) $value);
         } elseif (is_object($value) || is_resource($value)) {
             throw new RuntimeException('Unable to dump a service container if a parameter is an object or a resource.');
         }
@@ -262,6 +280,11 @@ class YamlDumper extends Dumper
     private function getParameterCall($id)
     {
         return sprintf('%%%s%%', $id);
+    }
+
+    private function getExpressionCall($expression)
+    {
+        return sprintf('@=%s', $expression);
     }
 
     /**

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 abstract class CRM_Contact_Form_Search_Custom_FullText_AbstractPartialQuery {
 
@@ -132,18 +130,23 @@ AND        cf.html_type IN ( 'Text', 'TextArea', 'RichTextEditor' )
     }
   }
 
-
   /**
+   * Run queries.
+   *
    * @param string $queryText
    * @param array $tables
    *   A list of places to query. Keys may be:.
    *   - sql: an array of SQL queries to execute
    *   - final: an array of SQL queries to execute at the end
    *   - *: All other keys are treated as table names
+   * @param string $entityIDTableName
+   * @param int $limit
+   *
    * @return array
-   *   keys: match-descriptor
+   *   Keys: match-descriptor
    *   - count: int
    *   - files: NULL | array
+   * @throws \CRM_Core_Exception
    */
   public function runQueries($queryText, &$tables, $entityIDTableName, $limit) {
     $sql = "TRUNCATE {$entityIDTableName}";
@@ -257,47 +260,7 @@ GROUP BY {$tableValues['id']}
    *   SQL, eg "MATCH (col1) AGAINST (queryText)" or "col1 LIKE '%queryText%'"
    */
   public function matchText($table, $fullTextFields, $queryText) {
-    $strtolower = function_exists('mb_strtolower') ? 'mb_strtolower' : 'strtolower';
-
-    if (strpos($table, ' ') === FALSE) {
-      $tableName = $tableAlias = $table;
-    }
-    else {
-      list ($tableName, $tableAlias) = explode(' ', $table);
-    }
-    if (is_scalar($fullTextFields)) {
-      $fullTextFields = array($fullTextFields);
-    }
-
-    $clauses = array();
-    if (CRM_Core_InnoDBIndexer::singleton()->hasDeclaredIndex($tableName, $fullTextFields)) {
-      $formattedQuery = CRM_Utils_QueryFormatter::singleton()
-        ->format($queryText, CRM_Utils_QueryFormatter::LANG_SQL_FTSBOOL);
-
-      $prefixedFieldNames = array();
-      foreach ($fullTextFields as $fieldName) {
-        $prefixedFieldNames[] = "$tableAlias.$fieldName";
-      }
-
-      $clauses[] = sprintf("MATCH (%s) AGAINST ('%s' IN BOOLEAN MODE)",
-        implode(',', $prefixedFieldNames),
-        $strtolower(CRM_Core_DAO::escapeString($formattedQuery))
-      );
-    }
-    else {
-      //CRM_Core_Session::setStatus(ts('Cannot use FTS for %1 (%2)', array(
-      //  1 => $table,
-      //  2 => implode(', ', $fullTextFields),
-      //)));
-
-      $formattedQuery = CRM_Utils_QueryFormatter::singleton()
-        ->format($queryText, CRM_Utils_QueryFormatter::LANG_SQL_LIKE);
-      $escapedText = $strtolower(CRM_Core_DAO::escapeString($formattedQuery));
-      foreach ($fullTextFields as $fieldName) {
-        $clauses[] = "$tableAlias.$fieldName LIKE '{$escapedText}'";
-      }
-    }
-    return implode(' OR ', $clauses);
+    return CRM_Utils_QueryFormatter::singleton()->formatSql($table, $fullTextFields, $queryText);
   }
 
   /**

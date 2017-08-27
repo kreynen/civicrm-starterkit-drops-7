@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
 
@@ -49,8 +47,19 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
   public $_drilldownReport = array('contribute/detail' => 'Link to Detail Report');
 
   /**
+   * This report has been optimised for group filtering.
+   *
+   * CRM-19170
+   *
+   * @var bool
+   */
+  protected $groupFilterNotOptimised = FALSE;
+
+  /**
+   * Class constructor.
    */
   public function __construct() {
+    $this->_rollup = 'WITH ROLLUP';
     $this->_autoIncludeIndexedFieldsAsOrderBys = 1;
     $yearsInPast = 10;
     $yearsInFuture = 1;
@@ -109,7 +118,6 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
             'title' => ts('Contact Subtype'),
           ),
         ),
-        'grouping' => 'contact-fields',
         'order_bys' => array(
           'sort_name' => array(
             'title' => ts('Last Name, First Name'),
@@ -166,6 +174,9 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
           ),
         ),
       ),
+      'civicrm_line_item' => array(
+        'dao' => 'CRM_Price_DAO_LineItem',
+      ),
       'civicrm_email' => array(
         'dao' => 'CRM_Core_DAO_Email',
         'grouping' => 'contact-field',
@@ -218,17 +229,39 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
             'operatorType' => CRM_Report_Form::OP_SELECT,
             'options' => $optionYear,
             'default' => date('Y'),
+            'type' => CRM_Utils_Type::T_INT,
           ),
           'financial_type_id' => array(
             'title' => ts('Financial Type'),
+            'type' => CRM_Utils_Type::T_INT,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
-            'options' => CRM_Contribute_PseudoConstant::financialType(),
+            'options' => CRM_Financial_BAO_FinancialType::getAvailableFinancialTypes(),
           ),
           'contribution_status_id' => array(
             'title' => ts('Contribution Status'),
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => CRM_Contribute_PseudoConstant::contributionStatus(),
             'default' => array('1'),
+          ),
+        ),
+      ),
+    );
+    $this->_columns += array(
+      'civicrm_financial_trxn' => array(
+        'dao' => 'CRM_Financial_DAO_FinancialTrxn',
+        'fields' => array(
+          'card_type_id' => array(
+            'title' => ts('Credit Card Type'),
+            'dbAlias' => 'GROUP_CONCAT(financial_trxn_civireport.card_type_id SEPARATOR ",")',
+          ),
+        ),
+        'filters' => array(
+          'card_type_id' => array(
+            'title' => ts('Credit Card Type'),
+            'operatorType' => CRM_Report_Form::OP_MULTISELECT,
+            'default' => NULL,
+            'options' => CRM_Financial_DAO_FinancialTrxn::buildOptions('card_type_id'),
+            'type' => CRM_Utils_Type::T_STRING,
           ),
         ),
       ),
@@ -244,6 +277,7 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
         'title' => ts('Campaign'),
         'operatorType' => CRM_Report_Form::OP_MULTISELECT,
         'options' => $this->activeCampaigns,
+        'type' => CRM_Utils_Type::T_INT,
       );
     }
 
@@ -276,19 +310,19 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
               $select[] = "SUM({$field['dbAlias']}) as {$tableName}_{$fieldName}";
 
               $this->_columnHeaders["civicrm_upto_{$upTo_year}"]['type'] = $field['type'];
-              $this->_columnHeaders["civicrm_upto_{$upTo_year}"]['title'] = "Up To $upTo_year";
+              $this->_columnHeaders["civicrm_upto_{$upTo_year}"]['title'] = ts("Up To %1", array(1 => $upTo_year));
 
-              $this->_columnHeaders["{$previous_ppyear}"]['type'] = $field['type'];
-              $this->_columnHeaders["{$previous_ppyear}"]['title'] = $previous_ppyear;
+              $this->_columnHeaders["year_{$previous_ppyear}"]['type'] = $field['type'];
+              $this->_columnHeaders["year_{$previous_ppyear}"]['title'] = $previous_ppyear;
 
-              $this->_columnHeaders["{$previous_pyear}"]['type'] = $field['type'];
-              $this->_columnHeaders["{$previous_pyear}"]['title'] = $previous_pyear;
+              $this->_columnHeaders["year_{$previous_pyear}"]['type'] = $field['type'];
+              $this->_columnHeaders["year_{$previous_pyear}"]['title'] = $previous_pyear;
 
-              $this->_columnHeaders["{$previous_year}"]['type'] = $field['type'];
-              $this->_columnHeaders["{$previous_year}"]['title'] = $previous_year;
+              $this->_columnHeaders["year_{$previous_year}"]['type'] = $field['type'];
+              $this->_columnHeaders["year_{$previous_year}"]['title'] = $previous_year;
 
               $this->_columnHeaders["civicrm_life_time_total"]['type'] = $field['type'];
-              $this->_columnHeaders["civicrm_life_time_total"]['title'] = 'LifeTime';;
+              $this->_columnHeaders["civicrm_life_time_total"]['title'] = ts('LifeTime');
             }
             elseif ($fieldName == 'receive_date') {
               $select[] = self::fiscalYearOffset($field['dbAlias']) .
@@ -306,14 +340,14 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
         }
       }
     }
+    $this->_selectClauses = $select;
 
     $this->_select = "SELECT " . implode(', ', $select) . " ";
   }
 
   public function from() {
-
-    $this->_from = "
-        FROM  civicrm_contribution  {$this->_aliases['civicrm_contribution']}
+    $this->setFromBase('civicrm_contribution', 'contact_id');
+    $this->_from .= "
               INNER JOIN civicrm_contact {$this->_aliases['civicrm_contact']}
                       ON {$this->_aliases['civicrm_contact']}.id = {$this->_aliases['civicrm_contribution']}.contact_id
              {$this->_aclFrom}";
@@ -330,6 +364,9 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
                       ON {$this->_aliases['civicrm_contact']}.id = {$this->_aliases['civicrm_phone']}.contact_id AND
                          {$this->_aliases['civicrm_phone']}.is_primary = 1";
     }
+    // for credit card type
+    $this->addFinancialTrxnFromClause();
+
     $this->addAddressFromClause();
   }
 
@@ -390,9 +427,10 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
 
   public function groupBy() {
     $this->assign('chartSupported', TRUE);
-    $this->_groupBy = "Group BY {$this->_aliases['civicrm_contribution']}.contact_id, " .
-      self::fiscalYearOffset($this->_aliases['civicrm_contribution'] .
-        '.receive_date') . " WITH ROLLUP ";
+    $fiscalYearOffset = self::fiscalYearOffset("{$this->_aliases['civicrm_contribution']}.receive_date");
+    $this->_groupBy = "GROUP BY {$this->_aliases['civicrm_contribution']}.contact_id, {$fiscalYearOffset}";
+    $this->_select = CRM_Contact_BAO_Query::appendAnyValueToSelect($this->_selectClauses, array("{$this->_aliases['civicrm_contribution']}.contact_id", $fiscalYearOffset));
+    $this->_groupBy .= " {$this->_rollup}";
   }
 
   /**
@@ -413,7 +451,7 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
       if ($dao->fetch()) {
         $statistics['counts']['amount'] = array(
           'value' => $dao->amount,
-          'title' => 'Total LifeTime',
+          'title' => ts('Total LifeTime'),
           'type' => CRM_Utils_Type::T_MONEY,
         );
       }
@@ -424,12 +462,8 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
   public function postProcess() {
     // get ready with post process params
     $this->beginPostProcess();
-
     $this->buildACLClause($this->_aliases['civicrm_contact']);
-    $this->select();
-    $this->from();
-    $this->where();
-    $this->groupBy();
+    $this->buildQuery();
 
     $rows = $contactIds = array();
     if (empty($this->_params['charts'])) {
@@ -479,7 +513,7 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
         if ($dao->civicrm_contribution_receive_date) {
           if ($dao->civicrm_contribution_receive_date > $upTo_year) {
             $contributionSum += $dao->civicrm_contribution_total_amount;
-            $rows[$dao->civicrm_contribution_contact_id][$dao->civicrm_contribution_receive_date] = $dao->civicrm_contribution_total_amount;
+            $rows[$dao->civicrm_contribution_contact_id]['year_' . $dao->civicrm_contribution_receive_date] = $dao->civicrm_contribution_total_amount;
           }
         }
         else {
@@ -523,17 +557,13 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
 
     foreach ($rows as $key => $row) {
       $display["upto_{$upto}"]
-        = CRM_Utils_Array::value("upto_{$upto}", $display)
-        + CRM_Utils_Array::value("civicrm_upto_{$upto}", $row);
+        = CRM_Utils_Array::value("upto_{$upto}", $display) + CRM_Utils_Array::value("civicrm_upto_{$upto}", $row);
       $display[$previous_year]
-        = CRM_Utils_Array::value($previous_year, $display)
-        + CRM_Utils_Array::value($previous_year, $row);
+        = CRM_Utils_Array::value($previous_year, $display) + CRM_Utils_Array::value($previous_year, $row);
       $display[$previous_two_year]
-        = CRM_Utils_Array::value($previous_two_year, $display)
-        + CRM_Utils_Array::value($previous_two_year, $row);
+        = CRM_Utils_Array::value($previous_two_year, $display) + CRM_Utils_Array::value($previous_two_year, $row);
       $display[$previous_three_year]
-        = CRM_Utils_Array::value($previous_three_year, $display)
-        + CRM_Utils_Array::value($previous_three_year, $row);
+        = CRM_Utils_Array::value($previous_three_year, $display) + CRM_Utils_Array::value($previous_three_year, $row);
     }
 
     $graphRows['value'] = $display;
@@ -602,6 +632,11 @@ class CRM_Report_Form_Contribute_Sybunt extends CRM_Report_Form {
         if ($birthDate) {
           $rows[$rowNum]['civicrm_contact_birth_date'] = CRM_Utils_Date::customFormat($birthDate, '%Y%m%d');
         }
+        $entryFound = TRUE;
+      }
+
+      if (!empty($row['civicrm_financial_trxn_card_type_id'])) {
+        $rows[$rowNum]['civicrm_financial_trxn_card_type_id'] = $this->getLabels($row['civicrm_financial_trxn_card_type_id'], 'CRM_Financial_DAO_FinancialTrxn', 'card_type_id');
         $entryFound = TRUE;
       }
 

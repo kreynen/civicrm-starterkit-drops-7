@@ -179,7 +179,7 @@ $GLOBALS['_DB_DATAOBJECT']['QUERYENDTIME'] = 0;
 // NOTE: Overload SEGFAULTS ON PHP4 + Zend Optimizer (see define before..)
 // these two are BC/FC handlers for call in PHP4/5
 
-if ( substr(phpversion(),0,1) == 5) {
+if ( substr(phpversion(),0,1) > 4) {
     class DB_DataObject_Overload
     {
         function __call($method,$args)
@@ -968,11 +968,6 @@ class DB_DataObject extends DB_DataObject_Overload
             if (!isset($this->$k)) {
                 continue;
             }
-            // dont insert data into mysql timestamps
-            // use query() if you really want to do this!!!!
-            if ($v & DB_DATAOBJECT_MYSQLTIMESTAMP) {
-                continue;
-            }
 
             if ($leftq) {
                 $leftq  .= ', ';
@@ -999,6 +994,19 @@ class DB_DataObject extends DB_DataObject_Overload
                 $rightq .= " NULL ";
                 continue;
             }
+          if (($v & DB_DATAOBJECT_DATE) || ($v & DB_DATAOBJECT_TIME) || $v & DB_DATAOBJECT_MYSQLTIMESTAMP) {
+            if (strpos($this->$k, '-') !== FALSE) {
+              /*
+               * per CRM-14986 we have been having ongoing problems with the format returned from $dao->find(TRUE) NOT
+               * being acceptable for an immediate save. This has resulted in the codebase being smattered with
+               * instances of CRM_Utils_Date::isoToMysql for date fields retrieved in this way
+               * which seems both risky (have to remember to do it for every field) & cludgey.
+               * doing it here should be safe as only fields with a '-' in them will be affected - if they are
+               *  already formatted or empty then this line will not be hit
+               */
+              $this->$k = CRM_Utils_Date::isoToMysql($this->$k);
+            }
+          }
             // DATE is empty... on a col. that can be null..
             // note: this may be usefull for time as well..
             if (!$this->$k &&
@@ -1236,13 +1244,6 @@ class DB_DataObject extends DB_DataObject_Overload
                 continue;
             }
 
-             // dont insert data into mysql timestamps
-            // use query() if you really want to do this!!!!
-            if ($v & DB_DATAOBJECT_MYSQLTIMESTAMP) {
-                continue;
-            }
-
-
             if ($settings)  {
                 $settings .= ', ';
             }
@@ -1266,7 +1267,7 @@ class DB_DataObject extends DB_DataObject_Overload
                 $settings .= "$kSql = NULL ";
                 continue;
             }
-          if (($v & DB_DATAOBJECT_DATE) || ($v & DB_DATAOBJECT_TIME)) {
+          if (($v & DB_DATAOBJECT_DATE) || ($v & DB_DATAOBJECT_TIME) || $v & DB_DATAOBJECT_MYSQLTIMESTAMP) {
             if (strpos($this->$k, '-') !== FALSE) {
              /*
               * per CRM-14986 we have been having ongoing problems with the format returned from $dao->find(TRUE) NOT
@@ -2377,6 +2378,7 @@ class DB_DataObject extends DB_DataObject_Overload
         global $_DB_DATAOBJECT, $queries, $user;
         $this->_connect();
 
+        // Logging the query first makes sure it gets logged even if it fails.
         CRM_Core_Error::debug_query($string);
         $DB = &$_DB_DATAOBJECT['CONNECTIONS'][$this->_database_dsn_md5];
 
@@ -2438,8 +2440,11 @@ class DB_DataObject extends DB_DataObject_Overload
         for ($tries = 0;$tries < 3;$tries++) {
 
             if ($_DB_driver == 'DB') {
-
+                if ($tries) {
+                  CRM_Core_Error::debug_log_message('Attempt: ' . $tries + 1 . ' at query : ' . $string);
+                }
                 $result = $DB->query($string);
+
             } else {
                 switch (strtolower(substr(trim($string),0,6))) {
 
@@ -2500,6 +2505,7 @@ class DB_DataObject extends DB_DataObject_Overload
             $this->debug($message, 'query', 1);
           }
         }
+
         switch ($action) {
             case 'insert':
             case 'update':
@@ -3647,7 +3653,7 @@ class DB_DataObject extends DB_DataObject_Overload
      * @return   array of key => value for row
      */
 
-    function toArray($format = '%s', $hideEmpty = false)
+    function toArray($format = null, $hideEmpty = false)
     {
         global $_DB_DATAOBJECT;
         $ret = array();
@@ -3661,24 +3667,35 @@ class DB_DataObject extends DB_DataObject_Overload
 
             if (!isset($this->$k)) {
                 if (!$hideEmpty) {
-                    $ret[sprintf($format,$k)] = '';
+                    if ($format === null)
+                        $ret[$k] = '';
+                    else
+                        $ret[sprintf($format,$k)] = '';
                 }
                 continue;
             }
             // call the overloaded getXXXX() method. - except getLink and getLinks
             if (method_exists($this,'get'.$k) && !in_array(strtolower($k),array('links','link'))) {
-                $ret[sprintf($format,$k)] = $this->{'get'.$k}();
+                if ($format === null)
+                    $ret[$k] = $this->{'get'.$k}();
+                else
+                    $ret[sprintf($format,$k)] = $this->{'get'.$k}();
                 continue;
             }
             // should this call toValue() ???
-            $ret[sprintf($format,$k)] = $this->$k;
+            if ($format === null)
+                $ret[$k] = $this->$k;
+            else
+                $ret[sprintf($format,$k)] = $this->$k;
         }
         if (!$this->_link_loaded) {
             return $ret;
         }
         foreach($this->_link_loaded as $k) {
-            $ret[sprintf($format,$k)] = $this->$k->toArray();
-
+            if ($format === null)
+                $ret[$k] = $this->$k->toArray();
+            else
+                $ret[sprintf($format,$k)] = $this->$k->toArray();
         }
 
         return $ret;
@@ -4263,13 +4280,6 @@ class DB_DataObject extends DB_DataObject_Overload
     {
         global $_DB_DATAOBJECT;
 
-        if (isset($_DB_DATAOBJECT['RESULTS'][$this->_DB_resultid])) {
-            if ( is_resource( $_DB_DATAOBJECT['RESULTS'][$this->_DB_resultid]->result ) ) {
-                mysql_free_result( $_DB_DATAOBJECT['RESULTS'][$this->_DB_resultid]->result );
-            }
-            unset($_DB_DATAOBJECT['RESULTS'][$this->_DB_resultid]);
-        }
-
         if (isset($_DB_DATAOBJECT['RESULTFIELDS'][$this->_DB_resultid])) {
             unset($_DB_DATAOBJECT['RESULTFIELDS'][$this->_DB_resultid]);
         }
@@ -4282,6 +4292,17 @@ class DB_DataObject extends DB_DataObject_Overload
         if (isset($_DB_DATAOBJECT['CONNECTIONS'][$this->_database_dsn_md5])) {
             $_DB_DATAOBJECT['CONNECTIONS'][$this->_database_dsn_md5]->num_rows = array();
         }
+        if (is_array($this->_link_loaded)) {
+            foreach ($this->_link_loaded as $do) {
+                if (
+                        !empty($this->{$do}) &&
+                        is_object($this->{$do}) &&
+                       method_exists($this->{$do}, 'free')
+                    ) {
+                    $this->{$do}->free();
+                }
+            }
+        }
 
     }
 
@@ -4291,7 +4312,30 @@ class DB_DataObject extends DB_DataObject_Overload
     function _get_table() { return $this->table(); }
     function _get_keys()  { return $this->keys();  }
 
-
+  /**
+   * Get a string to append to the query log depending on time taken.
+   *
+   * This is to allow easier grepping for slow queries.
+   *
+   * @param float $timeTaken
+   *
+   * @return string
+   */
+  public function getAlertLevel($timeTaken) {
+    if ($timeTaken >= 20) {
+      return '(very-very-very-slow)';
+    }
+    if ($timeTaken > 10) {
+      return '(very-very-slow)';
+    }
+    if ($timeTaken > 5) {
+      return '(very-slow)';
+    }
+    if ($timeTaken > 1) {
+      return '(slow)';
+    }
+    return '';
+  }
 
   public function lastInsertId() {
     $DB = &$_DB_DATAOBJECT['CONNECTIONS'][$this->_database_dsn_md5];

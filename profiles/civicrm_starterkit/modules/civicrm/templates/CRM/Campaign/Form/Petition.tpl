@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -24,9 +24,6 @@
  +--------------------------------------------------------------------+
 *}
 
-{if $cdType }
-   {include file="CRM/Custom/Form/CustomData.tpl"}
-{else}
 <div class="crm-block crm-form-block crm-campaign-survey-form-block">
   <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="top"}</div>
   {if $action eq 8}
@@ -41,7 +38,7 @@
     </table>
   {else}
     {if $action  eq 1}
-      <div id="help">
+      <div class="help">
         {ts}Use this form to Add new Survey. You can create a new Activity type, specific to this Survey or select an existing activity type for this Survey.{/ts}
       </div>
     {/if}
@@ -82,7 +79,7 @@
       </tr>
       <tr class="crm-campaign-survey-form-block-thankyou_title">
         <td
-          class="label">{$form.thankyou_title.label}{if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_contribution_page' field='thankyou_title' id=$contributionPageID}{/if}</td>
+          class="label">{$form.thankyou_title.label}{if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_survey' field='thankyou_title' id=$surveyId}{/if}</td>
         <td>{$form.thankyou_title.html}<br/>
 
           <div class="description">{ts}This title will be displayed at the top of the thank-you page.{/ts}</div>
@@ -90,7 +87,7 @@
       </tr>
       <tr class="crm-campaign-survey-form-block-thankyou_text">
         <td
-          class="label">{$form.thankyou_text.label}{if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_contribution_page' field='thankyou_text' id=$contributionPageID}{/if}</td>
+          class="label">{$form.thankyou_text.label}{if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_survey' field='thankyou_text' id=$surveyId}{/if}</td>
         <td>{$form.thankyou_text.html}<br/>
 
           <div
@@ -119,12 +116,19 @@
           <div class="description">{ts}Is this the default petition?{/ts}</div>
         </td>
       </tr>
-      <tr class="crm-campaign-form-block-custom_data">
-          <td colspan="2">
-              <div id="customData"></div>
-          </td>
-      </tr>
     </table>
+    <div id="customData"></div>
+    {*include custom data js file*}
+    {include file="CRM/common/customData.tpl"}
+    {literal}
+      <script type="text/javascript">
+        CRM.$(function($) {
+          {/literal}
+          CRM.buildCustomData( 'Survey' );
+          {literal}
+        });
+      </script>
+    {/literal}
   {/if}
   <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</div>
 </div>
@@ -148,14 +152,3 @@
     });
   </script>
 {/literal}
-{include file="CRM/common/customData.tpl" includeWysiwygEditor=true}
-{literal}
-  <script type="text/javascript">
-    CRM.$(function($) {
-      {/literal}
-        CRM.buildCustomData( 'Survey' );
-      {literal}
-    });
-  </script>
-{/literal}
-{/if}

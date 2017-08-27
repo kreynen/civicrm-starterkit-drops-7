@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class is to build the form for adding Group
+ * This class is to build the form for adding Group.
  */
 class CRM_Group_Form_Edit extends CRM_Core_Form {
 
@@ -82,9 +80,6 @@ class CRM_Group_Form_Edit extends CRM_Core_Form {
 
   /**
    * Set up variables to build the form.
-   *
-   * @return void
-   * @acess protected
    */
   public function preProcess() {
     $this->_id = $this->get('id');
@@ -159,8 +154,7 @@ class CRM_Group_Form_Edit extends CRM_Core_Form {
   }
 
   /**
-   * Set default values for the form. LocationType that in edit/view mode
-   * the default values are retrieved from the database
+   * Set default values for the form.
    *
    * @return array
    */
@@ -210,8 +204,6 @@ class CRM_Group_Form_Edit extends CRM_Core_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     if ($this->_action == CRM_Core_Action::DELETE) {
@@ -245,7 +237,7 @@ class CRM_Group_Form_Edit extends CRM_Core_Form {
     );
 
     $groupTypes = CRM_Core_OptionGroup::values('group_type', TRUE);
-    $config = CRM_Core_Config::singleton();
+
     if (isset($this->_id) && !empty($this->_groupValues['saved_search_id'])) {
       unset($groupTypes['Access Control']);
     }
@@ -262,12 +254,7 @@ class CRM_Group_Form_Edit extends CRM_Core_Form {
 
     //CRM-14190
     $parentGroups = self::buildParentGroups($this);
-
-    if (CRM_Core_Permission::check('administer Multiple Organizations') && CRM_Core_Permission::isMultisiteEnabled()) {
-      //group organization Element
-      $props = array('api' => array('params' => array('contact_type' => 'Organization')));
-      $this->addEntityRef('organization_id', ts('Organization'), $props);
-    }
+    self::buildGroupOrganizations($this);
 
     // is_reserved property CRM-9936
     $this->addElement('checkbox', 'is_reserved', ts('Reserved Group?'));
@@ -310,7 +297,7 @@ class CRM_Group_Form_Edit extends CRM_Core_Form {
    * @param array $fields
    *   Posted values of the form.
    * @param array $fileParams
-   * @param $options
+   * @param array $options
    *
    * @return array
    *   list of errors to be posted back to the form
@@ -367,8 +354,6 @@ WHERE  title = %1
 
   /**
    * Process the form when submitted.
-   *
-   * @return void
    */
   public function postProcess() {
     CRM_Utils_System::flushCache('CRM_Core_DAO_Group');
@@ -395,20 +380,7 @@ WHERE  title = %1
 
       $params['is_reserved'] = CRM_Utils_Array::value('is_reserved', $params, FALSE);
 
-      $groupTypeIds = array();
-      $groupType = CRM_Utils_Array::value('group_type', $params);
-      if (is_array($groupType)) {
-        foreach ($groupType as $type => $selected) {
-          if ($selected) {
-            $groupTypeIds[] = $type;
-          }
-        }
-      }
-      $params['group_type'] = $groupTypeIds;
-
-      $customFields = CRM_Core_BAO_CustomField::getFields('Group');
       $params['custom'] = CRM_Core_BAO_CustomField::postProcess($params,
-        $customFields,
         $this->_id,
         'Group'
       );
@@ -494,6 +466,22 @@ WHERE  title = %1
     }
 
     return $parentGroups;
+  }
+
+  /**
+   * Add the group organization checkbox to the form.
+   *
+   * Note this was traditionally a multisite thing - there is no particular reason why it is not available
+   * as a general field - it's historical use-case driven.
+   *
+   * @param CRM_Core_Form $form
+   */
+  public static function buildGroupOrganizations(&$form) {
+    if (CRM_Core_Permission::check('administer Multiple Organizations') && CRM_Core_Permission::isMultisiteEnabled()) {
+      //group organization Element
+      $props = array('api' => array('params' => array('contact_type' => 'Organization')));
+      $form->addEntityRef('organization_id', ts('Organization'), $props);
+    }
   }
 
 }

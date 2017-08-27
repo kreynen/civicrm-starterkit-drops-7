@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,17 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
- */
-
-/**
- *
- * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_ACL_Page_EntityRole extends CRM_Core_Page_Basic {
 
@@ -103,8 +93,6 @@ class CRM_ACL_Page_EntityRole extends CRM_Core_Page_Basic {
    * This method is called after the page is created. It checks for the
    * type of action and executes that action.
    * Finally it calls the parent's run method.
-   *
-   * @return void
    */
   public function run() {
     // get the requested action
@@ -151,8 +139,6 @@ class CRM_ACL_Page_EntityRole extends CRM_Core_Page_Basic {
 
   /**
    * Browse all acls.
-   *
-   * @return void
    */
   public function browse() {
 
@@ -168,7 +154,7 @@ class CRM_ACL_Page_EntityRole extends CRM_Core_Page_Basic {
       $entityRoles[$dao->id] = array();
       CRM_Core_DAO::storeValues($dao, $entityRoles[$dao->id]);
 
-      $entityRoles[$dao->id]['acl_role'] = $aclRoles[$dao->acl_role_id];
+      $entityRoles[$dao->id]['acl_role'] = CRM_Utils_Array::value($dao->acl_role_id, $aclRoles);
       $entityRoles[$dao->id]['entity'] = $groups[$dao->entity_id];
 
       // form all action links

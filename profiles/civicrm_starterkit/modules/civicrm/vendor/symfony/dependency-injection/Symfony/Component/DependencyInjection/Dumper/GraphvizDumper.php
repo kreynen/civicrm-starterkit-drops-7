@@ -12,6 +12,7 @@
 namespace Symfony\Component\DependencyInjection\Dumper;
 
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Exception\ParameterNotFoundException;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\Parameter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -165,21 +166,21 @@ class GraphvizDumper extends Dumper
         $container = $this->cloneContainer();
 
         foreach ($container->getDefinitions() as $id => $definition) {
-            $class = $definition->getClass();
+            $className = $definition->getClass();
 
-            if ('\\' === substr($class, 0, 1)) {
-                $class = substr($class, 1);
+            try {
+                $className = $this->container->getParameterBag()->resolveValue($className);
+            } catch (ParameterNotFoundException $e) {
             }
 
-            $nodes[$id] = array('class' => str_replace('\\', '\\\\', $this->container->getParameterBag()->resolveValue($class)), 'attributes' => array_merge($this->options['node.definition'], array('style' => ContainerInterface::SCOPE_PROTOTYPE !== $definition->getScope() ? 'filled' : 'dotted')));
-
+            $nodes[$id] = array('class' => str_replace('\\', '\\\\', $className), 'attributes' => array_merge($this->options['node.definition'], array('style' => ContainerInterface::SCOPE_PROTOTYPE !== $definition->getScope() ? 'filled' : 'dotted')));
             $container->setDefinition($id, new Definition('stdClass'));
         }
 
         foreach ($container->getServiceIds() as $id) {
             $service = $container->get($id);
 
-            if (array_key_exists($id, $container->getAliases())) {
+            if (in_array($id, array_keys($container->getAliases()))) {
                 continue;
             }
 
@@ -277,7 +278,7 @@ class GraphvizDumper extends Dumper
      */
     private function dotize($id)
     {
-        return strtolower(preg_replace('/\W/i', '_', $id));
+        return strtolower(preg_replace('/[^\w]/i', '_', $id));
     }
 
     /**

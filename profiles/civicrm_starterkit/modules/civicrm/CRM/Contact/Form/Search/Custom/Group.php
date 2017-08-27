@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Contact_Form_Search_Custom_Group extends CRM_Contact_Form_Search_Custom_Base implements CRM_Contact_Form_Search_Interface {
 
@@ -44,7 +42,9 @@ class CRM_Contact_Form_Search_Custom_Group extends CRM_Contact_Form_Search_Custo
   protected $_aclWhere = NULL;
 
   /**
-   * @param $formValues
+   * Class constructor.
+   *
+   * @param array $formValues
    */
   public function __construct(&$formValues) {
     $this->_formValues = $formValues;
@@ -174,19 +174,19 @@ class CRM_Contact_Form_Search_Custom_Group extends CRM_Contact_Form_Search_Custo
 
       //distinguish column according to user selection
       if (($this->_includeGroups && !$this->_includeTags)) {
-        unset($this->_columns['Tag Name']);
+        unset($this->_columns[ts('Tag Name')]);
         $selectClause .= ", GROUP_CONCAT(DISTINCT group_names ORDER BY group_names ASC ) as gname";
       }
       elseif ($this->_includeTags && (!$this->_includeGroups)) {
-        unset($this->_columns['Group Name']);
+        unset($this->_columns[ts('Group Name')]);
         $selectClause .= ", GROUP_CONCAT(DISTINCT tag_names  ORDER BY tag_names ASC ) as tname";
       }
       elseif (!empty($this->_includeTags) && !empty($this->_includeGroups)) {
         $selectClause .= ", GROUP_CONCAT(DISTINCT group_names ORDER BY group_names ASC ) as gname , GROUP_CONCAT(DISTINCT tag_names ORDER BY tag_names ASC ) as tname";
       }
       else {
-        unset($this->_columns['Tag Name']);
-        unset($this->_columns['Group Name']);
+        unset($this->_columns[ts('Tag Name')]);
+        unset($this->_columns[ts('Group Name')]);
       }
     }
 
@@ -274,7 +274,7 @@ class CRM_Contact_Form_Search_Custom_Group extends CRM_Contact_Form_Search_Custo
         $xGroups = 0;
       }
 
-      $sql = "CREATE TEMPORARY TABLE Xg_{$this->_tableName} ( contact_id int primary key) ENGINE=MyISAM";
+      $sql = "CREATE TEMPORARY TABLE Xg_{$this->_tableName} ( contact_id int primary key) ENGINE=InnoDB";
       CRM_Core_DAO::executeQuery($sql);
 
       //used only when exclude group is selected
@@ -312,7 +312,7 @@ WHERE  gcc.group_id = {$ssGroup->id}
 
       $sql = "CREATE TEMPORARY TABLE Ig_{$this->_tableName} ( id int PRIMARY KEY AUTO_INCREMENT,
                                                                    contact_id int,
-                                                                   group_names varchar(64)) ENGINE=MyISAM";
+                                                                   group_names varchar(64)) ENGINE=InnoDB";
 
       CRM_Core_DAO::executeQuery($sql);
 
@@ -414,7 +414,7 @@ WHERE  gcc.group_id = {$ssGroup->id}
         $xTags = 0;
       }
 
-      $sql = "CREATE TEMPORARY TABLE Xt_{$this->_tableName} ( contact_id int primary key) ENGINE=MyISAM";
+      $sql = "CREATE TEMPORARY TABLE Xt_{$this->_tableName} ( contact_id int primary key) ENGINE=InnoDB";
       CRM_Core_DAO::executeQuery($sql);
 
       //used only when exclude tag is selected
@@ -432,7 +432,7 @@ WHERE  gcc.group_id = {$ssGroup->id}
 
       $sql = "CREATE TEMPORARY TABLE It_{$this->_tableName} ( id int PRIMARY KEY AUTO_INCREMENT,
                                                                contact_id int,
-                                                               tag_names varchar(64)) ENGINE=MyISAM";
+                                                               tag_names varchar(64)) ENGINE=InnoDB";
 
       CRM_Core_DAO::executeQuery($sql);
 
@@ -591,6 +591,8 @@ WHERE  gcc.group_id = {$ssGroup->id}
   }
 
   /**
+   * Define columns.
+   *
    * @return array
    */
   public function &columns() {
@@ -598,6 +600,8 @@ WHERE  gcc.group_id = {$ssGroup->id}
   }
 
   /**
+   * Get summary.
+   *
    * @return NULL
    */
   public function summary() {
@@ -605,6 +609,8 @@ WHERE  gcc.group_id = {$ssGroup->id}
   }
 
   /**
+   * Get template file.
+   *
    * @return string
    */
   public function templateFile() {
@@ -612,7 +618,9 @@ WHERE  gcc.group_id = {$ssGroup->id}
   }
 
   /**
-   * @param $title
+   * Set title on search.
+   *
+   * @param string $title
    */
   public function setTitle($title) {
     if ($title) {
@@ -624,6 +632,8 @@ WHERE  gcc.group_id = {$ssGroup->id}
   }
 
   /**
+   * Build ACL clause.
+   *
    * @param string $tableAlias
    */
   public function buildACLClause($tableAlias = 'contact') {

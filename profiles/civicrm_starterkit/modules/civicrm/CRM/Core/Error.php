@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -30,9 +30,7 @@
  * PEAR_ErrorStack and use that framework
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 require_once 'PEAR/ErrorStack.php';
@@ -46,7 +44,8 @@ require_once 'Log.php';
  */
 class CRM_Exception extends PEAR_Exception {
   /**
-   * Redefine the exception so message isn't optional
+   * Redefine the exception so message isn't optional.
+   *
    * Supported signatures:
    *  - PEAR_Exception(string $message);
    *  - PEAR_Exception(string $message, int $code);
@@ -125,8 +124,13 @@ class CRM_Core_Error extends PEAR_ErrorStack {
     $log = CRM_Core_Config::getLog();
     $this->setLogger($log);
 
-    // set up error handling for Pear Error Stack
-    $this->setDefaultCallback(array($this, 'handlePES'));
+    // PEAR<=1.9.0 does not declare "static" properly.
+    if (!is_callable(array('PEAR', '__callStatic'))) {
+      $this->setDefaultCallback(array($this, 'handlePES'));
+    }
+    else {
+      PEAR_ErrorStack::setDefaultCallback(array($this, 'handlePES'));
+    }
   }
 
   /**
@@ -169,10 +173,11 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    * which currently use PEAR::raiseError to notify of error messages.
    *
    * @param object $pearError PEAR_Error
-   *
-   * @return void
    */
   public static function handle($pearError) {
+    if (defined('CIVICRM_TEST')) {
+      return self::simpleHandler($pearError);
+    }
 
     // setup smarty with config, session and template location.
     $template = CRM_Core_Smarty::singleton();
@@ -183,47 +188,36 @@ class CRM_Core_Error extends PEAR_ErrorStack {
     }
 
     // create the error array
-    $error = array();
-    $error['callback'] = $pearError->getCallback();
-    $error['code'] = $pearError->getCode();
-    $error['message'] = $pearError->getMessage();
-    $error['mode'] = $pearError->getMode();
-    $error['debug_info'] = $pearError->getDebugInfo();
-    $error['type'] = $pearError->getType();
-    $error['user_info'] = $pearError->getUserInfo();
-    $error['to_string'] = $pearError->toString();
+    $error = self::getErrorDetails($pearError);
 
     // We access connection info via _DB_DATAOBJECT instead
     // of, e.g., calling getDatabaseConnection(), so that we
     // can avoid infinite loops.
     global $_DB_DATAOBJECT;
 
-    if (!isset($_DB_DATAOBJECT['CONFIG']['database'])) {
-      // we haven't setup sql, so it's not our sql error...
-    }
-    elseif (preg_match('/^mysql:/', $_DB_DATAOBJECT['CONFIG']['database']) &&
-      mysql_error()
-    ) {
-      $mysql_error = mysql_error() . ', ' . mysql_errno();
-      $template->assign_by_ref('mysql_code', $mysql_error);
-
-      // execute a dummy query to clear error stack
-      mysql_query('select 1');
-    }
-    elseif (preg_match('/^mysqli:/', $_DB_DATAOBJECT['CONFIG']['database'])) {
+    if (isset($_DB_DATAOBJECT['CONFIG']['database'])) {
       $dao = new CRM_Core_DAO();
-
       if (isset($_DB_DATAOBJECT['CONNECTIONS'][$dao->_database_dsn_md5])) {
         $conn = $_DB_DATAOBJECT['CONNECTIONS'][$dao->_database_dsn_md5];
-        $link = $conn->connection;
 
-        if (mysqli_error($link)) {
-          $mysql_error = mysqli_error($link) . ', ' . mysqli_errno($link);
-          $template->assign_by_ref('mysql_code', $mysql_error);
-
-          // execute a dummy query to clear error stack
-          mysqli_query($link, 'select 1');
+        // FIXME: Polymorphism for the win.
+        if ($conn instanceof DB_mysqli) {
+          $link = $conn->connection;
+          if (mysqli_error($link)) {
+            $mysql_error = mysqli_error($link) . ', ' . mysqli_errno($link);
+            mysqli_query($link, 'select 1'); // execute a dummy query to clear error stack
+          }
         }
+        elseif ($conn instanceof DB_mysql) {
+          if (mysql_error()) {
+            $mysql_error = mysql_error() . ', ' . mysql_errno();
+            mysql_query('select 1'); // execute a dummy query to clear error stack
+          }
+        }
+        else {
+          $mysql_error = 'fixme-unknown-db-cxn';
+        }
+        $template->assign_by_ref('mysql_code', $mysql_error);
       }
     }
 
@@ -259,6 +253,26 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    */
   public static function simpleHandler($pearError) {
 
+    $error = self::getErrorDetails($pearError);
+
+    // ensure that debug does not check permissions since we are in bootstrap
+    // mode and need to print a decent message to help the user
+    CRM_Core_Error::debug('Initialization Error', $error, TRUE, TRUE, FALSE);
+
+    // always log the backtrace to a file
+    self::backtrace('backTrace', TRUE);
+
+    exit(0);
+  }
+
+  /**
+   * this function is used to return error details
+   *
+   * @param $pearError
+   *
+   * @return array $error
+   */
+  public static function getErrorDetails($pearError) {
     // create the error array
     $error = array();
     $error['callback'] = $pearError->getCallback();
@@ -270,14 +284,7 @@ class CRM_Core_Error extends PEAR_ErrorStack {
     $error['user_info'] = $pearError->getUserInfo();
     $error['to_string'] = $pearError->toString();
 
-    // ensure that debug does not check permissions since we are in bootstrap
-    // mode and need to print a decent message to help the user
-    CRM_Core_Error::debug('Initialization Error', $error, TRUE, TRUE, FALSE);
-
-    // always log the backtrace to a file
-    self::backtrace('backTrace', TRUE);
-
-    exit(0);
+    return $error;
   }
 
   /**
@@ -291,6 +298,10 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    * Also, if we do not return any value the PEAR_ErrorStack::push() then does the
    * action of PEAR_ERRORSTACK_PUSHANDLOG which displays the errors on the screen,
    * since the logger set for this error stack is 'display' - see CRM_Core_Config::getLog();
+   *
+   * @param mixed $pearError
+   *
+   * @return int
    */
   public static function handlePES($pearError) {
     return PEAR_ERRORSTACK_PUSH;
@@ -298,6 +309,11 @@ class CRM_Core_Error extends PEAR_ErrorStack {
 
   /**
    * Display an error page with an error message describing what happened.
+   *
+   * @deprecated
+   *  This is a really annoying function. We ❤ exceptions. Be exceptional!
+   *
+   * @see CRM-20181
    *
    * @param string $message
    *   The error message.
@@ -307,8 +323,6 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    *   The email address to notify of this situation.
    *
    * @throws Exception
-   *
-   * @return void
    */
   public static function fatal($message = NULL, $code = NULL, $email = NULL) {
     $vars = array(
@@ -373,16 +387,14 @@ class CRM_Core_Error extends PEAR_ErrorStack {
         $out['backtrace'] = self::parseBacktrace(debug_backtrace());
         $message .= '<p><em>See console for backtrace</em></p>';
       }
-      CRM_Core_Session::setStatus($message, ts('Sorry an Error Occured'), 'error');
+      CRM_Core_Session::setStatus($message, ts('Sorry an error occurred'), 'error');
       CRM_Core_Transaction::forceRollbackIfEnabled();
       CRM_Core_Page_AJAX::returnJsonResponse($out);
     }
 
     $template = CRM_Core_Smarty::singleton();
-
     $template->assign($vars);
-
-    $config->userSystem->outputError($template->fetch($config->fatalErrorTemplate));
+    $config->userSystem->outputError($template->fetch('CRM/common/fatal.tpl'));
 
     self::abend(CRM_Core_Error::FATAL_ERROR);
   }
@@ -395,8 +407,6 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    * something that follows a cleaner separation of concerns.
    *
    * @param Exception $exception
-   *
-   * @return void
    */
   public static function handleUnhandledException($exception) {
     try {
@@ -442,13 +452,13 @@ class CRM_Core_Error extends PEAR_ErrorStack {
     // Case C: Default error handler
 
     // log to file
-    CRM_Core_Error::debug_var('Fatal Error Details', $vars);
+    CRM_Core_Error::debug_var('Fatal Error Details', $vars, FALSE);
     CRM_Core_Error::backtrace('backTrace', TRUE);
 
     // print to screen
     $template = CRM_Core_Smarty::singleton();
     $template->assign($vars);
-    $content = $template->fetch($config->fatalErrorTemplate);
+    $content = $template->fetch('CRM/common/fatal.tpl');
     if ($config->backtrace) {
       $content = self::formatHtmlException($exception) . $content;
     }
@@ -518,29 +528,23 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    * in the formatting of the output.
    *
    * @param string $variable_name
-   * @param mixed $variable
-   * @param bool $print
-   *   Should we use print_r ? (else we use var_dump).
-   * @param bool $log
-   *   Should we log or return the output.
-   * @param string $comp
    *   Variable name.
+   * @param mixed $variable
+   *   Variable value.
+   * @param bool $print
+   *   Use print_r (if true) or var_dump (if false).
+   * @param bool $log
+   *   Log or return the output?
+   * @param string $prefix
+   *   Prefix for output logfile.
    *
    * @return string
-   *   the generated output
-   *
-   *
+   *   The generated output
    *
    * @see CRM_Core_Error::debug()
    * @see CRM_Core_Error::debug_log_message()
    */
-  public static function debug_var(
-    $variable_name,
-    $variable,
-    $print = TRUE,
-    $log = TRUE,
-    $comp = ''
-  ) {
+  public static function debug_var($variable_name, $variable, $print = TRUE, $log = TRUE, $prefix = '') {
     // check if variable is set
     if (!isset($variable)) {
       $out = "\$$variable_name is not set";
@@ -563,28 +567,31 @@ class CRM_Core_Error extends PEAR_ErrorStack {
         reset($variable);
       }
     }
-    return self::debug_log_message($out, FALSE, $comp);
+    return self::debug_log_message($out, FALSE, $prefix);
   }
 
   /**
-   * Display the error message on terminal.
+   * Display the error message on terminal and append it to the log file.
    *
-   * @param $message
+   * Provided the user has the 'view debug output' the output should be displayed. In all
+   * cases it should be logged.
+   *
+   * @param string $message
    * @param bool $out
    *   Should we log or return the output.
    *
-   * @param string $comp
-   *   Message to be output.
+   * @param string $prefix
+   *   Message prefix.
+   * @param string $priority
+   *
    * @return string
-   *   format of the backtrace
-   *
-   *
+   *   Format of the backtrace
    */
-  public static function debug_log_message($message, $out = FALSE, $comp = '') {
+  public static function debug_log_message($message, $out = FALSE, $prefix = '', $priority = NULL) {
     $config = CRM_Core_Config::singleton();
 
-    $file_log = self::createDebugLogger($comp);
-    $file_log->log("$message\n");
+    $file_log = self::createDebugLogger($prefix);
+    $file_log->log("$message\n", $priority);
 
     $str = '<p/><code>' . htmlspecialchars($message) . '</code>';
     if ($out && CRM_Core_Permission::check('view debug output')) {
@@ -592,7 +599,15 @@ class CRM_Core_Error extends PEAR_ErrorStack {
     }
     $file_log->close();
 
-    if ($config->userFrameworkLogging) {
+    if (!isset(\Civi::$statics[__CLASS__]['userFrameworkLogging'])) {
+      // Set it to FALSE first & then try to set it. This is to prevent a loop as calling
+      // $config->userFrameworkLogging can trigger DB queries & under log mode this
+      // then gets called again.
+      \Civi::$statics[__CLASS__]['userFrameworkLogging'] = FALSE;
+      \Civi::$statics[__CLASS__]['userFrameworkLogging'] = $config->userFrameworkLogging;
+    }
+
+    if (!empty(\Civi::$statics[__CLASS__]['userFrameworkLogging'])) {
       // should call $config->userSystem->logger($message) here - but I got a situation where userSystem was not an object - not sure why
       if ($config->userSystem->is_drupal and function_exists('watchdog')) {
         watchdog('civicrm', '%message', array('%message' => $message), WATCHDOG_DEBUG);
@@ -604,6 +619,8 @@ class CRM_Core_Error extends PEAR_ErrorStack {
 
   /**
    * Append to the query log (if enabled)
+   *
+   * @param string $string
    */
   public static function debug_query($string) {
     if (defined('CIVICRM_DEBUG_LOG_QUERY')) {
@@ -611,7 +628,7 @@ class CRM_Core_Error extends PEAR_ErrorStack {
         CRM_Core_Error::backtrace($string, TRUE);
       }
       elseif (CIVICRM_DEBUG_LOG_QUERY) {
-        CRM_Core_Error::debug_var('Query', $string, FALSE, TRUE);
+        CRM_Core_Error::debug_var('Query', $string, TRUE, TRUE, 'sql_log');
       }
     }
   }
@@ -622,20 +639,33 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    * @param string $query
    */
   public static function debug_query_result($query) {
-    $dao = CRM_Core_DAO::executeQuery($query);
-    $results = array();
-    while ($dao->fetch()) {
-      $results[] = (array) $dao;
-    }
+    $results = CRM_Core_DAO::executeQuery($query)->fetchAll();
     CRM_Core_Error::debug_var('dao result', array('query' => $query, 'results' => $results));
   }
 
   /**
+   * Obtain a reference to the error log.
+   *
+   * @param string $prefix
+   *
+   * @return Log
+   */
+  public static function createDebugLogger($prefix = '') {
+    self::generateLogFileName($prefix);
+    return Log::singleton('file', \Civi::$statics[__CLASS__]['logger_file' . $prefix], '');
+  }
+
+  /**
    * Generate a hash for the logfile.
+   *
    * CRM-13640.
+   *
+   * @param CRM_Core_Config $config
+   *
+   * @return string
    */
   public static function generateLogFileHash($config) {
-    // Use multiple (but stable) inputs for hash information. TMI?
+    // Use multiple (but stable) inputs for hash information.
     $md5inputs = array(
       defined('CIVICRM_SITE_KEY') ? CIVICRM_SITE_KEY : 'NO_SITE_KEY',
       $config->userFrameworkBaseURL,
@@ -648,38 +678,39 @@ class CRM_Core_Error extends PEAR_ErrorStack {
   }
 
   /**
-   * Obtain a reference to the error log.
+   * Generate the name of the logfile to use and store it as a static.
    *
-   * @param string $comp
+   * This function includes simplistic log rotation and a check as to whether
+   * the file exists.
    *
-   * @return Log
+   * @param string $prefix
    */
-  public static function createDebugLogger($comp = '') {
-    $config = CRM_Core_Config::singleton();
+  protected static function generateLogFileName($prefix) {
+    if (!isset(\Civi::$statics[__CLASS__]['logger_file' . $prefix])) {
+      $config = CRM_Core_Config::singleton();
 
-    if ($comp) {
-      $comp = $comp . '.';
-    }
-    $hash = self::generateLogFileHash($config);
-    $fileName = "{$config->configAndLogDir}CiviCRM." . $comp . $hash . '.log';
+      $prefixString = $prefix ? ($prefix . '.') : '';
 
-    // Roll log file monthly or if greater than 256M
-    // note that PHP file functions have a limit of 2G and hence
-    // the alternative was introduce
-    if (file_exists($fileName)) {
-      $fileTime = date("Ym", filemtime($fileName));
-      $fileSize = filesize($fileName);
-      if (($fileTime < date('Ym')) ||
-        ($fileSize > 256 * 1024 * 1024) ||
-        ($fileSize < 0)
-      ) {
-        rename($fileName,
-          $fileName . '.' . date('YmdHi')
-        );
+      $hash = self::generateLogFileHash($config);
+      $fileName = $config->configAndLogDir . 'CiviCRM.' . $prefixString . $hash . '.log';
+
+      // Roll log file monthly or if greater than 256M.
+      // Size-based rotation introduced in response to filesize limits on
+      // certain OS/PHP combos.
+      if (file_exists($fileName)) {
+        $fileTime = date("Ym", filemtime($fileName));
+        $fileSize = filesize($fileName);
+        if (($fileTime < date('Ym')) ||
+          ($fileSize > 256 * 1024 * 1024) ||
+          ($fileSize < 0)
+        ) {
+          rename($fileName,
+            $fileName . '.' . date('YmdHi')
+          );
+        }
       }
+      \Civi::$statics[__CLASS__]['logger_file' . $prefix] = $fileName;
     }
-
-    return Log::singleton('file', $fileName);
   }
 
   /**
@@ -877,7 +908,6 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    *
    * @param null $redirect
    * @param string $title
-   * @return void
    */
   public static function statusBounce($status, $redirect = NULL, $title = NULL) {
     $session = CRM_Core_Session::singleton();
@@ -911,6 +941,7 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    * @throws PEAR_Exception
    */
   public static function exceptionHandler($pearError) {
+    CRM_Core_Error::debug_var('Fatal Error Details', self::getErrorDetails($pearError));
     CRM_Core_Error::backtrace('backTrace', TRUE);
     throw new PEAR_Exception($pearError->getMessage(), $pearError);
   }
@@ -970,6 +1001,8 @@ class CRM_Core_Error extends PEAR_ErrorStack {
 
   /**
    * Terminate execution abnormally.
+   *
+   * @param string $code
    */
   protected static function abend($code) {
     // do a hard rollback of any pending transactions

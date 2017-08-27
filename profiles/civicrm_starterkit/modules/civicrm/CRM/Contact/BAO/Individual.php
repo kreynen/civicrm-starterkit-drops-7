@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,18 +28,16 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * Class contains functions for individual contact type
+ * Class contains functions for individual contact type.
  */
 class CRM_Contact_BAO_Individual extends CRM_Contact_DAO_Contact {
 
   /**
-   * This is a contructor of the class.
+   * Class constructor.
    */
   public function __construct() {
   }
@@ -61,7 +59,7 @@ class CRM_Contact_BAO_Individual extends CRM_Contact_DAO_Contact {
 
     // "null" value for example is passed by dedupe merge in order to empty.
     // Display name computation shouldn't consider such values.
-    foreach (array('first_name', 'middle_name', 'last_name', 'nick_name', 'formal_title') as $displayField) {
+    foreach (array('first_name', 'middle_name', 'last_name', 'nick_name', 'formal_title', 'birth_date', 'deceased_date') as $displayField) {
       if (CRM_Utils_Array::value($displayField, $params) == "null") {
         $params[$displayField] = '';
       }
@@ -216,18 +214,14 @@ class CRM_Contact_BAO_Individual extends CRM_Contact_DAO_Contact {
       }
 
       //build the sort name.
-      $format = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
-        'sort_name_format'
-      );
+      $format = Civi::settings()->get('sort_name_format');
       $sortName = CRM_Utils_Address::format($formatted, $format,
         FALSE, FALSE, TRUE, $tokenFields
       );
       $sortName = trim($sortName);
 
       //build the display name.
-      $format = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
-        'display_name_format'
-      );
+      $format = Civi::settings()->get('display_name_format');
       $displayName = CRM_Utils_Address::format($formatted, $format,
         FALSE, FALSE, TRUE, $tokenFields
       );
@@ -351,14 +345,12 @@ class CRM_Contact_BAO_Individual extends CRM_Contact_DAO_Contact {
   }
 
   /**
-   * Regenerates display_name for contacts with given prefixes/suffixes
+   * Regenerates display_name for contacts with given prefixes/suffixes.
    *
    * @param array $ids
    *   The array with the prefix/suffix id governing which contacts to regenerate.
    * @param int $action
    *   The action describing whether prefix/suffix was UPDATED or DELETED.
-   *
-   * @return void
    */
   public static function updateDisplayNames(&$ids, $action) {
     // get the proper field name (prefix_id or suffix_id) and its value

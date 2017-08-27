@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -34,6 +34,7 @@
      {include file="CRM/Contribute/Form/Contribution/PremiumBlock.tpl" context="previewPremium"}
   {else}
      <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="top"}</div>
+  {crmRegion name="contribute-form-managepremiums-standard-fields"}
   <table class="form-layout-compressed">
      <tr class="crm-contribution-form-block-name">
   <td class="label">{$form.name.label} {if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_product' field='name' id=$productId}{/if}
@@ -59,7 +60,7 @@
       <td>
       <fieldset><div class="description">
         <p>{ts}You can give this premium a picture that will be displayed on the contribution page. Both a 50 x 50 pixel thumbnail image and a 200 x 200 pixel larger image will be displayed. Images must be in GIF, JPEG, or PNG format.{/ts}</p>
-        <p>{ts}You can upload an image from your computer OR enter a URL for an image already on the Web. If you chose to upload an image file, a 'thumbnail' version will be automatically created for you. If you don't have an image available at this time, you may also choose to display a 'No Image Available' icon - by selecting the 'default image'.{/ts}</p>
+        <p>{ts}You can upload an image from your computer OR enter a URL for an image already on the Web. If you chose to upload an image file, a 'thumbnail' version will be automatically created for you. If you don't have an image available at this time, you may also choose to display a 'No Image Available' icon by selecting the 'default image'.{/ts}</p>
                   </div>
   <table class="form-layout-compressed">
     {if $thumbnailUrl}<tr class="odd-row"><td class="describe-image" colspan="2"><strong>Current Image Thumbnail</strong><br /><img src="{$thumbnailUrl}" /></td></tr>{/if}
@@ -118,6 +119,8 @@
        <td class="html-adjust">{$form.is_active.html}</td>
     </tr>
   </table>
+  {/crmRegion}
+  {crmRegion name="contribute-form-managepremiums-other-fields"}
   <fieldset id="time-delimited" class="crm-collapsible {if empty($showSubscriptions)}collapsed{/if}">
     <legend class="collapsible-title">{ts}Subscription or Service Settings{/ts}</legend>
     <div>
@@ -149,6 +152,7 @@
       </table>
     </div>
   </fieldset>
+  {/crmRegion}
  {/if}
 <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</div>
 </div>

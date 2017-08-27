@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -94,6 +94,7 @@ function civicrm_drush_command() {
       'langtarfile' => 'Path to your l10n tar.gz file.',
       'site_url' => 'Base Url for your drupal/CiviCRM website without http (e.g. mysite.com)',
       'ssl' => 'Using ssl for your drupal/CiviCRM website if set to on (e.g. --ssl=on)',
+      'load_generated_data' => 'Loads the demo generated data. Defaults to FALSE.',
     ),
     'aliases' => array('cvi'),
   );
@@ -201,6 +202,7 @@ function civicrm_drush_command() {
     // explicit callback declaration and non-standard name to avoid collision with "sql-conf"
     'callback' => 'drush_civicrm_sqlconf',
     'description' => 'Print CiviCRM database connection details.',
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION,
   );
   $items['civicrm-sql-connect'] = array(
     // explicit callback declaration and non-standard name to avoid collision with "sql-connect"
@@ -227,9 +229,13 @@ function civicrm_drush_command() {
     'description' => 'Execute a query against the CiviCRM database.',
     'examples' => array(
       'drush civicrm-sql-query "SELECT * FROM civicrm_contact WHERE id=1"' => 'Browse user record',
+      'drush civicrm-sql-query --file=example.sql' => 'Alternate way to import sql statements from a file.',
     ),
     'arguments' => array(
-      'query' => 'A SQL query. Mandatory.',
+      'query' => 'A SQL query. Ignored if \'file\' is provided.',
+    ),
+    'options' => array(
+      'file' => 'Path to a file containing the SQL to be run. ',
     ),
   );
   $items['civicrm-sql-cli'] = array(
@@ -237,6 +243,7 @@ function civicrm_drush_command() {
     'callback' => 'drush_civicrm_sqlcli',
     'description' => "Open a SQL command-line interface using CiviCRM's credentials.",
     'aliases' => array('cvsqlc'),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION,
   );
   $items['civicrm-process-mail-queue'] = array(
     'description' => "Process pending CiviMail mailing jobs.",
@@ -248,6 +255,9 @@ function civicrm_drush_command() {
   );
   $items['civicrm-member-records'] = array(
     'description' => "Run the CiviMember UpdateMembershipRecord cron (civicrm-member-records).",
+  );
+  $items['civicrm-sync-users-contacts'] = array(
+    'description' => "Synchronize Users to Contacts: CiviCRM will check each user record for a contact record. A new contact record will be created for each user where one does not already exist.",
   );
 
   return $items;
@@ -324,6 +334,7 @@ function drush_civicrm_install() {
   $drupalRoot = drush_get_context('DRUSH_DRUPAL_ROOT');
   $modPath    = "$drupalRoot/$crmpath";
   $lang       = drush_get_option('lang', '');
+  $loadGeneratedData = drush_get_option('load_generated_data', FALSE);
 
   if (!is_dir("$modPath/civicrm")) {
     // extract tarfile at right place
@@ -347,7 +358,7 @@ function drush_civicrm_install() {
   }
 
   // install database
-  _civicrm_install_db($dbuser, $dbpass, $dbhost, $dbname, $modPath, $lang);
+  _civicrm_install_db($dbuser, $dbpass, $dbhost, $dbname, $modPath, $lang, $loadGeneratedData);
 
   // generate civicrm.settings.php file
   _civicrm_generate_settings_file($dbuser, $dbpass, $dbhost, $dbname, $modPath);
@@ -359,14 +370,14 @@ function drush_civicrm_install() {
 
 function _civicrm_extract_tarfile($destinationPath, $option = 'tarfile') {
   $tarpath = drush_get_option($option, FALSE);
-  if (drush_shell_exec("gzip -d " . $tarfile)) {
-    $tarpath = substr($tarfile, 0, strlen($tarfile) - 3);
+  if (drush_shell_exec("gzip -d " . $tarpath)) {
+    $tarpath = preg_replace('/(tar\.gz|tgz)$/', 'tar', $tarpath);
   }
   drush_shell_exec("tar -xf $tarpath -C \"$destinationPath\"");
 }
 
 function _civicrm_install_db($dbuser, $dbpass, $dbhost, $dbname,
-  $modPath, $lang
+  $modPath, $lang, $loadGeneratedData
 ) {
   $drupalRoot = drush_get_context('DRUSH_DRUPAL_ROOT');
   $siteRoot = drush_get_context('DRUSH_DRUPAL_SITE_ROOT', FALSE);
@@ -414,6 +425,9 @@ function _civicrm_install_db($dbuser, $dbpass, $dbhost, $dbname,
   civicrm_source($dsn, $data_file);
   civicrm_source($dsn, $acl_file);
 
+  if ($loadGeneratedData) {
+    civicrm_source($dsn, $sqlPath . DIRECTORY_SEPARATOR . 'civicrm_generated.mysql', TRUE);
+  }
   drush_log(dt("CiviCRM database loaded successfully."), 'ok');
 }
 
@@ -552,7 +566,7 @@ function civicrm_drush_help($section) {
       return dt('Prints the whole CiviCRM database to STDOUT or save to a file.');
 
     case 'drush:civicrm-sql-query':
-      return dt("Usage: drush [options] civicrm-sql-query <query>...\n<query> is a SQL statement, which can alternatively be passed via STDIN. Any additional arguments are passed to the mysql command directly.");
+      return dt("Usage: drush [options] civicrm-sql-query <query>...\n<query> is a SQL statement. Any additional arguments are passed to the mysql command directly.");
   }
 }
 
@@ -562,7 +576,11 @@ function civicrm_drush_help($section) {
 function drush_civicrm_ext_list() {
   civicrm_initialize();
   try{
-    $result = civicrm_api('extension', 'get', array('version' => 3));
+    $result = civicrm_api3('extension', 'get', array(
+      'options' => array(
+        'limit' => 0,
+      ),
+    ));
     $rows = array(array(dt('App name'), dt('Status')));
     foreach ($result['values'] as $k => $extension_data) {
       $rows[] = array(
@@ -592,7 +610,7 @@ function drush_civicrm_ext_install($extension_name) {
     if($result['values'] && $result['values'] == 1) {
       drush_print(dt("Extension !ename installed.", array('!ename' => $extension_name)));
     } else {
-      drush_log(t('Extension !ename could not be installed.', array('!ename' => $extension_name)), 'error');    
+      drush_log(t('Extension !ename could not be installed.', array('!ename' => $extension_name)), 'error');
     }
   }
   catch (CiviCRM_API3_Exception $e) {
@@ -636,7 +654,7 @@ function drush_civicrm_ext_uninstall($extension_name) {
     if($result['values'] && $result['values'] == 1) {
       drush_print(dt("Extension !ename uninstalled.", array('!ename' => $extension_name)));
     } else {
-      drush_log(t('Extension !ename could not be uninstalled.', array('!ename' => $extension_name)), 'error');    
+      drush_log(t('Extension !ename could not be uninstalled.', array('!ename' => $extension_name)), 'error');
     }
   }
   catch (CiviCRM_API3_Exception $e) {
@@ -1234,6 +1252,10 @@ function drush_civicrm_sqlconf() {
   if (version_compare(DRUSH_VERSION, 6, '>=')) {
     drush_print_r($conf);
   }
+
+  // Return the conf array too, so it can be used as array when called through
+  // a php function (e.g. drush_invoke_process).
+  return $conf;
 }
 
 /**
@@ -1318,7 +1340,7 @@ function drush_civicrm_pre_civicrm_sqlquery() {
 /**
  * Implementation of command 'civicrm-sql-query'
  */
-function drush_civicrm_sqlquery($query) {
+function drush_civicrm_sqlquery($query = '') {
   return drush_sql_query($query);
 }
 
@@ -1386,7 +1408,7 @@ function drush_civicrm_post_civicrm_sqlcli() {
 function _civicrm_dsn_init($reset = FALSE) {
   static $globalDbUrl = NULL;
 
-  if (!_civicrm_init()) {
+  if (!_civicrm_init(TRUE, FALSE)) {
     return FALSE;
   }
 
@@ -1436,13 +1458,15 @@ function _civicrm_dsn_close() {
  * Initializes the CiviCRM environment and configuration.
  * TODO: document why we can't call civicrm_initialize() directly.
  *
- * @param  bool fail
+ * @param bool $fail
  *   If true, will halt drush. Otherwise, return false but do not interrupt.
+ * @param bool $load_config
+ *   If true, loads the CiviCRM configuration.
  *
  * @return bool
  *   Returns TRUE if CiviCRM was initialized.
  */
-function _civicrm_init($fail = TRUE) {
+function _civicrm_init($fail = TRUE, $load_config = TRUE) {
   static $init = NULL;
 
   // return if already initialized
@@ -1484,9 +1508,10 @@ function _civicrm_init($fail = TRUE) {
     CRM_Core_ClassLoader::singleton()->register();
   }
 
-  // also initialize config object
-  require_once 'CRM/Core/Config.php';
-  $config = CRM_Core_Config::singleton();
+  if ($load_config) {
+    require_once 'CRM/Core/Config.php';
+    CRM_Core_Config::singleton();
+  }
 
   $init = TRUE;
   return $init;
@@ -1562,3 +1587,33 @@ function drush_civicrm_api() {
   }
 }
 
+/**
+ * Implementation of command 'civicrm-sync-users-contacts'
+ */
+function drush_civicrm_sync_users_contacts() {
+  civicrm_initialize();
+  $result = CRM_Utils_System::synchronizeUsers();
+  $status = ts('Checked one user record.',
+    array(
+      'count' => $result['contactCount'],
+      'plural' => 'Checked %count user records.',
+    )
+  );
+  if ($result['contactMatching']) {
+    $status .=  PHP_EOL . ts('Found one matching contact record.',
+      array(
+        'count' => $result['contactMatching'],
+        'plural' => 'Found %count matching contact records.',
+      )
+    );
+  }
+
+  $status .= PHP_EOL . ts('Created one new contact record.',
+    array(
+      'count' => $result['contactCreated'],
+      'plural' => 'Created %count new contact records.',
+    )
+  );
+  drush_print(dt($status));
+  return $result;
+}

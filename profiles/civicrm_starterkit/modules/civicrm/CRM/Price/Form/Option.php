@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -113,18 +113,23 @@ class CRM_Price_Form_Option extends CRM_Core_Form {
    * @return void
    */
   public function buildQuickForm() {
+    if ($this->_action == CRM_Core_Action::UPDATE) {
+      $finTypeId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $this->_oid, 'financial_type_id');
+      if (!CRM_Financial_BAO_FinancialType::checkPermissionToEditFinancialType($finTypeId)) {
+        CRM_Core_Error::fatal(ts("You do not have permission to access this page"));
+      }
+    }
     if ($this->_action == CRM_Core_Action::DELETE) {
       $this->addButtons(array(
-          array(
-            'type' => 'next',
-            'name' => ts('Delete'),
-          ),
-          array(
-            'type' => 'cancel',
-            'name' => ts('Cancel'),
-          ),
-        )
-      );
+        array(
+          'type' => 'next',
+          'name' => ts('Delete'),
+        ),
+        array(
+          'type' => 'cancel',
+          'name' => ts('Cancel'),
+        ),
+      ));
       return NULL;
     }
     else {
@@ -159,10 +164,9 @@ class CRM_Price_Form_Option extends CRM_Core_Form {
         $this->assign('showMember', TRUE);
         $membershipTypes = CRM_Member_PseudoConstant::membershipType();
         $this->add('select', 'membership_type_id', ts('Membership Type'), array(
-            '' => ' ',
-          ) + $membershipTypes, FALSE,
-          array('onClick' => "calculateRowValues( );")
-        );
+          '' => ' ',
+        ) + $membershipTypes, FALSE,
+        array('onClick' => "calculateRowValues( );"));
         $this->add('text', 'membership_num_terms', ts('Number of Terms'), $attributes['membership_num_terms']);
       }
       else {
@@ -210,7 +214,13 @@ class CRM_Price_Form_Option extends CRM_Core_Form {
       $this->registerRule('amount', 'callback', 'money', 'CRM_Utils_Rule');
       $this->addRule('amount', ts('Please enter a monetary value for this field.'), 'money');
 
+      $this->add('text', 'non_deductible_amount', ts('Non-deductible Amount'), NULL);
+      $this->registerRule('non_deductible_amount', 'callback', 'money', 'CRM_Utils_Rule');
+      $this->addRule('non_deductible_amount', ts('Please enter a monetary value for this field.'), 'money');
+
       $this->add('textarea', 'description', ts('Description'));
+      $this->add('textarea', 'help_pre', ts('Pre Option Help'));
+      $this->add('textarea', 'help_post', ts('Post Option Help'));
 
       // weight
       $this->add('text', 'weight', ts('Order'), NULL, TRUE);
@@ -232,28 +242,26 @@ class CRM_Price_Form_Option extends CRM_Core_Form {
       }
       // add buttons
       $this->addButtons(array(
-          array(
-            'type' => 'next',
-            'name' => ts('Save'),
-          ),
-          array(
-            'type' => 'cancel',
-            'name' => ts('Cancel'),
-          ),
-        )
-      );
+        array(
+          'type' => 'next',
+          'name' => ts('Save'),
+        ),
+        array(
+          'type' => 'cancel',
+          'name' => ts('Cancel'),
+        ),
+      ));
 
       // if view mode pls freeze it with the done button.
       if ($this->_action & CRM_Core_Action::VIEW) {
         $this->freeze();
         $this->addButtons(array(
-            array(
-              'type' => 'cancel',
-              'name' => ts('Done'),
-              'isDefault' => TRUE,
-            ),
-          )
-        );
+          array(
+            'type' => 'cancel',
+            'name' => ts('Done'),
+            'isDefault' => TRUE,
+          ),
+        ));
       }
     }
 
@@ -280,7 +288,6 @@ class CRM_Price_Form_Option extends CRM_Core_Form {
     ) {
       $errors['count'] = ts('Participant count can not be greater than max participants.');
     }
-
     return empty($errors) ? TRUE : $errors;
   }
 

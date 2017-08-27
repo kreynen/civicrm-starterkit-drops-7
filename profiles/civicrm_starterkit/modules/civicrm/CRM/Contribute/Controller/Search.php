@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -26,11 +26,8 @@
  */
 
 /**
- *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -39,9 +36,9 @@
  *  - the search controller is used for building/processing multiform
  *    searches.
  *
- * Typically the first form will display the search criteria and it's results
+ * Typically the first form will display the search criteria and its results
  *
- * The second form is used to process search results with the asscociated actions
+ * The second form is used to process search results with the associated actions
  *
  */
 class CRM_Contribute_Controller_Search extends CRM_Core_Controller {
@@ -56,14 +53,8 @@ class CRM_Contribute_Controller_Search extends CRM_Core_Controller {
   public function __construct($title = NULL, $action = CRM_Core_Action::NONE, $modal = TRUE) {
 
     parent::__construct($title, $modal);
-
     $this->_stateMachine = new CRM_Contribute_StateMachine_Search($this, $action);
-
-    // create and instantiate the pages
     $this->addPages($this->_stateMachine, $action);
-
-    // add all the actions
-    $config = CRM_Core_Config::singleton();
     $this->addActions();
   }
 

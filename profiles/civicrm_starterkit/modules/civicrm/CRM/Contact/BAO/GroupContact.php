@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
 
@@ -100,7 +98,7 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
     if (empty($params)) {
       return NULL;
     }
-    $values['group']['data'] = &CRM_Contact_BAO_GroupContact::getContactGroup($params['contact_id'],
+    $values['group']['data'] = CRM_Contact_BAO_GroupContact::getContactGroup($params['contact_id'],
       'Added',
       3
     );
@@ -136,6 +134,9 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
     $status = 'Added',
     $tracking = NULL
   ) {
+    if (empty($contactIds) || empty($groupId)) {
+      return array();
+    }
 
     CRM_Utils_Hook::pre('create', 'GroupContact', $groupId, $contactIds);
 
@@ -150,7 +151,7 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
 
     // reset the group contact cache for all group(s)
     // if this group is being used as a smart group
-    CRM_Contact_BAO_GroupContactCache::remove();
+    CRM_Contact_BAO_GroupContactCache::opportunisticCacheFlush();
 
     CRM_Utils_Hook::post('create', 'GroupContact', $groupId, $contactIds);
 
@@ -252,6 +253,12 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
 
     // reset the group contact cache for all group(s)
     // if this group is being used as a smart group
+    // @todo consider what to do here - it feels like we should either
+    // 1) just invalidate the specific group's cache(& perhaps any parents) & let cron do it's thing or
+    // possibly clear this specific groups cache, or just call opportunisticCacheFlush() - which would have the
+    // same effect as the remove call. The reservation about that is that it is no more aggressive for the group that
+    // we know is altered than for all the others, or perhaps, more the point with it's parents & groups that use it in
+    // their criteria.
     CRM_Contact_BAO_GroupContactCache::remove();
 
     CRM_Utils_Hook::post($op, 'GroupContact', $groupId, $contactIds);
@@ -276,7 +283,7 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
 
     $select = $from = $where = '';
 
-    $select = 'SELECT DISTINCT civicrm_group.id, civicrm_group.title ';
+    $select = 'SELECT civicrm_group.id, civicrm_group.title ';
     $from = ' FROM civicrm_group ';
     $where = " WHERE civicrm_group.is_active = 1 ";
     if ($contactId) {
@@ -288,9 +295,10 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
     if ($visibility) {
       $where .= " AND civicrm_group.visibility != 'User and User Admin Only'";
     }
+    $groupBy = " GROUP BY civicrm_group.id";
 
     $orderby = " ORDER BY civicrm_group.name";
-    $sql = $select . $from . $where . $orderby;
+    $sql = $select . $from . $where . $groupBy . $orderby;
 
     $group->query($sql);
 
@@ -322,11 +330,15 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
    *
    * @param bool $excludeHidden
    *
-   * @return array (reference)|int $values
-   *   the relevant data object values for the contact or
-   *   the total count when $count is TRUE
+   * @param int $groupId
+   *
+   * @param bool $includeSmartGroups
+   *   Include or Exclude Smart Group(s)
+   *
+   * @return array|int $values
+   *   the relevant data object values for the contact or the total count when $count is TRUE
    */
-  public static function &getContactGroup(
+  public static function getContactGroup(
     $contactId,
     $status = NULL,
     $numGroupContact = NULL,
@@ -334,7 +346,8 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
     $ignorePermission = FALSE,
     $onlyPublicGroups = FALSE,
     $excludeHidden = TRUE,
-    $groupId = NULL
+    $groupId = NULL,
+    $includeSmartGroups = FALSE
   ) {
     if ($count) {
       $select = 'SELECT count(DISTINCT civicrm_group_contact.id)';
@@ -352,11 +365,12 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
     }
 
     $where = " WHERE contact_a.id = %1 AND civicrm_group.is_active = 1";
-
+    if (!$includeSmartGroups) {
+      $where .= " AND saved_search_id IS NULL";
+    }
     if ($excludeHidden) {
       $where .= " AND civicrm_group.is_hidden = 0 ";
     }
-
     $params = array(1 => array($contactId, 'Integer'));
     if (!empty($status)) {
       $where .= ' AND civicrm_group_contact.status = %2';
@@ -380,10 +394,6 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
     }
 
     $from = CRM_Contact_BAO_Query::fromClause($tables);
-
-    //CRM-16945: seems hackish but as per CRM-16483 of using group criteria for Search Builder it is mandatory
-    //to include group_contact_cache clause when group table is present, so following code remove duplicacy
-    $from = str_replace("OR civicrm_group.id = civicrm_group_contact_cache.group_id", 'AND civicrm_group.saved_search_id IS NULL', $from);
 
     $where .= " AND $permission ";
 
@@ -448,7 +458,7 @@ class CRM_Contact_BAO_GroupContact extends CRM_Contact_DAO_GroupContact {
    * @param int $contactId
    *   Id of the contact.
    * @param int $groupID
-   *   Id of a perticuler group.
+   *   Id of a particular group.
    * @param string $method
    *   If we want the subscription history details for a specific method.
    *
@@ -490,7 +500,7 @@ SELECT    *
    * Method to get Group Id.
    *
    * @param int $groupContactID
-   *   Id of a perticuler group.
+   *   Id of a particular group.
    *
    *
    * @return groupID
@@ -514,8 +524,6 @@ SELECT    *
    *
    * @param bool $visibility
    * @param string $method
-   *
-   * @return void
    */
   public static function create(&$params, $contactId, $visibility = FALSE, $method = 'Admin') {
     $contactIds = array();
@@ -528,7 +536,7 @@ SELECT    *
     }
 
     if ($contactId) {
-      $contactGroupList = &CRM_Contact_BAO_GroupContact::getContactGroup($contactId, 'Added',
+      $contactGroupList = CRM_Contact_BAO_GroupContact::getContactGroup($contactId, 'Added',
         NULL, FALSE, $ignorePermission
       );
       if (is_array($contactGroupList)) {
@@ -579,7 +587,7 @@ SELECT    *
     }
 
     $params = array(
-      array('group', 'IN', array($groupID => 1), 0, 0),
+      array('group', 'IN', array($groupID), 0, 0),
       array('contact_id', '=', $contactID, 0, 0),
     );
     list($contacts, $_) = CRM_Contact_BAO_Query::apiQuery($params, array('contact_id'));
@@ -602,9 +610,6 @@ SELECT    *
    * @see CRM_Dedupe_Merger::cpTables()
    *
    * TODO: use the 3rd $sqls param to append sql statements rather than executing them here
-   *
-   * @return void
-   *
    */
   public static function mergeGroupContact($mainContactId, $otherContactId) {
     $params = array(

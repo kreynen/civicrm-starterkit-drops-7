@@ -1,9 +1,9 @@
 <?php
 /*
   +--------------------------------------------------------------------+
-  | CiviCRM version 4.6                                                |
+  | CiviCRM version 4.7                                                |
   +--------------------------------------------------------------------+
-  | Copyright CiviCRM LLC (c) 2004-2015                                |
+  | Copyright CiviCRM LLC (c) 2004-2017                                |
   +--------------------------------------------------------------------+
   | This file is a part of CiviCRM.                                    |
   |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -84,7 +82,7 @@ class CRM_Utils_Geocode_Google {
       $add .= ',+';
     }
 
-    if (!empty($values['state_province'])) {
+    if (!empty($values['state_province']) || (!empty($values['state_province_id']) && $values['state_province_id'] != 'null')) {
       if (!empty($values['state_province_id'])) {
         $stateProvince = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_StateProvince', $values['state_province_id']);
       }
@@ -130,6 +128,7 @@ class CRM_Utils_Geocode_Google {
 
     libxml_use_internal_errors(TRUE);
     $xml = @simplexml_load_string($string);
+    CRM_Utils_Hook::geocoderFormat('Google', $values, $xml);
     if ($xml === FALSE) {
       // account blocked maybe?
       CRM_Core_Error::debug_var('Geocoding failed.  Message from Google:', $string);
@@ -149,17 +148,18 @@ class CRM_Utils_Geocode_Google {
           return TRUE;
         }
       }
-      elseif ($xml->status == 'OVER_QUERY_LIMIT') {
-        CRM_Core_Error::debug_var('Geocoding failed. Message from Google: ', (string ) $xml->status);
+      elseif ($xml->status == 'ZERO_RESULTS') {
+        // reset the geo code values if we did not get any good values
+        $values['geo_code_1'] = $values['geo_code_2'] = 'null';
+        return FALSE;
+      }
+      else {
+        CRM_Core_Error::debug_var("Geocoding failed. Message from Google: ({$xml->status})", (string ) $xml->error_message);
         $values['geo_code_1'] = $values['geo_code_2'] = 'null';
         $values['geo_code_error'] = $xml->status;
         return FALSE;
       }
     }
-
-    // reset the geo code values if we did not get any good values
-    $values['geo_code_1'] = $values['geo_code_2'] = 'null';
-    return FALSE;
   }
 
 }

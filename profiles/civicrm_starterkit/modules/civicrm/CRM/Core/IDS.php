@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Core_IDS {
 
@@ -44,28 +42,31 @@ class CRM_Core_IDS {
   );
 
   /**
-   * The init object
+   * @var string
    */
-  private $init = NULL;
+  private $path;
 
   /**
+   * Check function.
+   *
    * This function includes the IDS vendor parts and runs the
    * detection routines on the request array.
    *
-   * @param object $args cake controller object
+   * @param array $args
+   *   List of path parts.
    *
    * @return bool
    */
-  public function check(&$args) {
+  public function check($args) {
     // lets bypass a few civicrm urls from this check
     $skip = array('civicrm/admin/setting/updateConfigBackend', 'civicrm/admin/messageTemplates');
     CRM_Utils_Hook::idsException($skip);
-    $path = implode('/', $args);
-    if (in_array($path, $skip)) {
+    $this->path = implode('/', $args);
+    if (in_array($this->path, $skip)) {
       return NULL;
     }
 
-    #add request url and user agent
+    // Add request url and user agent.
     $_REQUEST['IDS_request_uri'] = $_SERVER['REQUEST_URI'];
     if (isset($_SERVER['HTTP_USER_AGENT'])) {
       $_REQUEST['IDS_user_agent'] = $_SERVER['HTTP_USER_AGENT'];
@@ -159,6 +160,7 @@ class CRM_Core_IDS {
     exceptions[]        = instructions
     exceptions[]        = suggested_message
     exceptions[]        = page_text
+    exceptions[]        = details
 ";
     if (file_put_contents($configFile, $contents) === FALSE) {
       CRM_Core_Error::movedSiteError($configFile);
@@ -172,8 +174,7 @@ class CRM_Core_IDS {
   }
 
   /**
-   * This function rects on the values in
-   * the incoming results array.
+   * This function reacts on the values in the incoming results array.
    *
    * Depending on the impact value certain actions are
    * performed.
@@ -187,7 +188,7 @@ class CRM_Core_IDS {
     $impact = $result->getImpact();
     if ($impact >= $this->threshold['kick']) {
       $this->log($result, 3, $impact);
-      $this->kick($result);
+      $this->kick();
       return TRUE;
     }
     elseif ($impact >= $this->threshold['warn']) {
@@ -205,8 +206,7 @@ class CRM_Core_IDS {
   }
 
   /**
-   * This function writes an entry about the intrusion
-   * to the intrusion database
+   * This function writes an entry about the intrusion to the database.
    *
    * @param array $result
    * @param int $reaction
@@ -239,24 +239,29 @@ class CRM_Core_IDS {
   }
 
   /**
-   * //todo
+   * Warn about IDS.
+   *
+   * @param array $result
+   *
+   * @return array
    */
   private function warn($result) {
     return $result;
   }
 
   /**
-   *  //todo
+   * Create an error that prevents the user from continuing.
+   *
+   * @throws \Exception
    */
-  private function kick($result) {
+  private function kick() {
     $session = CRM_Core_Session::singleton();
     $session->reset(2);
 
     $msg = ts('There is a validation error with your HTML input. Your activity is a bit suspicious, hence aborting');
 
-    $path = implode('/', $args);
     if (in_array(
-      $path,
+      $this->path,
       array("civicrm/ajax/rest", "civicrm/api/json")
     )) {
       require_once "api/v3/utils.php";

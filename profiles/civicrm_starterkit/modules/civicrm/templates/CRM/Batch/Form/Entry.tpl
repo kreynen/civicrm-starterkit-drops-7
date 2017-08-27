@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -24,13 +24,19 @@
  +--------------------------------------------------------------------+
 *}
 <div class="batch-entry form-item">
-  <div id="help">
-    {ts}Click Validate & Process below when you've entered all items for the batch. You can also Save & Continue Later at any time. Go to Administer > Customize Data and Screens > Profiles > Reserved Profiles > to add, remove or change the order of columns.{/ts}
+  <div class="help">
+    {ts}Click Validate & Process below when you've entered all items for the batch. You can also Save & Continue Later at any time.{/ts}
+    {if call_user_func(array('CRM_Core_Permission','check'), 'administer CiviCRM')}
+      {capture assign=batchEntryProfileURL}{crmURL p="civicrm/admin/uf/group" q="reset=1&selectedChild=reserved-profiles"}{/capture}
+      {ts 1=$batchEntryProfileURL}Add, remove or change the order of columns by editing the corresponding <a href="%1" target="_blank">Bulk Entry profile</a>.{/ts}
+      {if $batchType EQ 1}
+        {ts}Custom fields and a Personal Campaign Page field can be added if needed.{/ts}
+      {/if}
+    {/if}
   </div>
   {if $batchAmountMismatch}
     <div class="status message status-warning">
-      <div
-        class="icon ui-icon-alert"></div> {ts}Total for amounts entered below does not match the expected batch total.{/ts}
+      <i class="crm-i fa-exclamation-triangle"></i> {ts}Total for amounts entered below does not match the expected batch total.{/ts}
     </div>
     <div class="crm-button crm-button_qf_Entry_upload_force-save">
       {$form._qf_Entry_upload_force.html}
@@ -60,7 +66,7 @@
       {/if}
       {foreach from=$fields item=field key=fieldName}
         <div class="crm-grid-cell">
-          {if $field.name|substr:0:11 ne 'soft_credit'}
+          {if $field.name|substr:0:11 ne 'soft_credit' and $field.name ne 'trxn_id'}
           <img src="{$config->resourceBase}i/copy.png"
                alt="{ts 1=$field.title}Click to copy %1 from row one to all rows.{/ts}"
                fname="{$field.name}" class="action-icon"
@@ -87,18 +93,20 @@
         {/if}
         {foreach from=$fields item=field key=fieldName}
           {assign var=n value=$field.name}
-          {if ( $fields.$n.data_type eq 'Date') or ( in_array( $n, array( 'thankyou_date', 'cancel_date', 'receipt_date', 'receive_date', 'join_date', 'membership_start_date', 'membership_end_date' ) ) ) }
-            <div class="compressed crm-grid-cell">
-              <span class="crm-batch-{$n}-{$rowNumber}">
-                {include file="CRM/common/jcalendar.tpl" elementName=$n elementIndex=$rowNumber batchUpdate=1}
-              </span>
-            </div>
-          {elseif $n eq 'soft_credit'}
+          {if $n eq 'soft_credit'}
             <div class="compressed crm-grid-cell">
               {$form.soft_credit_contact_id.$rowNumber.html|crmAddClass:big}
               {$form.soft_credit_amount.$rowNumber.label}&nbsp;{$form.soft_credit_amount.$rowNumber.html|crmAddClass:eight}
             </div>
+          {elseif $n eq 'soft_credit_type'}
             <div class="compressed crm-grid-cell">{$form.soft_credit_type.$rowNumber.html}</div>
+          {elseif $n eq 'contribution_soft_credit_pcp_id'}
+            <div class="compressed crm-grid-cell">
+              <div>{$form.pcp_made_through_id.$rowNumber.html}{$form.pcp_made_through.$rowNumber.html}</div>
+              <div>{$form.pcp_display_in_roll.$rowNumber.label}&nbsp;{$form.pcp_display_in_roll.$rowNumber.html}</div>
+              <div class="pcp_roll_display">{$form.pcp_roll_nickname.$rowNumber.label}&nbsp;{$form.pcp_roll_nickname.$rowNumber.html}</div>
+              <div class="pcp_roll_display">{$form.pcp_personal_note.$rowNumber.label}&nbsp;{$form.pcp_personal_note.$rowNumber.html}</div>
+            </div>
           {elseif in_array( $fields.$n.html_type, array('Radio', 'CheckBox'))}
             <div class="compressed crm-grid-cell">&nbsp;{$form.field.$rowNumber.$n.html}</div>
           {elseif $n eq 'total_amount'}
@@ -125,10 +133,10 @@ CRM.$(function($) {
   $('.selector-rows').change(function () {
     var options = {
       'url': {/literal}"{crmURL p='civicrm/ajax/batch' h=0}"{literal}
-    }; 
+    };
     $($form).ajaxSubmit(options);
   });
- 
+
  $('input[id*="primary_contact_"]').change(function() {
  var temp = this.id.split('_');
    var ROWID = temp[3];
@@ -241,7 +249,8 @@ function checkColumns(parentRow) {
   parentRow.find('div .required').each(function () {
     //special case to handle contact autocomplete select
     var fieldId = cj(this).attr('id');
-    if (fieldId.substring(0, 16) == 'primary_contact_') {
+    // datepicker hasTimeEntry would not have an id - not sure why.
+    if (typeof fieldId != 'undefined' && fieldId.substring(0, 16) == 'primary_contact_') {
       // if display value is set then make sure we also check if contact id is set
       if (!cj(this).val()) {
         inValidRow++;
@@ -372,7 +381,7 @@ function updateContactInfo(blockNo, prefix) {
                 cj('select[id="member_option_' + blockNo + '"]').prop('disabled', false).val(2);
                 cj('select[id="field_' + blockNo + '_membership_type_0"]').val(memTypeContactId).change();
                 cj('select[id="field_' + blockNo + '_membership_type_1"]').val(membershipTypeId).change();
-                setDateFieldValue('join_date', membershipJoinDate, blockNo)
+                cj('#field_' + blockNo + '_' + 'join_date').val(membershipJoinDate).trigger('change');
               }
               });
           }
@@ -427,9 +436,6 @@ function setFieldValue(fname, fieldValue, blockNo) {
   //check if it is date element
   var isDateElement = elementId.attr('format');
 
-  // check if it is wysiwyg element
-  var editor = elementId.attr('editor');
-
   //get the element type
   var elementType = elementId.attr('type');
 
@@ -455,24 +461,8 @@ function setFieldValue(fname, fieldValue, blockNo) {
       }
     }
     else {
-      if (editor) {
-        switch (editor) {
-          case 'ckeditor':
-            var elemtId = elementId.attr('id');
-            oEditor = CKEDITOR.instances[elemtId];
-            oEditor.setData(htmlContent);
-            break;
-          case 'tinymce':
-            var elemtId = element.attr('id');
-            tinyMCE.get(elemtId).setContent(htmlContent);
-            break;
-          case 'joomlaeditor':
-          // TO DO
-          case 'drupalwysiwyg':
-          // TO DO
-          default:
-            elementId.val(fieldValue);
-        }
+      if (elementId.is('textarea')) {
+        CRM.wysiwyg.setVal(elementId, fieldValue);
       }
       else {
         elementId.val(fieldValue);
@@ -528,7 +518,7 @@ if (CRM.batch.type_id == 3){
 function setPledgeAmount(form, pledgeID) {
   var rowID = form.closest('div.crm-grid-row').attr('entity_id');
   var dataUrl = CRM.url('civicrm/ajax/pledgeAmount');
-  if (pledgeID) { 
+  if (pledgeID) {
     cj.post(dataUrl, {pid: pledgeID}, function (data) {
     cj('#field_' + rowID + '_financial_type').val(data.financial_type_id).change();
     cj('#field_' + rowID + '_total_amount').val(data.amount).change();
@@ -537,7 +527,7 @@ function setPledgeAmount(form, pledgeID) {
   }
   else {
     cj('#field_' + rowID + '_total_amount').val('').change();
-    cj('#field_' + rowID + '_financial_type').val('').change(); 
+    cj('#field_' + rowID + '_financial_type').val('').change();
     cj('#field_' + rowID + '_total_amount').removeAttr('readonly');
   }
 }

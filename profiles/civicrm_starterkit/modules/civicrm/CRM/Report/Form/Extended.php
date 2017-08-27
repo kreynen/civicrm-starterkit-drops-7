@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -315,7 +315,7 @@ class CRM_Report_Form_Extended extends CRM_Report_Form {
       'civicrm_participant' => array(
         'dao' => 'CRM_Event_DAO_Participant',
         'fields' => array(
-          'participant_id' => array('title' => 'Participant ID'),
+          'participant_id' => array('title' => ts('Participant ID')),
           'participant_record' => array(
             'name' => 'id',
             'title' => ts('Participant ID'),
@@ -358,7 +358,7 @@ class CRM_Report_Form_Extended extends CRM_Report_Form {
             'options' => CRM_Event_PseudoConstant::participantRole(),
           ),
           'participant_register_date' => array(
-            'title' => ' Registration Date',
+            'title' => ts('Registration Date'),
             'operatorType' => CRM_Report_Form::OP_DATE,
           ),
         ),
@@ -386,12 +386,12 @@ class CRM_Report_Form_Extended extends CRM_Report_Form {
         'grouping' => 'member-fields',
         'fields' => array(
           'membership_type_id' => array(
-            'title' => 'Membership Type',
+            'title' => ts('Membership Type'),
             'required' => TRUE,
             'alter_display' => 'alterMembershipTypeID',
           ),
           'status_id' => array(
-            'title' => 'Membership Status',
+            'title' => ts('Membership Status'),
             'required' => TRUE,
             'alter_display' => 'alterMembershipStatusID',
           ),
@@ -517,10 +517,10 @@ class CRM_Report_Form_Extended extends CRM_Report_Form {
             'alter_display' => 'alterContributionType',
           ),
           'payment_instrument_id' => array(
-            'title' => ts('Payment Instrument'),
+            'title' => ts('Payment Method'),
             'alter_display' => 'alterPaymentType',
           ),
-          'source' => array('title' => 'Contribution Source'),
+          'source' => array('title' => ts('Contribution Source')),
           'trxn_id' => NULL,
           'receive_date' => array('default' => TRUE),
           'receipt_date' => NULL,
@@ -553,7 +553,7 @@ class CRM_Report_Form_Extended extends CRM_Report_Form {
         ),
         'order_bys' => array(
           'payment_instrument_id' => array(
-            'title' => ts('Payment Instrument'),
+            'title' => ts('Payment Method'),
           ),
           'financial_type_id' => array(
             'title' => ts('Financial Type'),
@@ -561,12 +561,12 @@ class CRM_Report_Form_Extended extends CRM_Report_Form {
         ),
         'group_bys' => array(
           'financial_type_id' => array('title' => ts('Financial Type')),
-          'payment_instrument_id' => array('title' => ts('Payment Instrument')),
+          'payment_instrument_id' => array('title' => ts('Payment Method')),
           'contribution_id' => array(
             'title' => ts('Individual Contribution'),
             'name' => 'id',
           ),
-          'source' => array('title' => 'Contribution Source'),
+          'source' => array('title' => ts('Contribution Source')),
         ),
         'grouping' => 'contribution-fields',
       ),
@@ -759,6 +759,12 @@ class CRM_Report_Form_Extended extends CRM_Report_Form {
               'Supplementary Address Field 2'),
             'default' => CRM_Utils_Array::value('supplemental_address_2', $options['defaults'], FALSE),
             'name' => 'supplemental_address_2',
+          ),
+          $options['prefix'] . 'supplemental_address_3' => array(
+            'title' => ts($options['prefix_label'] .
+              'Supplementary Address Field 3'),
+            'default' => CRM_Utils_Array::value('supplemental_address_3', $options['defaults'], FALSE),
+            'name' => 'supplemental_address_3',
           ),
           $options['prefix'] . 'street_number' => array(
             'name' => 'street_number',
@@ -1231,7 +1237,7 @@ WHERE   line_item_civireport.id IS NOT NULL
     }
     $contactID = $row['civicrm_contact_id'];
     return "<div id=contact-{$contactID} class='crm-entity'>
-           <span class='crm-editable crmf-nick_name crm-editable-enabled' data-action='create'>
+           <span class='crm-editable crmf-nick_name crm-editable-enabled'>
            " . $value . "</span></div>";
   }
 

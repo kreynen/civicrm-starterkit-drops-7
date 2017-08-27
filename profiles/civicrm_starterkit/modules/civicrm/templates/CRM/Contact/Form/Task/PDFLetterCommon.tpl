@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -27,26 +27,33 @@
 {if $form.template.html}
 <table class="form-layout-compressed">
     <tr>
-      <td class="label-left">{$form.template.label}</td>
-      <td>{$form.template.html}</td>
+      <td class="label-left">
+        {$form.template.label}
+        {help id="template" title=$form.template.label file="CRM/Contact/Form/Task/PDFLetterCommon.hlp"}
+      </td>
+      <td>
+        {$form.template.html} {ts}OR{/ts} {$form.document_file.html}
+      </td>
     </tr>
     <tr>
       <td class="label-left">{$form.subject.label}</td>
       <td>{$form.subject.html}</td>
     </tr>
+    {if $form.campaign_id}
     <tr>
       <td class="label-left">{$form.campaign_id.label}</td>
       <td>{$form.campaign_id.html}</td>
     </tr>
+    {/if}
 </table>
 {/if}
 
-<div class="crm-accordion-wrapper collapsed">
+<div class="crm-accordion-wrapper collapsed crm-pdf-format-accordion">
     <div class="crm-accordion-header">
         {$form.pdf_format_header.html}
     </div>
     <div class="crm-accordion-body">
-      <div class="crm-block crm-form-block crm-pdf-format-form-block">
+      <div class="crm-block crm-form-block">
     <table class="form-layout-compressed">
       <tr>
         <td class="label-left">{$form.format_id.label} {help id="id-pdf-format" file="CRM/Contact/Form/Task/PDFLetterCommon.hlp"}</td>
@@ -85,6 +92,15 @@
   </div>
 </div>
 
+<div class="crm-accordion-wrapper crm-document-accordion ">
+  <div class="crm-accordion-header">
+    {ts}Preview Document{/ts}
+  </div><!-- /.crm-accordion-header -->
+  <div class="crm-accordion-body">
+    <div id='document-preview'></div>
+  </div><!-- /.crm-accordion-body -->
+</div><!-- /.crm-accordion-wrapper -->
+
 <div class="crm-accordion-wrapper crm-html_email-accordion ">
 <div class="crm-accordion-header">
     {$form.html_message.label}
@@ -92,13 +108,10 @@
  <div class="crm-accordion-body">
    <div class="helpIcon" id="helphtml">
      <input class="crm-token-selector big" data-field="html_message" />
-     {help id="id-token-html" tplFile=$tplFile isAdmin=$isAdmin editor=$editor file="CRM/Contact/Form/Task/Email.hlp"}
+     {help id="id-token-html" tplFile=$tplFile isAdmin=$isAdmin file="CRM/Contact/Form/Task/Email.hlp"}
    </div>
     <div class="clear"></div>
     <div class='html'>
-  {if $editor EQ 'textarea'}
-      <div class="help description">{ts}NOTE: If you are composing HTML-formatted messages, you may want to enable a Rich Text (WYSIWYG) editor (Administer &raquo; Customize Data & Screens &raquo; Display Preferences).{/ts}</div>
-  {/if}
   {$form.html_message.html}<br />
     </div>
 
@@ -119,19 +132,52 @@
   </div><!-- /.crm-accordion-body -->
 </div><!-- /.crm-accordion-wrapper -->
 
+<table class="form-layout-compressed">
+  <tr>
+    <td class="label-left">{$form.document_type.label}</td>
+    <td>{$form.document_type.html}</td>
+  </tr>
+</table>
+
 {include file="CRM/Mailing/Form/InsertTokens.tpl"}
 
 {literal}
 <script type="text/javascript">
 CRM.$(function($) {
   var $form = $('form.{/literal}{$form.formClass}{literal}');
+
+  {/literal}{if $form.formName eq 'PDF'}{literal}
+    $('.crm-document-accordion').hide();
+    $('#document_file').on('change', function() {
+      if (this.value) {
+        $('.crm-html_email-accordion, .crm-document-accordion, .crm-pdf-format-accordion').hide();
+        cj('#document_type').closest('tr').hide();
+        $('#template').val('');
+      }
+    });
+  {/literal}{/if}{literal}
+
+
   $('#format_id', $form).on('change', function() {
     selectFormat($(this).val());
   });
   // After the pdf downloads, the user has to manually close the dialog (which would be nice to fix)
   // But at least we can trigger the underlying list of activities to refresh
-  $form.closest('.ui-dialog-content.crm-ajax-container').on('dialogbeforeclose', function() {
-    $(this).trigger('crmFormSuccess');
+  $('[name=_qf_PDF_submit]', $form).click(function() {
+    var $dialog = $(this).closest('.ui-dialog-content.crm-ajax-container');
+    if ($dialog.length) {
+      $dialog.on('dialogbeforeclose', function () {
+        $(this).trigger('crmFormSuccess');
+      });
+      $dialog.dialog('option', 'buttons', [{
+        text: {/literal}"{ts escape='js'}Done{/ts}"{literal},
+        icons: {primary: 'fa-times'},
+        click: function() {$(this).dialog('close');}
+      }]);
+    }
+  });
+  $('[name^=_qf_PDF_submit]', $form).click(function() {
+    CRM.status({/literal}"{ts escape='js'}Downloading...{/ts}"{literal});
   });
   showSaveDetails($('input[name=saveTemplate]', $form)[0]);
 
@@ -201,15 +247,12 @@ function selectFormat( val, bind ) {
   if (!val) {
     val = 0;
     bind = false;
-    var dataUrl = {/literal}"{crmURL p='civicrm/ajax/pdfFormat' h=0 }"{literal};
-    cj.post( dataUrl, {formatId: val}, function( data ) {
-      fillFormatInfo(data, bind);
-      }, 'json');
-  } 
-  else {
-    data=JSON.parse(val);
-    fillFormatInfo(data, bind);
   }
+
+  var dataUrl = {/literal}"{crmURL p='civicrm/ajax/pdfFormat' h=0 }"{literal};
+  cj.post( dataUrl, {formatId: val}, function( data ) {
+    fillFormatInfo(data, bind);
+  }, 'json');
 }
 
 function selectPaper( val )
@@ -300,4 +343,3 @@ function showSaveDetails(chkbox)  {
 
 </script>
 {/literal}
-

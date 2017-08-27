@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -41,8 +39,6 @@ class CRM_Admin_Form_MailSettings extends CRM_Admin_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
@@ -89,16 +85,34 @@ class CRM_Admin_Form_MailSettings extends CRM_Admin_Form {
       0 => ts('Email-to-Activity Processing'),
     );
     $this->add('select', 'is_default', ts('Used For?'), $usedfor);
+    $this->addField('activity_status', array('placeholder' => FALSE));
   }
 
   /**
    * Add local and global form rules.
-   *
-   *
-   * @return void
    */
   public function addRules() {
     $this->addFormRule(array('CRM_Admin_Form_MailSettings', 'formRule'));
+  }
+
+  public function getDefaultEntity() {
+    return 'MailSettings';
+  }
+
+  /**
+   * Add local and global form rules.
+   */
+  public function setDefaultValues() {
+    $defaults = parent::setDefaultValues();
+
+    // Set activity status to "Completed" by default.
+    if ($this->_action != CRM_Core_Action::DELETE &&
+      (!$this->_id || !CRM_Core_DAO::getFieldValue('CRM_Core_BAO_MailSettings', $this->_id, 'activity_status'))
+    ) {
+      $defaults['activity_status'] = 'Completed';
+    }
+
+    return $defaults;
   }
 
   /**
@@ -122,9 +136,6 @@ class CRM_Admin_Form_MailSettings extends CRM_Admin_Form {
 
   /**
    * Process the form submission.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     if ($this->_action & CRM_Core_Action::DELETE) {
@@ -150,6 +161,7 @@ class CRM_Admin_Form_MailSettings extends CRM_Admin_Form {
       'source',
       'is_ssl',
       'is_default',
+      'activity_status',
     );
 
     $params = array();

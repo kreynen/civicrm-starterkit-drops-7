@@ -25,7 +25,8 @@ function mailing_gettokens_example() {
     $errorCode = $e->getErrorCode();
     $errorData = $e->getExtraParams();
     return array(
-      'error' => $errorMessage,
+      'is_error' => 1,
+      'error_message' => $errorMessage,
       'error_code' => $errorCode,
       'error_data' => $errorData,
     );
@@ -79,7 +80,7 @@ function mailing_gettokens_expectedresult() {
       '{contact.preferred_language}' => 'Preferred Language',
       '{contact.preferred_mail_format}' => 'Preferred Mail Format',
       '{contact.hash}' => 'Contact Hash',
-      '{contact.contact_source}' => 'Source of Contact Data',
+      '{contact.contact_source}' => 'Contact Source',
       '{contact.first_name}' => 'First Name',
       '{contact.middle_name}' => 'Middle Name',
       '{contact.last_name}' => 'Last Name',
@@ -106,6 +107,7 @@ function mailing_gettokens_expectedresult() {
       '{contact.street_unit}' => 'Street Unit',
       '{contact.supplemental_address_1}' => 'Supplemental Address 1',
       '{contact.supplemental_address_2}' => 'Supplemental Address 2',
+      '{contact.supplemental_address_3}' => 'Supplemental Address 3',
       '{contact.city}' => 'City',
       '{contact.postal_code_suffix}' => 'Postal Code Suffix',
       '{contact.postal_code}' => 'Postal Code',

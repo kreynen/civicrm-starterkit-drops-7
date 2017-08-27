@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,24 +28,12 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
- */
-
-/**
- *
- * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_ACL_Form_EntityRole extends CRM_Admin_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
@@ -53,8 +41,6 @@ class CRM_ACL_Form_EntityRole extends CRM_Admin_Form {
     if ($this->_action & CRM_Core_Action::DELETE) {
       return;
     }
-
-    $attributes = CRM_Core_DAO::getAttribute('CRM_ACL_DAO_EntityRole');
 
     $aclRoles = array('' => ts('- select -')) + CRM_Core_OptionGroup::values('acl_role');
     $this->add('select', 'acl_role_id', ts('ACL Role'),
@@ -70,9 +56,6 @@ class CRM_ACL_Form_EntityRole extends CRM_Admin_Form {
 
   /**
    * Process the form submission.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     CRM_ACL_BAO_Cache::resetCache();

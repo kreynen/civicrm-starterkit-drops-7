@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -31,7 +31,7 @@
     </div>
 
     <div class="action-link">
-         {crmButton p='civicrm/petition/add' q='reset=1' h=0  icon="circle-plus"}{ts}Add Petition{/ts}{/crmButton}
+         {crmButton p='civicrm/petition/add' q='reset=1' h=0  icon="plus-circle"}{ts}Add Petition{/ts}{/crmButton}
     </div>
 
 {elseif $buildSelector}
@@ -72,7 +72,7 @@
 {else}
 
    <div class="action-link">
-      {crmButton p='civicrm/petition/add' q='reset=1' h=0  icon="circle-plus"}{ts}Add Petition{/ts}{/crmButton}
+      {crmButton p='civicrm/petition/add' q='reset=1' h=0  icon="plus-circle"}{ts}Add Petition{/ts}{/crmButton}
    </div>
 
     {* build search form here *}
@@ -198,8 +198,7 @@ function loadPetitionList( )
              "oLanguage":{"sEmptyTable"  : noRecordFoundMsg,
                  "sZeroRecords" : noRecordFoundMsg },
              "fnDrawCallback": function() {
-               // FIXME: trigger crmLoad and crmEditable would happen automatically
-               CRM.$('.crm-editable').crmEditable();
+               $(this).trigger('crmLoad');
              },
              "fnRowCallback": function( nRow, aData, iDisplayIndex ) {
 

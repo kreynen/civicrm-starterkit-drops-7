@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Report_Form_Contribute_Repeat extends CRM_Report_Form {
   protected $_amountClauseWithAND = NULL;
@@ -43,6 +41,58 @@ class CRM_Report_Form_Contribute_Repeat extends CRM_Report_Form {
   public $_drilldownReport = array('contribute/detail' => 'Link to Detail Report');
 
   /**
+   * Temp table for first time frame.
+   *
+   * @var int
+   */
+  protected $tempTableRepeat1 = NULL;
+
+  /**
+   * Temp table for second time frame.
+   *
+   * @var int
+   */
+  protected $tempTableRepeat2 = NULL;
+
+  /**
+   * The table the report is being grouped by.
+   *
+   * @var string
+   */
+  protected $groupByTable;
+
+  /**
+   * The field the report is being grouped by.
+   *
+   * @var string
+   */
+  protected $groupByFieldName;
+
+  /**
+   * The alias of the table the report is being grouped by.
+   *
+   * @var string
+   */
+  protected $groupByTableAlias;
+
+  /**
+   * The column in the contribution table that joins to the temp tables.
+   *
+   * @var
+   */
+  protected $contributionJoinTableColumn;
+
+  /**
+   * This report has been optimised for group filtering.
+   *
+   * CRM-19170
+   *
+   * @var bool
+   */
+  protected $groupFilterNotOptimised = FALSE;
+
+  /**
+   * Class constructor.
    */
   public function __construct() {
     $this->_columns = array(
@@ -91,16 +141,6 @@ class CRM_Report_Form_Contribute_Repeat extends CRM_Report_Form {
             'default' => TRUE,
           ),
         ),
-      ),
-      'civicrm_email' => array(
-        'dao' => 'CRM_Core_DAO_Email',
-        'fields' => array(
-          'email' => array(
-            'title' => ts('Email'),
-            'no_repeat' => TRUE,
-          ),
-        ),
-        'grouping' => 'contact-fields',
         'order_bys' => array(
           'sort_name' => array(
             'title' => ts('Last Name, First Name'),
@@ -126,6 +166,16 @@ class CRM_Report_Form_Contribute_Repeat extends CRM_Report_Form {
             'title' => ts('Contact Subtype'),
           ),
         ),
+      ),
+      'civicrm_email' => array(
+        'dao' => 'CRM_Core_DAO_Email',
+        'fields' => array(
+          'email' => array(
+            'title' => ts('Email'),
+            'no_repeat' => TRUE,
+          ),
+        ),
+        'grouping' => 'contact-fields',
       ),
       'civicrm_phone' => array(
         'dao' => 'CRM_Core_DAO_Phone',
@@ -217,8 +267,9 @@ class CRM_Report_Form_Contribute_Repeat extends CRM_Report_Form {
           ),
           'financial_type_id' => array(
             'title' => ts('Financial Type'),
+            'type' => CRM_Utils_Type::T_INT,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
-            'options' => CRM_Contribute_PseudoConstant::financialType(),
+            'options' => CRM_Financial_BAO_FinancialType::getAvailableFinancialTypes(),
           ),
           'contribution_status_id' => array(
             'title' => ts('Contribution Status'),
@@ -237,19 +288,9 @@ class CRM_Report_Form_Contribute_Repeat extends CRM_Report_Form {
     parent::__construct();
   }
 
-  public function preProcess() {
-    parent::preProcess();
-  }
-
   /**
-   * @param bool $freeze
-   *
-   * @return array
+   * Override parent select for reasons someone will someday make sense of & document.
    */
-  public function setDefaultValues($freeze = TRUE) {
-    return parent::setDefaultValues($freeze);
-  }
-
   public function select() {
     $select = array();
     $append = NULL;
@@ -288,17 +329,14 @@ class CRM_Report_Form_Contribute_Repeat extends CRM_Report_Form {
         }
       }
     }
-
+    $this->_selectClauses = $select;
     $this->_select = "SELECT " . implode(', ', $select) . " ";
   }
 
   /**
-   * @param bool $tableCol
-   *
-   * @return array|void
+   * Inspect the group by params to determine group by information.
    */
-  public function groupBy($tableCol = FALSE) {
-    $this->_groupBy = "";
+  public function setGroupByInformation() {
     if (!empty($this->_params['group_bys']) &&
       is_array($this->_params['group_bys'])
     ) {
@@ -306,27 +344,40 @@ class CRM_Report_Form_Contribute_Repeat extends CRM_Report_Form {
         if (array_key_exists('group_bys', $table)) {
           foreach ($table['group_bys'] as $fieldName => $field) {
             if (!empty($this->_params['group_bys'][$fieldName])) {
-              if ($tableCol) {
-                return array($tableName, $field['alias'], $field['name']);
+              $this->groupByTable = $tableName;
+              $this->groupByTableAlias = $field['alias'];
+              $this->groupByFieldName = $field['name'];
+              if ($this->groupByTable == 'civicrm_contact') {
+                $this->contributionJoinTableColumn = "contact_id";
               }
-              else {
-                $this->_groupBy[] = "{$field['dbAlias']}";
+              elseif ($this->groupByTable == 'civicrm_contribution_type') {
+                $this->contributionJoinTableColumn = "contribution_type_id";
               }
+              elseif ($this->groupByTable == 'civicrm_contribution') {
+                $this->contributionJoinTableColumn = $this->groupByFieldName;
+              }
+              elseif ($this->groupByTable == 'civicrm_address') {
+                $this->contributionJoinTableColumn = "contact_id";
+              }
+              elseif ($this->groupByTable == 'civicrm_financial_type') {
+                $this->contributionJoinTableColumn = 'financial_type_id';
+              }
+              return;
             }
           }
         }
       }
 
-      $this->_groupBy = "GROUP BY " . implode(', ', $this->_groupBy);
     }
   }
 
   public function from() {
-    list($fromTable, $fromAlias, $fromCol) = $this->groupBy(TRUE);
-    $from = "$fromTable $fromAlias";
+    $this->buildTempTables();
+    $fromCol = $this->groupByFieldName;
 
-    if ($fromTable == 'civicrm_contact') {
-      $contriCol = "contact_id";
+    $from = "$this->groupByTable $this->groupByTableAlias";
+
+    if ($this->groupByTable == 'civicrm_contact') {
       $from .= "
 LEFT JOIN civicrm_address {$this->_aliases['civicrm_address']} ON {$this->_aliases['civicrm_contact']}.id = {$this->_aliases['civicrm_address']}.contact_id
 LEFT JOIN civicrm_email   {$this->_aliases['civicrm_email']}
@@ -335,26 +386,37 @@ LEFT JOIN civicrm_phone   {$this->_aliases['civicrm_phone']}
        ON {$this->_aliases['civicrm_contact']}.id = {$this->_aliases['civicrm_phone']}.contact_id AND {$this->_aliases['civicrm_phone']}.is_primary = 1";
 
     }
-    elseif ($fromTable == 'civicrm_financial_type') {
-      $contriCol = "financial_type_id";
-    }
-    elseif ($fromTable == 'civicrm_contribution') {
-      $contriCol = $fromCol;
-    }
-    elseif ($fromTable == 'civicrm_address') {
+    elseif ($this->groupByTable == 'civicrm_address') {
       $from .= "
 INNER JOIN civicrm_contact {$this->_aliases['civicrm_contact']} ON {$this->_aliases['civicrm_address']}.contact_id = {$this->_aliases['civicrm_contact']}.id";
-      $fromAlias = $this->_aliases['civicrm_contact'];
+      $this->groupByTableAlias = $this->_aliases['civicrm_contact'];
       $fromCol = "id";
-      $contriCol = "contact_id";
     }
 
     $this->_from = "
 FROM $from
-LEFT JOIN civicrm_temp_civireport_repeat1 {$this->_aliases['civicrm_contribution']}1
-       ON $fromAlias.$fromCol = {$this->_aliases['civicrm_contribution']}1.$contriCol
-LEFT JOIN civicrm_temp_civireport_repeat2 {$this->_aliases['civicrm_contribution']}2
-       ON $fromAlias.$fromCol = {$this->_aliases['civicrm_contribution']}2.$contriCol";
+LEFT JOIN $this->tempTableRepeat1 {$this->_aliases['civicrm_contribution']}1
+       ON {$this->groupByTableAlias}.$fromCol = {$this->_aliases['civicrm_contribution']}1
+       .{$this->contributionJoinTableColumn}
+LEFT JOIN $this->tempTableRepeat2 {$this->_aliases['civicrm_contribution']}2
+       ON {$this->groupByTableAlias}.$fromCol = {$this->_aliases['civicrm_contribution']}2.{$this->contributionJoinTableColumn}";
+  }
+
+  /**
+   * @param string $replaceAliasWith
+   *
+   * @return mixed|string
+   */
+  public function fromContribution($replaceAliasWith = 'contribution1') {
+    $this->setFromBase('civicrm_contribution', 'contact_id', $replaceAliasWith);
+
+    $temp = $this->_aliases['civicrm_contribution'];
+    $this->_aliases['civicrm_contribution'] = $replaceAliasWith;
+    $from = $this->_from;
+    $from .= (string) $this->getPermissionedFTQuery($this, 'civicrm_line_item_report', TRUE);
+    $this->_aliases['civicrm_contribution'] = $temp;
+    $this->_where = '';
+    return $from;
   }
 
   /**
@@ -620,32 +682,15 @@ LEFT JOIN civicrm_temp_civireport_repeat2 {$this->_aliases['civicrm_contribution
    */
   public function statistics(&$rows) {
     $statistics = parent::statistics($rows);
-
-    //fetch contributions for both date ranges from pre-existing temp tables
-    $sql = "
-CREATE TEMPORARY TABLE civicrm_temp_civireport_repeat3
-SELECT contact_id FROM civicrm_temp_civireport_repeat1 UNION SELECT contact_id FROM civicrm_temp_civireport_repeat2;";
-    $dao = CRM_Core_DAO::executeQuery($sql);
-
-    $sql = "
-SELECT civicrm_temp_civireport_repeat3.contact_id,
-       civicrm_temp_civireport_repeat1.total_amount_sum as contribution1_total_amount_sum,
-       civicrm_temp_civireport_repeat2.total_amount_sum as contribution2_total_amount_sum
-FROM civicrm_temp_civireport_repeat3
-LEFT JOIN civicrm_temp_civireport_repeat1
-       ON civicrm_temp_civireport_repeat3.contact_id = civicrm_temp_civireport_repeat1.contact_id
-LEFT JOIN civicrm_temp_civireport_repeat2
-       ON civicrm_temp_civireport_repeat3.contact_id = civicrm_temp_civireport_repeat2.contact_id";
-    $dao = CRM_Core_DAO::executeQuery($sql);
-
+    $sql = "{$this->_select} {$this->_from} {$this->_where}";
+    $dao = $this->executeReportQuery($sql);
     //store contributions in array 'contact_sums' for comparison
     $contact_sums = array();
     while ($dao->fetch()) {
-      $contact_sums[$dao->contact_id]
-        = array(
-          'contribution1_total_amount_sum' => $dao->contribution1_total_amount_sum,
-          'contribution2_total_amount_sum' => $dao->contribution2_total_amount_sum,
-        );
+      $contact_sums[$dao->contact_civireport_id] = array(
+        'contribution1_total_amount_sum' => $dao->contribution1_total_amount_sum,
+        'contribution2_total_amount_sum' => $dao->contribution2_total_amount_sum,
+      );
     }
 
     $total_distinct_contacts = count($contact_sums);
@@ -690,23 +735,23 @@ LEFT JOIN civicrm_temp_civireport_repeat2
     //display percentages for new, lapsed, upgraded, downgraded, and maintained contributors
     $statistics['counts']['count_new'] = array(
       'value' => $new,
-      'title' => '% New Donors',
+      'title' => ts('% New Donors'),
     );
     $statistics['counts']['count_lapsed'] = array(
       'value' => $lapsed,
-      'title' => '% Lapsed Donors',
+      'title' => ts('% Lapsed Donors'),
     );
     $statistics['counts']['count_upgraded'] = array(
       'value' => $upgraded,
-      'title' => '% Upgraded Donors',
+      'title' => ts('% Upgraded Donors'),
     );
     $statistics['counts']['count_downgraded'] = array(
       'value' => $downgraded,
-      'title' => '% Downgraded Donors',
+      'title' => ts('% Downgraded Donors'),
     );
     $statistics['counts']['count_maintained'] = array(
       'value' => $maintained,
-      'title' => '% Maintained Donors',
+      'title' => ts('% Maintained Donors'),
     );
 
     $select = "
@@ -720,7 +765,7 @@ SELECT COUNT({$this->_aliases['civicrm_contribution']}1.total_amount_count )    
     $sql = "{$select} {$this->_from} {$this->_where}
 GROUP BY    currency
 ";
-    $dao = CRM_Core_DAO::executeQuery($sql);
+    $dao = $this->executeReportQuery($sql);
 
     $amount = $average = $amount2 = $average2 = array();
     $count = $count2 = 0;
@@ -742,36 +787,36 @@ GROUP BY    currency
       $count2 += $dao->count2;
     }
 
-    $statistics['counts']['range_one_title'] = array('title' => 'Initial Date Range:');
+    $statistics['counts']['range_one_title'] = array('title' => ts('Initial Date Range:'));
     $statistics['counts']['amount'] = array(
       'value' => implode(',  ', $amount),
-      'title' => 'Total Amount',
+      'title' => ts('Total Amount'),
       'type' => CRM_Utils_Type::T_STRING,
     );
     $statistics['counts']['count'] = array(
       'value' => $count,
-      'title' => 'Total Donations',
+      'title' => ts('Total Donations'),
     );
     $statistics['counts']['avg'] = array(
       'value' => implode(',  ', $average),
-      'title' => 'Average',
+      'title' => ts('Average'),
       'type' => CRM_Utils_Type::T_STRING,
     );
     $statistics['counts']['range_two_title'] = array(
-      'title' => 'Second Date Range:',
+      'title' => ts('Second Date Range:'),
     );
     $statistics['counts']['amount2'] = array(
       'value' => implode(',  ', $amount2),
-      'title' => 'Total Amount',
+      'title' => ts('Total Amount'),
       'type' => CRM_Utils_Type::T_STRING,
     );
     $statistics['counts']['count2'] = array(
       'value' => $count2,
-      'title' => 'Total Donations',
+      'title' => ts('Total Donations'),
     );
     $statistics['counts']['avg2'] = array(
       'value' => implode(',  ', $average2),
-      'title' => 'Average',
+      'title' => ts('Average'),
       'type' => CRM_Utils_Type::T_STRING,
     );
 
@@ -780,68 +825,6 @@ GROUP BY    currency
 
   public function postProcess() {
     $this->beginPostProcess();
-    $create = $subSelect1 = $subSelect2 = NULL;
-    list($fromTable, $fromAlias, $fromCol) = $this->groupBy(TRUE);
-    if ($fromTable == 'civicrm_contact') {
-      $contriCol = "contact_id";
-    }
-    elseif ($fromTable == 'civicrm_contribution_type') {
-      $contriCol = "contribution_type_id";
-    }
-    elseif ($fromTable == 'civicrm_contribution') {
-      $contriCol = $fromCol;
-    }
-    elseif ($fromTable == 'civicrm_address') {
-      $contriCol = "contact_id";
-    }
-    elseif ($fromTable == 'civicrm_financial_type') {
-      $contriCol = 'financial_type_id';
-      $subSelect1 = 'contribution1.contact_id,';
-      $subSelect2 = 'contribution2.contact_id,';
-      $create = 'contact_id int unsigned,';
-    }
-
-    $subWhere = $this->whereContribution();
-    $subContributionQuery1 = "
-SELECT {$subSelect1} contribution1.{$contriCol},
-       sum( contribution1.total_amount ) AS total_amount_sum,
-       count( * ) AS total_amount_count
-FROM   civicrm_contribution contribution1
-{$subWhere}
-GROUP BY contribution1.{$contriCol}";
-
-    $subWhere = $this->whereContribution('contribution2');
-    $subContributionQuery2 = "
-SELECT {$subSelect2} contribution2.{$contriCol},
-       sum( contribution2.total_amount ) AS total_amount_sum,
-       count( * ) AS total_amount_count,
-       currency
-FROM   civicrm_contribution contribution2
-{$subWhere}
-GROUP BY contribution2.{$contriCol}";
-
-    $sql = "
-CREATE TEMPORARY TABLE civicrm_temp_civireport_repeat1 (
-{$create}
-{$contriCol} int unsigned,
-total_amount_sum int,
-total_amount_count int
-) ENGINE=HEAP DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci";
-    CRM_Core_DAO::executeQuery($sql);
-    $sql = "INSERT INTO civicrm_temp_civireport_repeat1 {$subContributionQuery1}";
-    CRM_Core_DAO::executeQuery($sql);
-
-    $sql = "
-CREATE TEMPORARY TABLE civicrm_temp_civireport_repeat2 (
-{$create}
-{$contriCol} int unsigned,
-total_amount_sum int,
-total_amount_count int,
-currency varchar(3)
-) ENGINE=HEAP DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci";
-    CRM_Core_DAO::executeQuery($sql);
-    $sql = "INSERT INTO civicrm_temp_civireport_repeat2 {$subContributionQuery2}";
-    CRM_Core_DAO::executeQuery($sql);
 
     $this->select();
     $this->from();
@@ -851,7 +834,7 @@ currency varchar(3)
 
     $count = 0;
     $sql = "{$this->_select} {$this->_from} {$this->_where} {$this->_groupBy} {$this->_limit}";
-    $dao = CRM_Core_DAO::executeQuery($sql);
+    $dao = $this->executeReportQuery($sql);
     $rows = array();
     while ($dao->fetch()) {
       foreach ($this->_columnHeaders as $key => $value) {
@@ -889,7 +872,7 @@ currency varchar(3)
       }
     }
     $this->_columnHeaders['change'] = array(
-      'title' => '% Change',
+      'title' => ts('% Change'),
       'type' => CRM_Utils_Type::T_INT,
     );
 
@@ -1004,6 +987,76 @@ currency varchar(3)
       }
     }
     // foreach ends
+  }
+
+  /**
+   * Build the temp tables for comparison.
+   */
+  protected function buildTempTables() {
+    $this->setGroupByInformation();
+    $create = $subSelect1 = $subSelect2 = NULL;
+    if ($this->tempTableRepeat1) {
+      return;
+    }
+
+    if ($this->groupByTable == 'civicrm_financial_type') {
+      $subSelect1 = 'contribution1.contact_id,';
+      $subSelect2 = 'contribution2.contact_id,';
+      $create = 'contact_id int unsigned,';
+    }
+
+    $subWhere = $this->whereContribution();
+    $from = $this->fromContribution();
+    $subContributionQuery1 = "
+SELECT {$subSelect1} contribution1.{$this->contributionJoinTableColumn},
+       sum( contribution1.total_amount ) AS total_amount_sum,
+       count( * ) AS total_amount_count
+{$from}
+{$subWhere}
+GROUP BY contribution1.{$this->contributionJoinTableColumn}";
+
+    $subWhere = $this->whereContribution('contribution2');
+    $from = $this->fromContribution('contribution2');
+    $subContributionQuery2 = "
+SELECT {$subSelect2} contribution2.{$this->contributionJoinTableColumn},
+       sum( contribution2.total_amount ) AS total_amount_sum,
+       count( * ) AS total_amount_count,
+       currency
+{$from}
+{$subWhere}
+GROUP BY contribution2.{$this->contributionJoinTableColumn}, currency";
+    $this->tempTableRepeat1 = 'civicrm_temp_civireport_repeat1' . uniqid();
+    $sql = "
+CREATE TEMPORARY TABLE $this->tempTableRepeat1 (
+{$create}
+{$this->contributionJoinTableColumn} int unsigned,
+total_amount_sum int,
+total_amount_count int
+) ENGINE=HEAP {$this->_databaseAttributes}";
+    $this->executeReportQuery($sql);
+    $this->executeReportQuery("INSERT INTO $this->tempTableRepeat1 {$subContributionQuery1}");
+
+    $this->executeReportQuery("
+      ALTER TABLE $this->tempTableRepeat1 ADD INDEX ({$this->contributionJoinTableColumn})
+    ");
+
+    $this->tempTableRepeat2 = 'civicrm_temp_civireport_repeat2' . uniqid();
+    $sql = "
+CREATE TEMPORARY TABLE  $this->tempTableRepeat2 (
+{$create}
+{$this->contributionJoinTableColumn} int unsigned,
+total_amount_sum int,
+total_amount_count int,
+currency varchar(3)
+) ENGINE=HEAP {$this->_databaseAttributes}";
+    $this->executeReportQuery($sql);
+    $sql = "INSERT INTO $this->tempTableRepeat2 {$subContributionQuery2}";
+    $this->executeReportQuery($sql);
+
+    $this->executeReportQuery("
+      ALTER TABLE $this->tempTableRepeat2 ADD INDEX ({$this->contributionJoinTableColumn})
+    ");
+
   }
 
 }

@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -53,7 +53,7 @@
         <td align="center" class="crm-phone-is_primary">{$form.phone.$blockId.is_primary.1.html}</td>
         <td>
           {if $blockId gt 1}
-            <a class="crm-delete-inline crm-hover-button\" href="#" title="{ts}Delete phone{/ts}"><span class="icon delete-icon"></span></a>
+            <a class="crm-delete-inline crm-hover-button" href="#" title="{ts}Delete phone{/ts}"><span class="icon delete-icon"></span></a>
           {/if}
         </td>
     </tr>
