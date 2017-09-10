@@ -51,6 +51,9 @@ libraries[civicrm][patch][2347897] = ./patches/binding-extension-47-2347897.patc
 ; https://www.drupal.org/node/1978838
 libraries[civicrm][patch][1978838] = ./patches/pre-populate-db-settings-47-1978838.patch
 
+; Ensure the baseURL is correct in the installer in Pantheon.
+libraries[civicrm][patch][installerbaseurl] = ./patches/installer-baseurl.patch
+
 ; Related to https://issues.civicrm.org/jira/browse/CRM-9683
 libraries[civicrm][patch][2130213] = ./patches/ignore-timezone-on-install-47-2130213.patch
 

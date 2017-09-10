@@ -288,8 +288,8 @@ if (isset($pantheon_conf)) {
   $civicrm_setting['Directory Preferences']['uploadDir'] = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/files/private/civicrm/upload/';
   $civicrm_setting['Directory Preferences']['customFileUploadDir'] = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/files/private/civicrm/custom/';
   $civicrm_setting['Directory Preferences']['imageUploadDir'] = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/files/civicrm/persist/contribute/';
-  $civicrm_setting['Directory Preferences']['extensionsDir'] = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/code/profiles/civicrm_starterkit/extensions/';
-  $civicrm_setting['URL Preferences']['extensionsURL'] = CIVICRM_UF_BASEURL . 'profiles/civicrm_starterkit/extensions';
+  $civicrm_setting['Directory Preferences']['extensionsDir'] = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/code/sites/all/extensions/';
+  $civicrm_setting['URL Preferences']['extensionsURL'] = CIVICRM_UF_BASEURL . 'sites/all/extensions';
   $civicrm_setting['URL Preferences']['userFrameworkResourceURL'] = CIVICRM_UF_BASEURL . 'profiles/civicrm_starterkit/modules/civicrm/';
   $civicrm_setting['URL Preferences']['imageUploadURL'] = CIVICRM_UF_BASEURL . 'sites/default/files/civicrm/persist/contribute/';
 

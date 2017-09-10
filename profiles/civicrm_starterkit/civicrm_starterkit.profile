@@ -129,7 +129,7 @@ function civicrm_starterkit_update_status_alter(&$projects) {
     // than 7 days (giving distribution time to prepare an update).
     if (isset($project_info['status']) && in_array($project_info['status'], $bad_statuses)) {
       $days_ago = strtotime('7 days ago');
-      if ($project_info['releases'][$project_info['recommended']]['date'] < $days_ago) {
+      if (isset($project_info['releases']) && isset($project_info['recommended']) && $project_info['releases'][$project_info['recommended']]['date'] < $days_ago) {
         unset($projects[$project_name]);
       }
     }

@@ -8,6 +8,7 @@ The following patches have been applied to this project:
 - ipnStd.patch
 - binding-extension-47-2347897.patch
 - pre-populate-db-settings-47-1978838.patch
+- installer-baseurl.patch
 - ignore-timezone-on-install-47-2130213.patch
 - settings_location-for-profiles.patch
 - 1849424-use-vars-in-link.patch
