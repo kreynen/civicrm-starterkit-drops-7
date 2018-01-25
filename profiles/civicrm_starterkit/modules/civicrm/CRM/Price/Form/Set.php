@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * form to process actions on Price Sets
+ * Form to process actions on Price Sets.
  */
 class CRM_Price_Form_Set extends CRM_Core_Form {
 
@@ -47,8 +45,6 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
 
   /**
    * Set variables up before form is built.
-   *
-   * @return void
    */
   public function preProcess() {
     // current set id
@@ -99,11 +95,8 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
         $errors['extends'] = ts('If you plan on using this price set for membership signup and renewal, you can not also use it for Events or Contributions. However, a membership price set may include additional fields for non-membership options that require an additional fee (e.g. magazine subscription).');
       }
     }
-    //checks the given price set doesnot start with digit
-    $title = $fields['title'];
-    // gives the ascii value
-    $asciiValue = ord($title{0});
-    if ($asciiValue >= 48 && $asciiValue <= 57) {
+    // Checks the given price set does not start with a digit
+    if (strlen($fields['title']) && is_numeric($fields['title'][0])) {
       $errors['title'] = ts("Name cannot not start with a digit");
     }
     return empty($errors) ? TRUE : $errors;
@@ -111,8 +104,6 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     $this->applyFilter('__ALL__', 'trim');
@@ -177,6 +168,8 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
       }
     }
 
+    $this->addElement('text', 'min_amount', ts('Minimum Amount'));
+
     if (CRM_Utils_System::isNull($extends)) {
       $this->assign('extends', FALSE);
     }
@@ -190,6 +183,14 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
 
     // financial type
     $financialType = CRM_Financial_BAO_FinancialType::getIncomeFinancialType();
+
+    foreach ($financialType as $finTypeId => $type) {
+      if (CRM_Financial_BAO_FinancialType::isACLFinancialTypeStatus()
+        && !CRM_Core_Permission::check('add contributions of type ' . $type)
+      ) {
+        unset($financialType[$finTypeId]);
+      }
+    }
 
     $this->add('select', 'financial_type_id',
       ts('Default Financial Type'),
@@ -208,18 +209,17 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
     $this->addElement('checkbox', 'is_active', ts('Is this Price Set active?'));
 
     $this->addButtons(array(
-        array(
-          'type' => 'next',
-          'name' => ts('Save'),
-          'spacing' => '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;',
-          'isDefault' => TRUE,
-        ),
-        array(
-          'type' => 'cancel',
-          'name' => ts('Cancel'),
-        ),
-      )
-    );
+      array(
+        'type' => 'next',
+        'name' => ts('Save'),
+        'spacing' => '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;',
+        'isDefault' => TRUE,
+      ),
+      array(
+        'type' => 'cancel',
+        'name' => ts('Cancel'),
+      ),
+    ));
 
     $this->addFormRule(array('CRM_Price_Form_Set', 'formRule'));
 
@@ -231,8 +231,9 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
   }
 
   /**
-   * Set default values for the form. Note that in edit/view mode
-   * the default values are retrieved from the database
+   * Set default values for the form. Note that in edit/view mode.
+   *
+   * The default values are retrieved from the database.
    *
    * @return array
    *   array of default values
@@ -254,8 +255,6 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
 
   /**
    * Process the form.
-   *
-   * @return void
    */
   public function postProcess() {
     // get the submitted form values.
@@ -291,11 +290,11 @@ class CRM_Price_Form_Set extends CRM_Core_Form {
       // Jump directly to adding a field if popups are disabled
       $action = CRM_Core_Resources::singleton()->ajaxPopupsEnabled ? 'browse' : 'add';
       $url = CRM_Utils_System::url('civicrm/admin/price/field', array(
-          'reset' => 1,
-          'action' => $action,
-          'sid' => $set->id,
-          'new' => 1,
-        ));
+        'reset' => 1,
+        'action' => $action,
+        'sid' => $set->id,
+        'new' => 1,
+      ));
       CRM_Core_Session::setStatus(ts("Your Set '%1' has been added. You can add fields to this set now.",
         array(1 => $set->title)
       ), ts('Saved'), 'success');

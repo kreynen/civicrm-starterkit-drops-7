@@ -1,9 +1,9 @@
 <?php
 /*
    +--------------------------------------------------------------------+
-   | CiviCRM version 4.6                                                |
+   | CiviCRM version 4.7                                                |
    +--------------------------------------------------------------------+
-   | Copyright CiviCRM LLC (c) 2004-2015                                |
+   | Copyright CiviCRM LLC (c) 2004-2017                                |
    +--------------------------------------------------------------------+
    | This file is a part of CiviCRM.                                    |
    |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class provides the common functionality for sending sms to
- * one or a group of contact ids.
+ * This class provides the common functionality for sending sms to one or a group of contact ids.
  */
 class CRM_Contact_Form_Task_SMSCommon {
   const RECIEVED_SMS_ACTIVITY_SUBJECT = "SMS Received";
@@ -48,6 +45,8 @@ class CRM_Contact_Form_Task_SMSCommon {
 
 
   /**
+   * Pre process the provider.
+   *
    * @param CRM_Core_Form $form
    */
   public static function preProcessProvider(&$form) {
@@ -85,10 +84,7 @@ class CRM_Contact_Form_Task_SMSCommon {
   /**
    * Build the form object.
    *
-   *
    * @param CRM_Core_Form $form
-   *
-   * @return void
    */
   public static function buildQuickForm(&$form) {
 
@@ -144,7 +140,7 @@ class CRM_Contact_Form_Task_SMSCommon {
           continue;
         }
 
-        $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+        $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
         $targetID = CRM_Utils_Array::key('Activity Targets', $activityContacts);
         //target contacts limit check
         $ids = array_keys(CRM_Activity_BAO_ActivityContact::getNames($id, $targetID));
@@ -202,6 +198,7 @@ class CRM_Contact_Form_Task_SMSCommon {
 
         if (CRM_Utils_System::getClassName($form) == 'CRM_Activity_Form_Task_SMS') {
           //to check for "if the contact id belongs to a specified activity type"
+          // @todo use the api instead - function is deprecated.
           $actDetails = CRM_Activity_BAO_Activity::getContactActivity($contactId);
           if (self::RECIEVED_SMS_ACTIVITY_SUBJECT !=
             CRM_Utils_Array::retrieveValueRecursive($actDetails, 'subject')
@@ -331,8 +328,8 @@ class CRM_Contact_Form_Task_SMSCommon {
     }
 
     //Added for CRM-1393
-    if (!empty($fields['saveTemplate']) && empty($fields['saveTemplateName'])) {
-      $errors['saveTemplateName'] = ts("Enter name to save message template");
+    if (!empty($fields['SMSsaveTemplate']) && empty($fields['SMSsaveTemplateName'])) {
+      $errors['SMSsaveTemplateName'] = ts("Enter name to save message template");
     }
 
     return empty($errors) ? TRUE : $errors;
@@ -341,10 +338,7 @@ class CRM_Contact_Form_Task_SMSCommon {
   /**
    * Process the form after the input has been submitted and validated.
    *
-   *
    * @param CRM_Core_Form $form
-   *
-   * @return void
    */
   public static function postProcess(&$form) {
 
@@ -354,19 +348,20 @@ class CRM_Contact_Form_Task_SMSCommon {
     $fromSmsProviderId = $thisValues['sms_provider_id'];
 
     // process message template
-    if (!empty($thisValues['saveTemplate']) || !empty($thisValues['updateTemplate'])) {
+    if (!empty($thisValues['SMSsaveTemplate']) || !empty($thisValues['SMSupdateTemplate'])) {
       $messageTemplate = array(
         'msg_text' => $thisValues['sms_text_message'],
         'is_active' => TRUE,
+        'is_sms' => TRUE,
       );
 
-      if (!empty($thisValues['saveTemplate'])) {
-        $messageTemplate['msg_title'] = $thisValues['saveTemplateName'];
+      if (!empty($thisValues['SMSsaveTemplate'])) {
+        $messageTemplate['msg_title'] = $thisValues['SMSsaveTemplateName'];
         CRM_Core_BAO_MessageTemplate::add($messageTemplate);
       }
 
-      if (!empty($thisValues['template']) && !empty($thisValues['updateTemplate'])) {
-        $messageTemplate['id'] = $thisValues['template'];
+      if (!empty($thisValues['SMStemplate']) && !empty($thisValues['SMSupdateTemplate'])) {
+        $messageTemplate['id'] = $thisValues['SMStemplate'];
         unset($messageTemplate['msg_title']);
         CRM_Core_BAO_MessageTemplate::add($messageTemplate);
       }

@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -26,49 +26,14 @@
 {include file="CRM/common/dashboard.tpl"}
 {include file="CRM/common/openFlashChart.tpl"}
 {* Alerts for critical configuration settings. *}
-{if ! $fromEmailOK || ! $ownerOrgOK || ! $defaultMailboxOK}
-    <div class="help">
-    <div class="finalconf-intro">
-      {ts}There are a few things to setup before using your site ...{/ts}
-    </div>
-    {if ! $ownerOrgOK}
-        <div class="finalconf-button">
-            <a href="{$fixOrgUrl}" id="fixOrgUrl" class="button"><span><div class="icon ui-icon-wrench"></div>{ts}Go{/ts}</span></a>
-        </div>
-      <div class="finalconf-itemdesc">{ts}Please enter your organization's name and primary address.{/ts}</div>
-      <h4 class="finalconf-item"><div class="icon ui-icon-alert"></div> &nbsp;{ts}Organization Name{/ts}</h4>
-      <div style="clear:both"></div>
-  {/if}
-    {if ! $fromEmailOK}
-        <div class="finalconf-button">
-            <a href="{$fixEmailUrl}" id="fixOrgUrl" class="button"><span><div class="icon ui-icon-wrench"></div>{ts}Go{/ts}</span></a>
-        </div>
-      <div class="finalconf-itemdesc">{ts}Please enter a default FROM Email Address (for system-generated emails).{/ts}</div>
-      <h4 class="finalconf-item"><div class="icon ui-icon-alert"></div> &nbsp;{ts}From Email Address{/ts}</h4>
-      <div style="clear:both"></div>
-    {/if}
-    {if ! $defaultMailboxOK}
-        <div class="finalconf-button">
-            <a href="{$fixDefaultMailbox}" id="fixDefaultMailbox" class="button"><span><div class="icon ui-icon-wrench"></div>{ts}Go{/ts}</span></a>
-        </div>
-        <div class="finalconf-itemdesc">{ts}Please configure a default mailbox for CiviMail.{/ts} (<a href="http://book.civicrm.org/user/advanced-configuration/email-system-configuration/" title="{ts}opens online user guide in a new window{/ts}" target="_blank">{ts}learn more{/ts}</a>)</div>
-        <h4 class="finalconf-item"><div class="icon ui-icon-alert"></div> &nbsp;{ts}Default CiviMail Mailbox{/ts}</h4>
-        <div style="clear:both"></div>
-    {/if}
-    </div>
-{/if}
 {$communityMessages}
-<div class="crm-submit-buttons">
+<div class="crm-submit-buttons crm-dashboard-controls">
 <a href="#" id="crm-dashboard-configure" class="crm-hover-button show-add">
-  <span class="icon ui-icon-wrench"></span> {ts}Configure Your Dashboard{/ts}
+  <i class="crm-i fa-wrench"></i> {ts}Configure Your Dashboard{/ts}
 </a>
 
-<a style="display:none;" href="{crmURL p="civicrm/dashboard" q="reset=1"}" class="button show-done" style="margin-left: 6px;">
-  <span><div class="icon ui-icon-check"></div> {ts}Done{/ts}</span>
-</a>
-
-<a style="float:right;" href="{crmURL p="civicrm/dashboard" q="reset=1&resetCache=1"}" class="crm-hover-button show-refresh" style="margin-left: 6px;">
-  <span class="icon ui-icon-refresh"></span> {ts}Refresh Dashboard Data{/ts}
+<a style="float:right;" href="#" class="crm-hover-button show-refresh" style="margin-left: 6px;">
+  <i class="crm-i fa-refresh"></i> {ts}Refresh Dashboard Data{/ts}
 </a>
 
 </div>
@@ -84,7 +49,7 @@
     </div>
 </div>
 
-<div id="configure-dashlet" class='hiddenElement'></div>
+<div id="configure-dashlet" class='hiddenElement' style="min-height: 20em;"></div>
 <div id="civicrm-dashboard">
   {* You can put anything you like here.  jQuery.dashboard() will remove it. *}
   <noscript>{ts}Javascript must be enabled in your browser in order to use the dashboard features.{/ts}</noscript>
@@ -93,16 +58,17 @@
 {literal}
 <script type="text/javascript">
   CRM.$(function($) {
-    $('#crm-dashboard-configure').click(function() {
-      $.ajax({
-         url: CRM.url('civicrm/dashlet', 'reset=1&snippet=1'),
-         success: function( content ) {
-           $("#civicrm-dashboard, #crm-dashboard-configure, .show-refresh, #empty-message").hide();
-           $('.show-done').show();
-           $("#configure-dashlet").show().html(content).trigger('crmLoad');
-         }
+    $('#crm-dashboard-configure').click(function(e) {
+      e.preventDefault();
+      $(this).hide();
+      if ($("#empty-message").is(':visible')) {
+        $("#empty-message").fadeOut(400);
+      }
+      $("#civicrm-dashboard").fadeOut(400, function() {
+        $(".crm-dashboard-controls").hide();
+        $("#configure-dashlet").fadeIn(400);
       });
-      return false;
+      CRM.loadPage(CRM.url('civicrm/dashlet', 'reset=1'), {target: $("#configure-dashlet")});
     });
   });
 </script>

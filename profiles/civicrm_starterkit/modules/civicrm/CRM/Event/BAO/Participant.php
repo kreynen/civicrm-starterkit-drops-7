@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -27,12 +27,8 @@
  */
 
 /**
- *
- *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Event_BAO_Participant extends CRM_Event_DAO_Participant {
 
@@ -142,8 +138,7 @@ class CRM_Event_BAO_Participant extends CRM_Event_DAO_Participant {
 
     $session = CRM_Core_Session::singleton();
 
-    // reset the group contact cache for this group
-    CRM_Contact_BAO_GroupContactCache::remove();
+    CRM_Contact_BAO_GroupContactCache::opportunisticCacheFlush();
 
     if (!empty($params['id'])) {
       CRM_Utils_Hook::post('edit', 'Participant', $participantBAO->id, $participantBAO);
@@ -387,7 +382,12 @@ class CRM_Event_BAO_Participant extends CRM_Event_DAO_Participant {
       $where[] = ' ( participant.is_test = 0 OR participant.is_test IS NULL ) ';
     }
     if (!empty($participantRoles)) {
-      $where[] = ' participant.role_id IN ( ' . implode(', ', array_keys($participantRoles)) . ' ) ';
+      $escapedRoles = array();
+      foreach (array_keys($participantRoles) as $participantRole) {
+        $escapedRoles[] = CRM_Utils_Type::escape($participantRole, 'String');
+      }
+
+      $where[] = " participant.role_id IN ( '" . implode("', '", $escapedRoles) . "' ) ";
     }
 
     $eventParams = array(1 => array($eventId, 'Positive'));
@@ -621,11 +621,13 @@ GROUP BY  participant.event_id
    * @param string $contactType
    * @param bool $status
    * @param bool $onlyParticipant
+   * @param bool $checkPermission
+   *   Is this a permissioned retrieval?
    *
    * @return array
    *   array of importable Fields
    */
-  public static function &importableFields($contactType = 'Individual', $status = TRUE, $onlyParticipant = FALSE) {
+  public static function &importableFields($contactType = 'Individual', $status = TRUE, $onlyParticipant = FALSE, $checkPermission = TRUE) {
     if (!self::$_importableFields) {
       if (!$onlyParticipant) {
         if (!$status) {
@@ -646,6 +648,7 @@ GROUP BY  participant.event_id
           'title' => ts('Participant Note'),
           'name' => 'participant_note',
           'headerPattern' => '/(participant.)?note$/i',
+          'data_type' => CRM_Utils_Type::T_TEXT,
         ),
       );
 
@@ -721,7 +724,7 @@ GROUP BY  participant.event_id
       $fields = array_merge($fields, $tmpContactField);
       $fields = array_merge($fields, $tmpFields);
       $fields = array_merge($fields, $note, $participantStatus, $participantRole, $eventType);
-      $fields = array_merge($fields, CRM_Core_BAO_CustomField::getFieldsForImport('Participant'));
+      $fields = array_merge($fields, CRM_Core_BAO_CustomField::getFieldsForImport('Participant', FALSE, FALSE, FALSE, $checkPermission));
 
       self::$_importableFields = $fields;
     }
@@ -730,24 +733,24 @@ GROUP BY  participant.event_id
   }
 
   /**
-   * Combine all the exportable fields from the lower levels object.
+   * Combine all the exportable fields from the lower level objects.
+   *
+   * @param bool $checkPermission
    *
    * @return array
    *   array of exportable Fields
    */
-  public static function &exportableFields() {
+  public static function &exportableFields($checkPermission = TRUE) {
     if (!self::$_exportableFields) {
       if (!self::$_exportableFields) {
         self::$_exportableFields = array();
       }
 
-      $fields = array();
-
       $participantFields = CRM_Event_DAO_Participant::export();
       $eventFields = CRM_Event_DAO_Event::export();
       $noteField = array(
         'participant_note' => array(
-          'title' => 'Participant Note',
+          'title' => ts('Participant Note'),
           'name' => 'participant_note',
           'type' => CRM_Utils_Type::T_STRING,
         ),
@@ -755,7 +758,7 @@ GROUP BY  participant.event_id
 
       $participantStatus = array(
         'participant_status' => array(
-          'title' => 'Participant Status',
+          'title' => ts('Participant Status (label)'),
           'name' => 'participant_status',
           'type' => CRM_Utils_Type::T_STRING,
         ),
@@ -763,18 +766,21 @@ GROUP BY  participant.event_id
 
       $participantRole = array(
         'participant_role' => array(
-          'title' => 'Participant Role',
+          'title' => ts('Participant Role (label)'),
           'name' => 'participant_role',
           'type' => CRM_Utils_Type::T_STRING,
         ),
       );
+
+      $participantFields['participant_status_id']['title'] .= ' (ID)';
+      $participantFields['participant_role_id']['title'] .= ' (ID)';
 
       $discountFields = CRM_Core_DAO_Discount::export();
 
       $fields = array_merge($participantFields, $participantStatus, $participantRole, $eventFields, $noteField, $discountFields);
 
       // add custom data
-      $fields = array_merge($fields, CRM_Core_BAO_CustomField::getFieldsForImport('Participant'));
+      $fields = array_merge($fields, CRM_Core_BAO_CustomField::getFieldsForImport('Participant', FALSE, FALSE, FALSE, $checkPermission));
       self::$_exportableFields = $fields;
     }
 
@@ -798,7 +804,7 @@ FROM   civicrm_participant
    LEFT JOIN civicrm_contact ON (civicrm_participant.contact_id = civicrm_contact.id)
 WHERE  civicrm_participant.id = {$participantId}
 ";
-    $dao = CRM_Core_DAO::executeQuery($query, CRM_Core_DAO::$_nullArray);
+    $dao = CRM_Core_DAO::executeQuery($query);
 
     $details = array();
     while ($dao->fetch()) {
@@ -817,8 +823,6 @@ WHERE  civicrm_participant.id = {$participantId}
    *   (reference) the default values, some of which need to be resolved.
    * @param bool $reverse
    *   True if we want to resolve the values in the reverse direction (value -> name).
-   *
-   * @return void
    */
   public static function resolveDefaults(&$defaults, $reverse = FALSE) {
     self::lookupValue($defaults, 'event', CRM_Event_PseudoConstant::event(), $reverse);
@@ -827,12 +831,18 @@ WHERE  civicrm_participant.id = {$participantId}
   }
 
   /**
-   * convert associative array names to values
-   * and vice-versa.
+   * Convert associative array names to values and vice-versa.
    *
    * This function is used by both the web form layer and the api. Note that
    * the api needs the name => value conversion, also the view layer typically
    * requires value => name conversion
+   *
+   * @param array $defaults
+   * @param string $property
+   * @param string $lookup
+   * @param bool $reverse
+   *
+   * @return bool
    */
   public static function lookupValue(&$defaults, $property, $lookup, $reverse) {
     $id = $property . '_id';
@@ -856,14 +866,19 @@ WHERE  civicrm_participant.id = {$participantId}
   }
 
   /**
-   * Delete the record that are associated with this participation.
+   * Delete the records that are associated with this participation.
    *
    * @param int $id
    *   Id of the participation to delete.
    *
-   * @return void
+   * @return \CRM_Event_DAO_Participant
    */
   public static function deleteParticipant($id) {
+    $participant = new CRM_Event_DAO_Participant();
+    $participant->id = $id;
+    if (!$participant->find()) {
+      return FALSE;
+    }
     CRM_Utils_Hook::pre('delete', 'Participant', $id, CRM_Core_DAO::$_nullArray);
 
     $transaction = new CRM_Core_Transaction();
@@ -896,8 +911,6 @@ WHERE  civicrm_participant.id = {$participantId}
       CRM_Core_BAO_Note::del($noteId, FALSE);
     }
 
-    $participant = new CRM_Event_DAO_Participant();
-    $participant->id = $id;
     $participant->delete();
 
     $transaction->commit();
@@ -967,10 +980,7 @@ WHERE  civicrm_participant.id = {$participantId}
    * separated string before using fee_level in view mode.
    *
    * @param string $eventLevel
-   *   Event_leval string from db.
-   *
-   *
-   * @return void
+   *   Event_level string from db.
    */
   public static function fixEventLevel(&$eventLevel) {
     if ((substr($eventLevel, 0, 1) == CRM_Core_DAO::VALUE_SEPARATOR) &&
@@ -1034,6 +1044,38 @@ WHERE  civicrm_participant.id = {$participantId}
       $additionalParticipantIds[$dao->id] = $dao->id;
     }
     return $additionalParticipantIds;
+  }
+
+  /**
+   * Get the amount for the undiscounted version of the field.
+   *
+   * Note this function is part of the refactoring process rather than the best approach.
+   *
+   * @param int $eventID
+   * @param int $discountedPriceFieldOptionID
+   * @param string $feeLevel (deprecated)
+   *
+   * @return null|string
+   */
+  public static function getUnDiscountedAmountForEventPriceSetFieldValue($eventID, $discountedPriceFieldOptionID, $feeLevel) {
+    $priceSetId = CRM_Price_BAO_PriceSet::getFor('civicrm_event', $eventID, NULL);
+    $params = array(
+      1 => array($priceSetId, 'Integer'),
+    );
+    if ($discountedPriceFieldOptionID) {
+      $query = "SELECT cpfv.amount FROM `civicrm_price_field_value` cpfv
+LEFT JOIN civicrm_price_field cpf ON cpfv.price_field_id = cpf.id
+WHERE cpf.price_set_id = %1 AND cpfv.label = (SELECT label from civicrm_price_field_value WHERE id = %2)";
+      $params[2] = array($discountedPriceFieldOptionID, 'Integer');
+    }
+    else {
+      $feeLevel = current($feeLevel);
+      $query = "SELECT cpfv.amount FROM `civicrm_price_field_value` cpfv
+LEFT JOIN civicrm_price_field cpf ON cpfv.price_field_id = cpf.id
+WHERE cpf.price_set_id = %1 AND cpfv.label LIKE %2";
+      $params[2] = array($feeLevel, 'String');
+    }
+    return CRM_Core_DAO::singleValueQuery($query, $params);
   }
 
   /**
@@ -1168,11 +1210,19 @@ INNER JOIN civicrm_price_field_value value ON ( value.id = lineItem.price_field_
     $cascadeAdditionalIds = self::getValidAdditionalIds($participantID, $oldStatusID, $newStatusID);
 
     if (!empty($cascadeAdditionalIds)) {
-      $cascadeAdditionalIds = implode(',', $cascadeAdditionalIds);
-      $query = "UPDATE civicrm_participant cp SET cp.status_id = %1 WHERE  cp.id IN ({$cascadeAdditionalIds})";
-      $params = array(1 => array($newStatusID, 'Integer'));
-      $dao = CRM_Core_DAO::executeQuery($query, $params);
-      return TRUE;
+      try {
+        foreach ($cascadeAdditionalIds as $id) {
+          $participantParams = array(
+            'id' => $id,
+            'status_id' => $newStatusID,
+          );
+          civicrm_api3('Participant', 'create', $participantParams);
+        }
+        return TRUE;
+      }
+      catch (CiviCRM_API3_Exception $e) {
+        throw new CRM_Core_Exception('Failed to update additional participant status in database');
+      }
     }
     return FALSE;
   }
@@ -1185,9 +1235,6 @@ INNER JOIN civicrm_price_field_value value ON ( value.id = lineItem.price_field_
    * @param int $statusId
    *   Status id for participant.
    * @param bool $updateRegisterDate
-   *
-   * @return void
-   *
    */
   public static function updateStatus($participantIds, $statusId, $updateRegisterDate = FALSE) {
     if (!is_array($participantIds) || empty($participantIds) || !$statusId) {
@@ -1741,16 +1788,20 @@ WHERE    civicrm_participant.contact_id = {$contactID} AND
     }
 
     // get primary participant id
-    $query = "SELECT participant_id FROM civicrm_participant_payment WHERE contribution_id = {$contributionId}";
-    $participantId = CRM_Core_DAO::singleValueQuery($query);
+    $query = "SELECT participant_id
+      FROM civicrm_participant cp
+      LEFT JOIN civicrm_participant_payment cpp ON cp.id = cpp.participant_id
+      WHERE cpp.contribution_id = {$contributionId}
+      AND cp.registered_by_id IS NULL";
+    $participantPayment = CRM_Core_DAO::executeQuery($query);
 
     // get additional participant ids (including cancelled)
-    if ($participantId) {
-      $ids = array_merge(array(
-        $participantId,
-      ), self::getAdditionalParticipantIds($participantId,
+    while ($participantPayment->fetch()) {
+      $ids = array_merge($ids, array_merge(array(
+        $participantPayment->participant_id,
+      ), self::getAdditionalParticipantIds($participantPayment->participant_id,
         $excludeCancelled
-      ));
+      )));
     }
 
     return $ids;
@@ -1789,36 +1840,28 @@ WHERE    civicrm_participant.contact_id = {$contactID} AND
    * @param array $contributionParams
    *   Contribution params.
    *
-   * @param $feeLevel
-   *
+   * @param string $feeLevel (deprecated)
+   * @param int $discountedPriceFieldOptionID
+   *   ID of the civicrm_price_field_value field for the discount id.
    */
-  public static function createDiscountTrxn($eventID, $contributionParams, $feeLevel) {
-    // CRM-11124
+  public static function createDiscountTrxn($eventID, $contributionParams, $feeLevel, $discountedPriceFieldOptionID) {
+    $financialTypeID = $contributionParams['contribution']->financial_type_id;
+    $total_amount = $contributionParams['total_amount'];
+
     $checkDiscount = CRM_Core_BAO_Discount::findSet($eventID, 'civicrm_event');
     if (!empty($checkDiscount)) {
-      $feeLevel = current($feeLevel);
-      $priceSetId = CRM_Price_BAO_PriceSet::getFor('civicrm_event', $eventID, NULL);
-      $query = "SELECT cpfv.amount FROM `civicrm_price_field_value` cpfv
-LEFT JOIN civicrm_price_field cpf ON cpfv.price_field_id = cpf.id
-WHERE cpf.price_set_id = %1 AND cpfv.label LIKE %2";
-      $params = array(
-        1 => array($priceSetId, 'Integer'),
-        2 => array($feeLevel, 'String'),
-      );
-      $mainAmount = CRM_Core_DAO::singleValueQuery($query, $params);
-      $relationTypeId = key(CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, " AND v.name LIKE 'Discounts Account is' "));
-      $contributionParams['trxnParams']['from_financial_account_id'] = CRM_Contribute_PseudoConstant::financialAccountType(
-        $contributionParams['contribution']->financial_type_id, $relationTypeId);
-      if (!empty($contributionParams['trxnParams']['from_financial_account_id'])) {
-        $contributionParams['trxnParams']['total_amount'] = $mainAmount - $contributionParams['total_amount'];
-        $contributionParams['trxnParams']['payment_processor_id'] = NULL;
-        $contributionParams['trxnParams']['payment_instrument_id'] = NULL;
-        $contributionParams['trxnParams']['check_number'] = NULL;
-        $contributionParams['trxnParams']['trxn_id'] = NULL;
-        $contributionParams['trxnParams']['net_amount'] = NULL;
-        $contributionParams['trxnParams']['fee_amount'] = NULL;
-
-        CRM_Core_BAO_FinancialTrxn::create($contributionParams['trxnParams']);
+      $mainAmount = self::getUnDiscountedAmountForEventPriceSetFieldValue($eventID, $discountedPriceFieldOptionID, $feeLevel);
+      $transactionParams['from_financial_account_id'] = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
+        $financialTypeID, 'Discounts Account is');
+      if (!empty($transactionParams['trxnParams']['from_financial_account_id'])) {
+        $transactionParams['trxnParams']['total_amount'] = $mainAmount - $total_amount;
+        $transactionParams['trxnParams']['payment_processor_id'] = NULL;
+        $transactionParams['trxnParams']['payment_instrument_id'] = NULL;
+        $transactionParams['trxnParams']['check_number'] = NULL;
+        $transactionParams['trxnParams']['trxn_id'] = NULL;
+        $transactionParams['trxnParams']['net_amount'] = NULL;
+        $transactionParams['trxnParams']['fee_amount'] = NULL;
+        CRM_Core_BAO_FinancialTrxn::create($transactionParams);
       }
     }
   }
@@ -1842,311 +1885,6 @@ WHERE cpf.price_set_id = %1 AND cpfv.label LIKE %2";
   }
 
   /**
-   * @param array $params
-   * @param int $participantId
-   * @param int $contributionId
-   * @param $feeBlock
-   * @param array $lineItems
-   * @param $paidAmount
-   * @param int $priceSetId
-   */
-  public static function changeFeeSelections($params, $participantId, $contributionId, $feeBlock, $lineItems, $paidAmount, $priceSetId) {
-    $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
-    $partiallyPaidStatusId = array_search('Partially paid', $contributionStatuses);
-    $pendingRefundStatusId = array_search('Pending refund', $contributionStatuses);
-    $previousLineItems = CRM_Price_BAO_LineItem::getLineItems($participantId, 'participant');
-    CRM_Price_BAO_PriceSet::processAmount($feeBlock,
-      $params, $lineItems
-    );
-
-    // get the submitted
-    foreach ($feeBlock as $id => $values) {
-      CRM_Price_BAO_LineItem::format($id, $params, $values, $submittedLineItems);
-      $submittedFieldId[] = CRM_Utils_Array::retrieveValueRecursive($submittedLineItems, 'price_field_id');
-    }
-    if (!empty($submittedLineItems)) {
-      $insertLines = $submittedLineItems;
-
-      $submittedFieldValueIds = array_keys($submittedLineItems);
-      $updateLines = array();
-      foreach ($previousLineItems as $id => $previousLineItem) {
-        // check through the submitted items if the previousItem exists,
-        // if found in submitted items, do not use it for new item creations
-        if (in_array($previousLineItem['price_field_value_id'], $submittedFieldValueIds)) {
-          // if submitted line items are existing don't fire INSERT query
-          unset($insertLines[$previousLineItem['price_field_value_id']]);
-          // for updating the line items i.e. use-case - once deselect-option selecting again
-          if (($previousLineItem['line_total'] != $submittedLineItems[$previousLineItem['price_field_value_id']]['line_total']) ||
-            ($submittedLineItems[$previousLineItem['price_field_value_id']]['line_total'] == 0 && $submittedLineItems[$previousLineItem['price_field_value_id']]['qty'] == 1)
-          ) {
-            $updateLines[$previousLineItem['price_field_value_id']] = $submittedLineItems[$previousLineItem['price_field_value_id']];
-            $updateLines[$previousLineItem['price_field_value_id']]['id'] = $id;
-          }
-        }
-      }
-
-      $submittedFields = implode(', ', $submittedFieldId);
-      $submittedFieldValues = implode(', ', $submittedFieldValueIds);
-    }
-    if (!empty($submittedFields) && !empty($submittedFieldValues)) {
-      $updateLineItem = "UPDATE civicrm_line_item li
-INNER JOIN civicrm_financial_item fi
-   ON (li.id = fi.entity_id AND fi.entity_table = 'civicrm_line_item')
-SET li.qty = 0,
-    li.line_total = 0.00,
-    li.tax_amount = NULL
-WHERE (li.entity_table = 'civicrm_participant' AND li.entity_id = {$participantId}) AND
-       (price_field_value_id NOT IN ({$submittedFieldValues}))
-";
-      CRM_Core_DAO::executeQuery($updateLineItem);
-
-      // gathering necessary info to record negative (deselected) financial_item
-      $updateFinancialItem = "
-  SELECT fi.*, SUM(fi.amount) as differenceAmt, price_field_value_id, financial_type_id, tax_amount
-    FROM civicrm_financial_item fi LEFT JOIN civicrm_line_item li ON (li.id = fi.entity_id AND fi.entity_table = 'civicrm_line_item')
-WHERE (li.entity_table = 'civicrm_participant' AND li.entity_id = {$participantId})
-GROUP BY li.entity_table, li.entity_id, price_field_value_id
-";
-      $updateFinancialItemInfoDAO = CRM_Core_DAO::executeQuery($updateFinancialItem);
-      $trxn = CRM_Core_BAO_FinancialTrxn::getFinancialTrxnId($contributionId, 'DESC', TRUE);
-      $trxnId['id'] = $trxn['financialTrxnId'];
-      $invoiceSettings = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME, 'contribution_invoice_settings');
-      $taxTerm = CRM_Utils_Array::value('tax_term', $invoiceSettings);
-      $updateFinancialItemInfoValues = array();
-      $financialItemsArray = array();
-      while ($updateFinancialItemInfoDAO->fetch()) {
-        $updateFinancialItemInfoValues = (array) $updateFinancialItemInfoDAO;
-        $updateFinancialItemInfoValues['transaction_date'] = date('YmdHis');
-        // the below params are not needed
-        unset($updateFinancialItemInfoValues['id']);
-        unset($updateFinancialItemInfoValues['created_date']);
-        // if not submitted and difference is not 0 make it negative
-        if (!in_array($updateFinancialItemInfoValues['price_field_value_id'], $submittedFieldValueIds) && $updateFinancialItemInfoValues['differenceAmt'] != 0) {
-          // INSERT negative financial_items
-          $updateFinancialItemInfoValues['amount'] = -$updateFinancialItemInfoValues['amount'];
-          if ($previousLineItems[$updateFinancialItemInfoValues['entity_id']]['tax_amount']) {
-            $updateFinancialItemInfoValues['tax']['amount'] = -($previousLineItems[$updateFinancialItemInfoValues['entity_id']]['tax_amount']);
-            $updateFinancialItemInfoValues['tax']['description'] = $taxTerm;
-            if ($updateFinancialItemInfoValues['financial_type_id']) {
-              $updateFinancialItemInfoValues['tax']['financial_account_id'] = CRM_Contribute_BAO_Contribution::getFinancialAccountId($updateFinancialItemInfoValues['financial_type_id']);
-            }
-          }
-          // INSERT negative financial_items for tax amount
-          $financialItemsArray[] = $updateFinancialItemInfoValues;
-        }
-        // if submitted and difference is 0 add a positive entry again
-        elseif (in_array($updateFinancialItemInfoValues['price_field_value_id'], $submittedFieldValueIds) && $updateFinancialItemInfoValues['differenceAmt'] == 0) {
-          $updateFinancialItemInfoValues['amount'] = $updateFinancialItemInfoValues['amount'];
-          // INSERT financial_items for tax amount
-          if ($updateFinancialItemInfoValues['entity_id'] == $updateLines[$updateFinancialItemInfoValues['price_field_value_id']]['id'] &&
-            isset($updateLines[$updateFinancialItemInfoValues['price_field_value_id']]['tax_amount'])
-          ) {
-            $updateFinancialItemInfoValues['tax']['amount'] = $updateLines[$updateFinancialItemInfoValues['price_field_value_id']]['tax_amount'];
-            $updateFinancialItemInfoValues['tax']['description'] = $taxTerm;
-            if ($updateLines[$updateFinancialItemInfoValues['price_field_value_id']]['financial_type_id']) {
-              $updateFinancialItemInfoValues['tax']['financial_account_id'] = CRM_Contribute_BAO_Contribution::getFinancialAccountId($updateLines[$updateFinancialItemInfoValues['price_field_value_id']]['financial_type_id']);
-            }
-          }
-          $financialItemsArray[] = $updateFinancialItemInfoValues;
-        }
-      }
-    }
-    elseif (empty($submittedFields) && empty($submittedFieldValues)) {
-      $updateLineItem = "UPDATE civicrm_line_item li
-        INNER JOIN civicrm_financial_item fi
-        ON (li.id = fi.entity_id AND fi.entity_table = 'civicrm_line_item')
-        SET li.qty = 0,
-        li.line_total = 0.00,
-        li.tax_amount = NULL
-        WHERE (li.entity_table = 'civicrm_participant' AND li.entity_id = {$participantId})";
-      CRM_Core_DAO::executeQuery($updateLineItem);
-    }
-    $amountLevel = array();
-    $totalParticipant = $participantCount = 0;
-    if (!empty($updateLines)) {
-      foreach ($updateLines as $valueId => $vals) {
-        $taxAmount = "NULL";
-        if (isset($vals['tax_amount'])) {
-          $taxAmount = $vals['tax_amount'];
-        }
-        $amountLevel[] = $vals['label'] . ' - ' . (float) $vals['qty'];
-        if (isset($vals['participant_count'])) {
-          $participantCount = $vals['participant_count'];
-          $totalParticipant += $vals['participant_count'];
-        }
-        $updateLineItem = "
-UPDATE civicrm_line_item li
-SET li.qty = {$vals['qty']},
-    li.line_total = {$vals['line_total']},
-    li.tax_amount = {$taxAmount},
-    li.unit_price = {$vals['unit_price']},
-    li.participant_count = {$participantCount},
-    li.label = %1
-WHERE (li.entity_table = 'civicrm_participant' AND li.entity_id = {$participantId}) AND
-      (price_field_value_id = {$valueId})
-";
-        CRM_Core_DAO::executeQuery($updateLineItem, array(1 => array($vals['label'], 'String')));
-      }
-    }
-    // insert new 'adjusted amount' transaction entry and update contribution entry.
-    // ensure entity_financial_trxn table has a linking of it.
-    // insert new line items
-    if (!empty($insertLines)) {
-      foreach ($insertLines as $valueId => $lineParams) {
-        $lineParams['entity_table'] = 'civicrm_participant';
-        $lineParams['entity_id'] = $participantId;
-        $lineParams['contribution_id'] = $contributionId;
-        $lineObj = CRM_Price_BAO_LineItem::create($lineParams);
-      }
-    }
-
-    // the recordAdjustedAmt code would execute over here
-    $ids = CRM_Event_BAO_Participant::getParticipantIds($contributionId);
-    if (count($ids) > 1) {
-      $total = 0;
-      foreach ($ids as $val) {
-        $total += CRM_Price_BAO_LineItem::getLineTotal($val, 'civicrm_participant');
-      }
-      $updatedAmount = $total;
-    }
-    else {
-      $updatedAmount = $params['amount'];
-    }
-    if (strlen($params['tax_amount']) != 0) {
-      $taxAmount = $params['tax_amount'];
-    }
-    else {
-      $taxAmount = "NULL";
-    }
-    $displayParticipantCount = '';
-    if ($totalParticipant > 0) {
-      $displayParticipantCount = ' Participant Count -' . $totalParticipant;
-    }
-    $updateAmountLevel = NULL;
-    if (!empty($amountLevel)) {
-      $updateAmountLevel = CRM_Core_DAO::VALUE_SEPARATOR . implode(CRM_Core_DAO::VALUE_SEPARATOR, $amountLevel) . $displayParticipantCount . CRM_Core_DAO::VALUE_SEPARATOR;
-    }
-    $trxn = self::recordAdjustedAmt($updatedAmount, $paidAmount, $contributionId, $taxAmount, $updateAmountLevel);
-    $trxnId = array();
-    if ($trxn) {
-      $trxnId['id'] = $trxn->id;
-      foreach ($financialItemsArray as $updateFinancialItemInfoValues) {
-        CRM_Financial_BAO_FinancialItem::create($updateFinancialItemInfoValues, NULL, $trxnId);
-        if (!empty($updateFinancialItemInfoValues['tax'])) {
-          $updateFinancialItemInfoValues['tax']['amount'] = $updateFinancialItemInfoValues['amount'];
-          $updateFinancialItemInfoValues['tax']['description'] = $updateFinancialItemInfoValues['description'];
-          if (!empty($updateFinancialItemInfoValues['financial_account_id'])) {
-            $updateFinancialItemInfoValues['financial_account_id'] = $updateFinancialItemInfoValues['tax']['financial_account_id'];
-          }
-          CRM_Financial_BAO_FinancialItem::create($updateFinancialItemInfoValues, NULL, $trxnId);
-        }
-      }
-    }
-    $fetchCon = array('id' => $contributionId);
-    $updatedContribution = CRM_Contribute_BAO_Contribution::retrieve($fetchCon, CRM_Core_DAO::$_nullArray, CRM_Core_DAO::$_nullArray);
-    // insert financial items
-    if (!empty($insertLines)) {
-      foreach ($insertLines as $valueId => $lineParams) {
-        $lineParams['entity_table'] = 'civicrm_participant';
-        $lineParams['entity_id'] = $participantId;
-        $lineObj = CRM_Price_BAO_LineItem::retrieve($lineParams, CRM_Core_DAO::$_nullArray);
-        // insert financial items
-        // ensure entity_financial_trxn table has a linking of it.
-        $prevItem = CRM_Financial_BAO_FinancialItem::add($lineObj, $updatedContribution, NULL, $trxnId);
-        if (isset($lineObj->tax_amount)) {
-          CRM_Financial_BAO_FinancialItem::add($lineObj, $updatedContribution, TRUE, $trxnId);
-        }
-      }
-    }
-
-    // update participant fee_amount column
-    $partUpdateFeeAmt['id'] = $participantId;
-    $getUpdatedLineItems = "SELECT *
-FROM civicrm_line_item
-WHERE (entity_table = 'civicrm_participant' AND entity_id = {$participantId} AND qty > 0)";
-    $getUpdatedLineItemsDAO = CRM_Core_DAO::executeQuery($getUpdatedLineItems);
-    while ($getUpdatedLineItemsDAO->fetch()) {
-      $line[$getUpdatedLineItemsDAO->price_field_value_id] = $getUpdatedLineItemsDAO->label . ' - ' . (float) $getUpdatedLineItemsDAO->qty;
-    }
-
-    $partUpdateFeeAmt['fee_level'] = implode(', ', $line);
-    $partUpdateFeeAmt['fee_amount'] = $params['amount'];
-    self::add($partUpdateFeeAmt);
-
-    //activity creation
-    self::addActivityForSelection($participantId, 'Change Registration');
-  }
-
-  /**
-   * @param $updatedAmount
-   * @param $paidAmount
-   * @param int $contributionId
-   */
-  public static function recordAdjustedAmt($updatedAmount, $paidAmount, $contributionId, $taxAmount = NULL, $updateAmountLevel = NULL) {
-    $pendingAmount = CRM_Core_BAO_FinancialTrxn::getBalanceTrxnAmt($contributionId);
-    $pendingAmount = CRM_Utils_Array::value('total_amount', $pendingAmount, 0);
-    $balanceAmt = $updatedAmount - $paidAmount;
-    if ($paidAmount != $pendingAmount) {
-      $balanceAmt -= $pendingAmount;
-    }
-
-    $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
-    $partiallyPaidStatusId = array_search('Partially paid', $contributionStatuses);
-    $pendingRefundStatusId = array_search('Pending refund', $contributionStatuses);
-    $completedStatusId = array_search('Completed', $contributionStatuses);
-
-    $updatedContributionDAO = new CRM_Contribute_BAO_Contribution();
-    $adjustedTrxn = $skip = FALSE;
-    if ($balanceAmt) {
-      if ($balanceAmt > 0 && $paidAmount != 0) {
-        $contributionStatusVal = $partiallyPaidStatusId;
-      }
-      elseif ($balanceAmt < 0 && $paidAmount != 0) {
-        $contributionStatusVal = $pendingRefundStatusId;
-      }
-      elseif ($paidAmount == 0) {
-        //skip updating the contribution status if no payment is made
-        $skip = TRUE;
-        $updatedContributionDAO->cancel_date = 'null';
-        $updatedContributionDAO->cancel_reason = NULL;
-      }
-      // update contribution status and total amount without trigger financial code
-      // as this is handled in current BAO function used for change selection
-      $updatedContributionDAO->id = $contributionId;
-      if (!$skip) {
-        $updatedContributionDAO->contribution_status_id = $contributionStatusVal;
-      }
-      $updatedContributionDAO->total_amount = $updatedContributionDAO->net_amount = $updatedAmount;
-      $updatedContributionDAO->fee_amount = 0;
-      $updatedContributionDAO->tax_amount = $taxAmount;
-      if (!empty($updateAmountLevel)) {
-        $updatedContributionDAO->amount_level = $updateAmountLevel;
-      }
-      $updatedContributionDAO->save();
-      // adjusted amount financial_trxn creation
-      $updatedContribution = CRM_Contribute_BAO_Contribution::getValues(
-        array('id' => $contributionId),
-        CRM_Core_DAO::$_nullArray,
-        CRM_Core_DAO::$_nullArray
-      );
-      $relationTypeId = key(CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, " AND v.name LIKE 'Accounts Receivable Account is' "));
-      $toFinancialAccount = CRM_Contribute_PseudoConstant::financialAccountType($updatedContribution->financial_type_id, $relationTypeId);
-      $adjustedTrxnValues = array(
-        'from_financial_account_id' => NULL,
-        'to_financial_account_id' => $toFinancialAccount,
-        'total_amount' => $balanceAmt,
-        'status_id' => $completedStatusId,
-        'payment_instrument_id' => $updatedContribution->payment_instrument_id,
-        'contribution_id' => $updatedContribution->id,
-        'trxn_date' => date('YmdHis'),
-        'currency' => $updatedContribution->currency,
-      );
-      $adjustedTrxn = CRM_Core_BAO_FinancialTrxn::create($adjustedTrxnValues);
-    }
-    return $adjustedTrxn;
-  }
-
-  /**
    * @param int $participantId
    * @param $activityType
    *
@@ -2158,8 +1896,7 @@ WHERE (entity_table = 'civicrm_participant' AND entity_id = {$participantId} AND
 
     $date = CRM_Utils_Date::currentDBDate();
     $event = CRM_Event_BAO_Event::getEvents(0, $eventId);
-    $eventTitle = $event[$eventId];
-    $subject = "Registration selections changed for $eventTitle";
+    $subject = sprintf("Registration selections changed for %s", CRM_Utils_Array::value($eventId, $event));
     $targetCid = $contactId;
     $srcRecId = $participantId;
 
@@ -2167,16 +1904,10 @@ WHERE (entity_table = 'civicrm_participant' AND entity_id = {$participantId} AND
     $activityParams = array(
       'source_contact_id' => $targetCid,
       'source_record_id' => $srcRecId,
-      'activity_type_id' => CRM_Core_OptionGroup::getValue('activity_type',
-        $activityType,
-        'name'
-      ),
+      'activity_type_id' => CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', $activityType),
       'subject' => $subject,
       'activity_date_time' => $date,
-      'status_id' => CRM_Core_OptionGroup::getValue('activity_status',
-        'Completed',
-        'name'
-      ),
+      'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_status_id', 'Completed'),
       'skipRecentView' => TRUE,
     );
 
@@ -2187,6 +1918,7 @@ WHERE (entity_table = 'civicrm_participant' AND entity_id = {$participantId} AND
       $activityParams['source_contact_id'] = $id;
       $activityParams['target_contact_id'][] = $targetCid;
     }
+    // @todo use api & also look at duplication of similar methods.
     CRM_Activity_BAO_Activity::create($activityParams);
   }
 
@@ -2208,12 +1940,40 @@ WHERE (entity_table = 'civicrm_participant' AND entity_id = {$participantId} AND
     if ($fieldName == 'status_id' && $context != 'validate') {
       // Get rid of cart-related option if disabled
       // FIXME: Why does this option even exist if cart is disabled?
-      if (!CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::EVENT_PREFERENCES_NAME, 'enable_cart')) {
+      if (!Civi::settings()->get('enable_cart')) {
         $params['condition'][] = "name <> 'Pending in cart'";
       }
     }
 
     return CRM_Core_PseudoConstant::get(__CLASS__, $fieldName, $params, $context);
+  }
+
+  /**
+   * CRM-17797 -- Format fields and setDefaults for primary and additional participants profile
+   * @param int $contactId
+   * @param CRM_Core_Form $form
+   */
+  public static function formatFieldsAndSetProfileDefaults($contactId, &$form) {
+    if (!$contactId) {
+      return;
+    }
+    $fields = array();
+    if (!empty($form->_fields)) {
+      $removeCustomFieldTypes = array('Participant');
+
+      foreach ($form->_fields as $name => $dontCare) {
+        if ((substr($name, 0, 7) == 'custom_' && !$form->_allowConfirmation
+          && !CRM_Core_BAO_CustomGroup::checkCustomField(substr($name, 7), $removeCustomFieldTypes))
+          || substr($name, 0, 12) == 'participant_') {
+          continue;
+        }
+        $fields[$name] = 1;
+      }
+
+      if (!empty($fields)) {
+        CRM_Core_BAO_UFGroup::setProfileDefaults($contactId, $fields, $form->_defaults);
+      }
+    }
   }
 
 }

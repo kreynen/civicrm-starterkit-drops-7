@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,21 +28,18 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
  * This class is used to retrieve and display a range of
  * contacts that match the given criteria (specifically for
  * results of advanced search options.
- *
  */
 class CRM_Mailing_Selector_Event extends CRM_Core_Selector_Base implements CRM_Core_Selector_API {
 
   /**
-   * Array of supported links, currenly null
+   * Array of supported links, currently null
    *
    * @var array
    */
@@ -257,7 +254,7 @@ class CRM_Mailing_Selector_Event extends CRM_Core_Selector_Base implements CRM_C
   /**
    * Returns total number of rows for the query.
    *
-   * @param
+   * @param string $action
    *
    * @return int
    *   Total number of rows
@@ -442,6 +439,11 @@ class CRM_Mailing_Selector_Event extends CRM_Core_Selector_Base implements CRM_C
     return NULL;
   }
 
+  /**
+   * Get the title for the mailing event type.
+   *
+   * @return string
+   */
   public function eventToTitle() {
     static $events = NULL;
 
@@ -455,12 +457,17 @@ class CRM_Mailing_Selector_Event extends CRM_Core_Selector_Base implements CRM_C
         'unsubscribe' => ts('Unsubscribe Requests'),
         'optout' => ts('Opt-out Requests'),
         'click' => $this->_is_distinct ? ts('Unique Click-throughs') : ts('Click-throughs'),
-        'opened' => $this->_is_distinct ? ts('Unique Tracked Opens') : ts('Tracked Opens'),
+        'opened' => $this->_is_distinct ? ts('Unique Tracked Opens') : ts('Total Tracked Opens'),
       );
     }
     return $events[$this->_event_type];
   }
 
+  /**
+   * Get the title of the event.
+   *
+   * @return string
+   */
   public function getTitle() {
     return $this->eventToTitle();
   }

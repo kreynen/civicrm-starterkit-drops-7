@@ -8,34 +8,50 @@
    * Removes spaces and dashes from credit card numbers.
    */
   function civicrm_billingblock_creditcard_helper() {
-    $.each(CRM.config.creditCardTypes, function(key, val) {
-      var html = '<a href="#" title="' + val + '" class="crm-credit_card_type-icon-' + key + '"><span>' + val + '</span></a>';
-      $('.crm-credit_card_type-icons').append(html);
+    $(function() {
+      $.each(CRM.config.creditCardTypes, function(key, val) {
+        var html = '<a href="#" title="' + val + '" class="crm-credit_card_type-icon-' + key + '"><span>' + val + '</span></a>';
+        $('.crm-credit_card_type-icons').append(html);
 
-      $('.crm-credit_card_type-icon-' + key).click(function() {
-        $('#credit_card_type').val(val);
-        $('.crm-container .credit_card_type-section a').css('opacity', 0.25);
-        $('.crm-container .credit_card_type-section .crm-credit_card_type-icon-' + key).css('opacity', 1);
-        return false;
+        $('.crm-credit_card_type-icon-' + key).click(function() {
+          $('#credit_card_type').val(val);
+          $('.crm-container .credit_card_type-section a').css('opacity', 0.25);
+          $('.crm-container .credit_card_type-section .crm-credit_card_type-icon-' + key).css('opacity', 1);
+          return false;
+        });
       });
-    });
 
-    // Hide the CC type field (redundant)
-    $('#credit_card_type, .label', '.crm-container .credit_card_type-section').hide();
+      // Hide the CC type field (redundant)
+      $('#credit_card_type, .label', '.crm-container .credit_card_type-section').hide();
 
-    // Select according to the number entered
-    $('.crm-container input#credit_card_number').change(function() {
-      var ccnumber = cj(this).val();
+      // set the card type value as default if any found
+      var cardtype = $('#credit_card_type').val();
+      if (cardtype) {
+        $.each(CRM.config.creditCardTypes, function(key, value) {
+          // highlight the selected card type icon
+          if (value == cardtype) {
+            $('.crm-container .credit_card_type-section .crm-credit_card_type-icon-' + key).css('opacity', 1);
+          }
+          else {
+            $('.crm-container .credit_card_type-section .crm-credit_card_type-icon-' + key).css('opacity', 0.25);
+          }
+        });
+      }
 
-      // Remove spaces and dashes
-      ccnumber = ccnumber.replace(/[- ]/g, '');
-      cj(this).val(ccnumber);
+      // Select according to the number entered
+      $('.crm-container input#credit_card_number').change(function() {
+        var ccnumber = cj(this).val();
 
-      // Semi-hide all images, we will un-hide the right one afterwards
-      $('.crm-container .credit_card_type-section a').css('opacity', 0.25);
-      $('#credit_card_type').val('');
+        // Remove spaces and dashes
+        ccnumber = ccnumber.replace(/[- ]/g, '');
+        cj(this).val(ccnumber);
 
-      civicrm_billingblock_set_card_type(ccnumber);
+        // Semi-hide all images, we will un-hide the right one afterwards
+        $('.crm-container .credit_card_type-section a').css('opacity', 0.25);
+        $('#credit_card_type').val('');
+
+        civicrm_billingblock_set_card_type(ccnumber);
+      });
     });
   }
 
@@ -53,30 +69,24 @@
       'unionpay': '62(?:[0-9]{14}|[0-9]{17})'
     };
 
-    var card_values = {
-      'mastercard': 'MasterCard',
-      'visa': 'Visa',
-      'amex': 'Amex',
-      'dinersclub': 'Diners Club',
-      'carteblanche': 'Carte Blanche',
-      'discover': 'Discover',
-      'jcb': 'JCB',
-      'unionpay': 'UnionPay'
-    };
+    var card_values = CRM.config.creditCardTypes;
 
     $.each(card_types, function(key, pattern) {
       if (ccnumber.match('^' + pattern + '$')) {
         var value = card_values[key];
-        $('.crm-container .credit_card_type-section .crm-credit_card_type-icon-' + key).css('opacity', 1);
-        $('select#credit_card_type').val(value);
-        return false;
+        //$.each(CRM.config.creditCardTypes, function(key2, val) {
+        //  if (value == val) {
+            $('.crm-container .credit_card_type-section .crm-credit_card_type-icon-' + key).css('opacity', 1);
+            $('select#credit_card_type').val(value);
+            return false;
+        //  }
+        //  else {
+        //    $
+       // });
       }
     });
   }
 
   civicrm_billingblock_creditcard_helper();
 
-  $(function() {
-    $('#billing-payment-block').on('crmFormLoad', civicrm_billingblock_creditcard_helper);
-  });
 })(CRM.$);

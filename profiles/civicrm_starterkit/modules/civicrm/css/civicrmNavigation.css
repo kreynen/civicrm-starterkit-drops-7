@@ -59,7 +59,7 @@ html>body .innerbox
   color: white;
   cursor: default;
   font-size: 12px;
-  font-family: Tahoma, Verdana, Arial, Sans;
+  font-family: Tahoma, Verdana, Arial, sans-serif;
 }
 
 #civicrm-menu {
@@ -91,6 +91,7 @@ li.menu-separator.active{
   display:block;
   font-weight:normal;
   text-decoration:none;
+  border:0;
 }
 
 * html div.menu-item {
@@ -126,12 +127,43 @@ li.menu-separator{
   line-height: 0; /* for ie */
   margin: 2px 0;
 }
-#civicrm-menu .crm-logo-sm {
-  background: url('../i/item_sprites.png') no-repeat scroll -80px -16px;
+#civicrm-menu .crm-logo-sm,
+.crm-container .crm-logo-sm {
+  background: url('../i/logo_sm.png') no-repeat;
   display: inline-block;
   width: 16px;
   height: 16px;
-  vertical-align:middle;
+  vertical-align: middle;
+}
+
+#civicrm-menu .ui-autocomplete-input,
+.crm-container .ui-autocomplete-input {
+  background: white url("../bower_components/select2/select2.png") no-repeat scroll right -23px;
+  padding-right: 16px;
+  /* so that text doesn't flow on top of icon */
+}
+
+#civicrm-menu #crm-qsearch {
+  padding: 1px 0 1px 2px;
+  background-color: transparent !important;
+  border-right: none;
+}
+
+#civicrm-menu #crm-qsearch input {
+  background-color: #eaeaea;
+  border: 1px solid black;
+  margin: 0;
+  padding: 2px 16px 3px 2px;
+  height: 17px;
+}
+#civicrm-menu #crm-qsearch input:hover,
+#civicrm-menu #crm-qsearch input:focus,
+#civicrm-menu #crm-qsearch.activetarget input {
+  background-color: #ffffff;
+}
+/* This ensures the drop-down menus appear at the right height */
+#civicrm-menu > li.menumain {
+  height: 19px !important;
 }
 
 /* No results */

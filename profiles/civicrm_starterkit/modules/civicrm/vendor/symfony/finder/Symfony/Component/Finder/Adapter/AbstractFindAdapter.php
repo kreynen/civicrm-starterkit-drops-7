@@ -94,7 +94,7 @@ abstract class AbstractFindAdapter extends AbstractAdapter
         $command->setErrorHandler(
             $this->ignoreUnreadableDirs
                 // If directory is unreadable and finder is set to ignore it, `stderr` is ignored.
-                ? function ($stderr) { }
+                ? function ($stderr) { return; }
                 : function ($stderr) { throw new AccessDeniedException($stderr); }
         );
 

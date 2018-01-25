@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -29,7 +29,7 @@
  *
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -69,8 +69,6 @@ class CRM_Event_Form_ManageEvent_Location extends CRM_Event_Form_ManageEvent {
 
   /**
    * Set variables up before form is built.
-   *
-   * @return void
    */
   public function preProcess() {
     parent::preProcess();
@@ -95,11 +93,9 @@ class CRM_Event_Form_ManageEvent_Location extends CRM_Event_Form_ManageEvent {
   }
 
   /**
-   * Set default values for the form. Note that in edit/view mode
-   * the default values are retrieved from the database
+   * Set default values for the form.
    *
-   *
-   * @return void
+   * Note that in edit/view mode the default values are retrieved from the database.
    */
   public function setDefaultValues() {
     $defaults = $this->_values;
@@ -126,9 +122,6 @@ class CRM_Event_Form_ManageEvent_Location extends CRM_Event_Form_ManageEvent {
 
   /**
    * Add local and global form rules.
-   *
-   *
-   * @return void
    */
   public function addRules() {
     $this->addFormRule(array('CRM_Event_Form_ManageEvent_Location', 'formRule'));
@@ -145,15 +138,13 @@ class CRM_Event_Form_ManageEvent_Location extends CRM_Event_Form_ManageEvent {
    */
   public static function formRule($fields) {
     // check for state/country mapping
-    $errors = CRM_Contact_Form_Edit_Address::formRule($fields, CRM_Core_DAO::$_nullArray, CRM_Core_DAO::$_nullObject);
+    $errors = CRM_Contact_Form_Edit_Address::formRule($fields);
 
     return empty($errors) ? TRUE : $errors;
   }
 
   /**
-   *  function to build location block.
-   *
-   * @return void
+   * Function to build location block.
    */
   public function buildQuickForm() {
     //load form for child blocks
@@ -206,7 +197,7 @@ class CRM_Event_Form_ManageEvent_Location extends CRM_Event_Form_ManageEvent {
       if (!isset($locationEvents[$this->_oldLocBlockId]) || (!$this->_oldLocBlockId)) {
         $locationEvents = array('' => ts('- select -')) + $locationEvents;
       }
-      $this->add('select', 'loc_event_id', ts('Use Location'), $locationEvents);
+      $this->add('select', 'loc_event_id', ts('Use Location'), $locationEvents, FALSE, array('class' => 'crm-select2'));
     }
     $this->addElement('advcheckbox', 'is_show_location', ts('Show Location?'));
     parent::buildQuickForm();
@@ -214,9 +205,6 @@ class CRM_Event_Form_ManageEvent_Location extends CRM_Event_Form_ManageEvent {
 
   /**
    * Process the form submission.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     $params = $this->exportValues();

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -116,7 +116,8 @@ function civicrm_api3_file_update($params) {
     $fileDAO->save();
   }
   $file = array();
-  _civicrm_api3_object_to_array(clone($fileDAO), $file);
+  $cloneDAO = clone($fileDAO);
+  _civicrm_api3_object_to_array($cloneDAO, $file);
   return $file;
 }
 
@@ -125,27 +126,16 @@ function civicrm_api3_file_update($params) {
  *
  * @param array $params
  *   Array per getfields metadata.
- *
- * @return array
- *   API result array
+ * @return array API Result Array
+ * @throws API_Exception
  */
 function civicrm_api3_file_delete($params) {
 
   civicrm_api3_verify_mandatory($params, NULL, array('id'));
-
-  $check = FALSE;
-
-  $entityFileDAO = new CRM_Core_DAO_EntityFile();
-  $entityFileDAO->file_id = $params['id'];
-  if ($entityFileDAO->find()) {
-    $check = $entityFileDAO->delete();
+  if (CRM_Core_BAO_File::deleteEntityFile('*', $params['id'])) {
+    return civicrm_api3_create_success();
   }
-
-  $fileDAO = new CRM_Core_DAO_File();
-  $fileDAO->id = $params['id'];
-  if ($fileDAO->find(TRUE)) {
-    $check = $fileDAO->delete();
+  else {
+    throw new API_Exception('Error while deleting a file.');
   }
-
-  return $check ? NULL : civicrm_api3_create_error('Error while deleting a file.');
 }

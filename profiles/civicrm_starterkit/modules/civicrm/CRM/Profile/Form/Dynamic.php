@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,8 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
+ * @copyright CiviCRM LLC (c) 2004-2017
  *
  */
 
@@ -48,7 +47,6 @@ class CRM_Profile_Form_Dynamic extends CRM_Profile_Form {
    *
    * @param
    *
-   * @return void
    */
   public function preProcess() {
     if ($this->get('register')) {
@@ -71,17 +69,15 @@ class CRM_Profile_Form_Dynamic extends CRM_Profile_Form {
   /**
    * Build the form object.
    *
-   * @return void
    */
   public function buildQuickForm() {
     $this->addButtons(array(
-        array(
-          'type' => 'upload',
-          'name' => ts('Save'),
-          'isDefault' => TRUE,
-        ),
-      )
-    );
+      array(
+        'type' => 'upload',
+        'name' => ts('Save'),
+        'isDefault' => TRUE,
+      ),
+    ));
 
     // also add a hidden element for to trick drupal
     $this->addElement('hidden', "edit[civicrm_dummy_field]", "CiviCRM Dummy Field for Drupal");
@@ -116,9 +112,6 @@ class CRM_Profile_Form_Dynamic extends CRM_Profile_Form {
 
   /**
    * Process the user submitted custom data values.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     parent::postProcess();

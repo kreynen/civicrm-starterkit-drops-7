@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -63,9 +61,8 @@ class CRM_Campaign_PseudoConstant extends CRM_Core_PseudoConstant {
   private static $engagementLevel;
 
   /**
-   * DEPRECATED. Please use the buildOptions() method in the appropriate BAO object.
+   * @deprecated. Please use the buildOptions() method in the appropriate BAO object.
    * Get all the survey activity types
-   *
    *
    * @param string $returnColumn
    *
@@ -89,7 +86,7 @@ class CRM_Campaign_PseudoConstant extends CRM_Core_PseudoConstant {
   }
 
   /**
-   * DEPRECATED. Please use the buildOptions() method in the appropriate BAO object.
+   * @deprecated. Please use the buildOptions() method in the appropriate BAO object.
    * Get all campaign types.
    *
    * The static array campaignType is returned
@@ -107,7 +104,7 @@ class CRM_Campaign_PseudoConstant extends CRM_Core_PseudoConstant {
   }
 
   /**
-   * DEPRECATED. Please use the buildOptions() method in the appropriate BAO object.
+   * @deprecated. Please use the buildOptions() method in the appropriate BAO object.
    * Get all campaign status.
    *
    * The static array campaignStatus is returned
@@ -125,7 +122,7 @@ class CRM_Campaign_PseudoConstant extends CRM_Core_PseudoConstant {
   }
 
   /**
-   * DEPRECATED. Please use the buildOptions() method in the appropriate BAO object.
+   * @deprecated. Please use the buildOptions() method in the appropriate BAO object.
    * Get all Engagement Level.
    *
    * The static array Engagement Level is returned

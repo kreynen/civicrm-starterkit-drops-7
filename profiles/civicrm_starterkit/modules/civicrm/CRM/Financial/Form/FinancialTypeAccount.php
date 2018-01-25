@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
  * This class generates form components for Financial Type Account
- *
  */
 class CRM_Financial_Form_FinancialTypeAccount extends CRM_Contribute_Form {
 
@@ -69,8 +66,6 @@ class CRM_Financial_Form_FinancialTypeAccount extends CRM_Contribute_Form {
 
   /**
    * Set variables up before form is built.
-   *
-   * @return void
    */
   public function preProcess() {
     $this->_aid = CRM_Utils_Request::retrieve('aid', 'Positive', $this);
@@ -120,8 +115,6 @@ class CRM_Financial_Form_FinancialTypeAccount extends CRM_Contribute_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
@@ -142,18 +135,19 @@ class CRM_Financial_Form_FinancialTypeAccount extends CRM_Contribute_Form {
 
     if ($this->_action == CRM_Core_Action::UPDATE) {
       $this->assign('aid', $this->_id);
-      //hidden field to catch the group id in profile
+      // hidden field to catch the group id in profile
       $this->add('hidden', 'financial_type_id', $this->_aid);
 
-      //hidden field to catch the field id in profile
+      // hidden field to catch the field id in profile
       $this->add('hidden', 'account_type_id', $this->_id);
     }
-    $AccountTypeRelationship = CRM_Core_PseudoConstant::get('CRM_Financial_DAO_EntityFinancialAccount', 'account_relationship');
+    $params['orderColumn'] = 'label';
+    $AccountTypeRelationship = CRM_Core_PseudoConstant::get('CRM_Financial_DAO_EntityFinancialAccount', 'account_relationship', $params);
     if (!empty($AccountTypeRelationship)) {
       $element = $this->add('select',
         'account_relationship',
         ts('Financial Account Relationship'),
-        array('select' => '- select -') + $AccountTypeRelationship,
+        array('select' => ts('- Select Financial Account Relationship -')) + $AccountTypeRelationship,
         TRUE
       );
     }
@@ -164,16 +158,7 @@ class CRM_Financial_Form_FinancialTypeAccount extends CRM_Contribute_Form {
 
     if ($this->_action == CRM_Core_Action::ADD) {
       if (!empty($this->_submitValues['account_relationship']) || !empty($this->_submitValues['financial_account_id'])) {
-        $financialAccountType = array(
-          '5' => 5, //expense
-          '3' => 1, //AR relation
-          '1' => 3, //revenue
-          '6' => 1, //Asset
-          '7' => 4, //cost of sales
-          '8' => 1, //premium inventory
-          '9' => 3, //discount account is,
-        );
-
+        $financialAccountType = CRM_Financial_BAO_FinancialAccount::getfinancialAccountRelations();
         $financialAccountType = CRM_Utils_Array::value($this->_submitValues['account_relationship'], $financialAccountType);
         $result = CRM_Contribute_PseudoConstant::financialAccount(NULL, $financialAccountType);
 
@@ -186,16 +171,7 @@ class CRM_Financial_Form_FinancialTypeAccount extends CRM_Contribute_Form {
       }
     }
     if ($this->_action == CRM_Core_Action::UPDATE) {
-      $financialAccountType = array(
-        '5' => 5, //expense
-        '3' => 1, //AR relation
-        '1' => 3, //revenue
-        '6' => 1, //Asset
-        '7' => 4, //cost of sales
-        '8' => 1, //premium inventory
-        '9' => 3, //discount account is,
-      );
-
+      $financialAccountType = CRM_Financial_BAO_FinancialAccount::getfinancialAccountRelations();
       $financialAccountType = $financialAccountType[$this->_defaultValues['account_relationship']];
       $result = CRM_Contribute_PseudoConstant::financialAccount(NULL, $financialAccountType);
 
@@ -265,6 +241,7 @@ class CRM_Financial_Form_FinancialTypeAccount extends CRM_Contribute_Form {
       $params = array(
         'account_relationship' => $values['account_relationship'],
         'entity_id' => $self->_aid,
+        'entity_table' => 'civicrm_financial_type',
       );
       $defaults = array();
       if ($self->_action == CRM_Core_Action::ADD) {
@@ -302,8 +279,6 @@ class CRM_Financial_Form_FinancialTypeAccount extends CRM_Contribute_Form {
 
   /**
    * Process the form submission.
-   *
-   * @return void
    */
   public function postProcess() {
     if ($this->_action & CRM_Core_Action::DELETE) {
@@ -325,8 +300,13 @@ class CRM_Financial_Form_FinancialTypeAccount extends CRM_Contribute_Form {
       if ($this->_action & CRM_Core_Action::ADD) {
         $params['entity_id'] = $this->_aid;
       }
-      $financialTypeAccount = CRM_Financial_BAO_FinancialTypeAccount::add($params, $ids);
-      CRM_Core_Session::setStatus(ts('The financial type Account has been saved.'));
+      try {
+        $financialTypeAccount = CRM_Financial_BAO_FinancialTypeAccount::add($params, $ids);
+        CRM_Core_Session::setStatus(ts('The financial type Account has been saved.'), ts('Saved'), 'success');
+      }
+      catch (CRM_Core_Exception $e) {
+        CRM_Core_Error::statusBounce($e->getMessage());
+      }
     }
 
     $buttonName = $this->controller->getButtonName();

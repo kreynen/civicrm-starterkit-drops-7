@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,15 +28,16 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
  *  Access Control List
  */
 class CRM_ACL_BAO_ACL extends CRM_ACL_DAO_ACL {
+  /**
+   * @var string
+   */
   static $_entityTable = NULL;
   static $_objectTable = NULL;
   static $_operation = NULL;
@@ -44,6 +45,8 @@ class CRM_ACL_BAO_ACL extends CRM_ACL_DAO_ACL {
   static $_fieldKeys = NULL;
 
   /**
+   * Get ACL entity table.
+   *
    * @return array|null
    */
   public static function entityTable() {
@@ -123,8 +126,7 @@ class CRM_ACL_BAO_ACL extends CRM_ACL_DAO_ACL {
       'GroupContact' => CRM_Contact_DAO_GroupContact::getTableName(),
     );
 
-    $session = CRM_Core_Session::singleton();
-    $contact_id = $session->get('userID');
+    $contact_id = CRM_Core_Session::getLoggedInContactID();
 
     $where = " {$t['ACL']}.operation = '" . CRM_Utils_Type::escape($operation, 'String') . "'";
 
@@ -679,7 +681,7 @@ SELECT $acl.*
    *   Value we want to set the is_active field.
    *
    * @return Object
-   *   DAO object on sucess, null otherwise
+   *   DAO object on success, null otherwise
    */
   public static function setIsActive($id, $is_active) {
     // note this also resets any ACL cache
@@ -860,6 +862,13 @@ SELECT g.*
     $allGroups = NULL,
     $includedGroups = NULL
   ) {
+    $userCacheKey = "{$contactID}_{$type}_{$tableName}_" . CRM_Core_Config::domainID() . '_' . md5(implode(',', array_merge((array) $allGroups, (array) $includedGroups)));
+    if (empty(Civi::$statics[__CLASS__]['permissioned_groups'])) {
+      Civi::$statics[__CLASS__]['permissioned_groups'] = array();
+    }
+    if (!empty(Civi::$statics[__CLASS__]['permissioned_groups'][$userCacheKey])) {
+      return Civi::$statics[__CLASS__]['permissioned_groups'][$userCacheKey];
+    }
 
     $acls = CRM_ACL_BAO_Cache::build($contactID);
 
@@ -910,9 +919,25 @@ ORDER BY a.object_id
     ) {
       $ids = $includedGroups;
     }
+    if ($contactID) {
+      $groupWhere = '';
+      if (!empty($allGroups)) {
+        $groupWhere = " AND id IN (" . implode(',', array_keys($allGroups)) . ")";
+      }
+      // Contacts create hidden groups from search results. They should be able to retrieve their own.
+      $ownHiddenGroupsList = CRM_Core_DAO::singleValueQuery("
+        SELECT GROUP_CONCAT(id) FROM civicrm_group WHERE is_hidden =1 AND created_id = $contactID
+        $groupWhere
+      ");
+      if ($ownHiddenGroupsList) {
+        $ownHiddenGroups = explode(',', $ownHiddenGroupsList);
+        $ids = array_merge((array) $ids, $ownHiddenGroups);
+      }
+
+    }
 
     CRM_Utils_Hook::aclGroup($type, $contactID, $tableName, $allGroups, $ids);
-
+    Civi::$statics[__CLASS__]['permissioned_groups'][$userCacheKey] = $ids;
     return $ids;
   }
 

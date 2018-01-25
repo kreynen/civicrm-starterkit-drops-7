@@ -1,15 +1,15 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
  | CiviCRM is free software; you can copy, modify, and distribute it  |
  | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007.                                       |
+ | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
  |                                                                    |
  | CiviCRM is distributed in the hope that it will be useful, but     |
  | WITHOUT ANY WARRANTY; without even the implied warranty of         |
@@ -23,18 +23,18 @@
  | GNU Affero General Public License or the licensing of CiviCRM,     |
  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
  +--------------------------------------------------------------------+
-*/
+ */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
 
 /**
- * Implementation of hook_rules_action_info().
+ * Implements hook_rules_action_info().
  */
 function civicrm_rules_get_action() {
   civicrm_initialize();
@@ -61,7 +61,9 @@ The content of the email is:
   }
 
   $defaults = array(
-    'parameter' => array('contact' => array('type' => 'contact',
+    'parameter' => array(
+      'contact' => array(
+        'type' => 'contact',
         'label' => t('Contact'),
         'save' => TRUE,
       ),
@@ -75,15 +77,45 @@ The content of the email is:
     'access callback' => 'civicrm_rules_rules_admin_access',
   );
 
-  $items['add_to_group'] = $defaults + array('label' => t('Add Contact to CiviCRM Group'),
+  $items['add_to_group'] = $defaults + array(
+    'label' => t('Add Contact to CiviCRM Group'),
     'base' => 'civicrm_rules_rules_action_add_to_group',
   );
-  $items['remove_from_group'] = $defaults + array('label' => t('Remove Contact from CiviCRM Group'),
+  $items['remove_from_group'] = $defaults + array(
+    'label' => t('Remove Contact from CiviCRM Group'),
     'base' => 'civicrm_rules_rules_action_remove_from_group',
   );
 
   $defaults = array(
-    'parameter' => array('to' => array('type' => 'text',
+    'parameter' => array(
+      'contact' => array(
+        'type' => 'contact',
+        'label' => t('Contact'),
+        'save' => TRUE,
+      ),
+      'civicrm_tags' => array(
+        'type' => 'list<integer>',
+        'label' => t('CiviCRM Tags'),
+        'options list' => 'civicrm_rules_options_list',
+      ),
+    ),
+    'group' => t('CiviCRM Contact'),
+    'access callback' => 'civicrm_rules_rules_admin_access',
+  );
+
+  $items['add_tag'] = $defaults + array(
+    'label' => t('Add CiviCRM Tag to Contact'),
+    'base' => 'civicrm_rules_rules_action_add_tag',
+  );
+  $items['remove_tag'] = $defaults + array(
+    'label' => t('Remove CiviCRM Tag from Contact'),
+    'base' => 'civicrm_rules_rules_action_remove_tag',
+  );
+
+  $defaults = array(
+    'parameter' => array(
+      'to' => array(
+        'type' => 'text',
         'label' => t('To'),
         'description' => t('The e-mail address or addresses where the message will be sent to. The formatting of this string must comply with RFC 2822.'),
       ),
@@ -108,12 +140,15 @@ The content of the email is:
     'access callback' => 'civicrm_rules_rules_admin_access',
   );
 
-  $items['contact_send_email'] = $defaults + array('label' => t('Send Email'),
+  $items['contact_send_email'] = $defaults + array(
+    'label' => t('Send Email'),
     'base' => 'civicrm_rules_rules_action_contact_send_email',
   );
 
   $defaults = array(
-    'parameter' => array('to' => array('type' => 'text',
+    'parameter' => array(
+      'to' => array(
+        'type' => 'text',
         'label' => t('To'),
         'description' => t('The e-mail address or addresses where the message will be sent to. The formatting of this string must comply with RFC 2822.'),
       ),
@@ -140,9 +175,9 @@ The content of the email is:
     'group' => t('CiviCRM Mailing'),
   );
 
-  $items['mailing_send_email'] = $defaults + array('label' => t('Send Email'),
+  $items['mailing_send_email'] = $defaults + array(
+    'label' => t('Send Email'),
     'base' => 'civicrm_rules_rules_action_mailing_send_email',
   );
   return $items;
 }
-

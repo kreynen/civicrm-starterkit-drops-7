@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -57,8 +57,6 @@ class CRM_Contribute_Form_Search extends CRM_Core_Form_Search {
    */
   protected $_limit = NULL;
 
-  protected $_defaults;
-
   /**
    * Prefix for the controller.
    */
@@ -82,7 +80,7 @@ class CRM_Contribute_Form_Search extends CRM_Core_Form_Search {
      * driven by the wizard framework
      */
 
-    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean', CRM_Core_DAO::$_nullObject);
+    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean');
     $this->_force = CRM_Utils_Request::retrieve('force', 'Boolean', $this, FALSE);
     $this->_limit = CRM_Utils_Request::retrieve('limit', 'Positive', $this);
     $this->_context = CRM_Utils_Request::retrieve('context', 'String', $this, FALSE, 'search');
@@ -278,19 +276,13 @@ class CRM_Contribute_Form_Search extends CRM_Core_Form_Search {
         'contribution_status_id',
         'contribution_source',
         'contribution_trxn_id',
+        'contribution_page_id',
+        'contribution_product_id',
         'invoice_id',
+        'payment_instrument_id',
+        'contribution_batch_id',
       );
-      foreach ($specialParams as $element) {
-        $value = CRM_Utils_Array::value($element, $this->_formValues);
-        if ($value) {
-          if (is_array($value)) {
-            $this->_formValues[$element] = array('IN' => $value);
-          }
-          else {
-            $this->_formValues[$element] = array('LIKE' => "%$value%");
-          }
-        }
-      }
+      CRM_Contact_BAO_Query::processSpecialFormValue($this->_formValues, $specialParams);
 
       $tags = CRM_Utils_Array::value('contact_tags', $this->_formValues);
       if ($tags && !is_array($tags)) {
@@ -305,18 +297,16 @@ class CRM_Contribute_Form_Search extends CRM_Core_Form_Search {
         }
       }
 
-      if (!$config->groupTree) {
-        $group = CRM_Utils_Array::value('group', $this->_formValues);
-        if ($group && !is_array($group)) {
-          unset($this->_formValues['group']);
-          $this->_formValues['group'][$group] = 1;
-        }
+      $group = CRM_Utils_Array::value('group', $this->_formValues);
+      if ($group && !is_array($group)) {
+        unset($this->_formValues['group']);
+        $this->_formValues['group'][$group] = 1;
+      }
 
-        if ($group && is_array($group)) {
-          unset($this->_formValues['group']);
-          foreach ($group as $notImportant => $groupID) {
-            $this->_formValues['group'][$groupID] = 1;
-          }
+      if ($group && is_array($group)) {
+        unset($this->_formValues['group']);
+        foreach ($group as $groupID) {
+          $this->_formValues['group'][$groupID] = 1;
         }
       }
     }
@@ -391,12 +381,20 @@ class CRM_Contribute_Form_Search extends CRM_Core_Form_Search {
       return;
     }
 
-    $status = CRM_Utils_Request::retrieve('status', 'String',
-      CRM_Core_DAO::$_nullObject
-    );
+    $status = CRM_Utils_Request::retrieve('status', 'String');
     if ($status) {
       $this->_formValues['contribution_status_id'] = array($status => 1);
       $this->_defaults['contribution_status_id'] = array($status => 1);
+    }
+
+    $pcpid = (array) CRM_Utils_Request::retrieve('pcpid', 'String', $this);
+    if ($pcpid) {
+      // Add new pcpid to the tail of the array...
+      foreach ($pcpid as $pcpIdList) {
+        $this->_formValues['contribution_pcp_made_through_id'][] = $pcpIdList;
+      }
+      // and avoid any duplicate
+      $this->_formValues['contribution_pcp_made_through_id'] = array_unique($this->_formValues['contribution_pcp_made_through_id']);
     }
 
     $cid = CRM_Utils_Request::retrieve('cid', 'Positive', $this);
@@ -415,18 +413,14 @@ class CRM_Contribute_Form_Search extends CRM_Core_Form_Search {
       }
     }
 
-    $lowDate = CRM_Utils_Request::retrieve('start', 'Timestamp',
-      CRM_Core_DAO::$_nullObject
-    );
+    $lowDate = CRM_Utils_Request::retrieve('start', 'Timestamp');
     if ($lowDate) {
       $lowDate = CRM_Utils_Type::escape($lowDate, 'Timestamp');
       $date = CRM_Utils_Date::setDateDefaults($lowDate);
       $this->_formValues['contribution_date_low'] = $this->_defaults['contribution_date_low'] = $date[0];
     }
 
-    $highDate = CRM_Utils_Request::retrieve('end', 'Timestamp',
-      CRM_Core_DAO::$_nullObject
-    );
+    $highDate = CRM_Utils_Request::retrieve('end', 'Timestamp');
     if ($highDate) {
       $highDate = CRM_Utils_Type::escape($highDate, 'Timestamp');
       $date = CRM_Utils_Date::setDateDefaults($highDate);
@@ -442,9 +436,7 @@ class CRM_Contribute_Form_Search extends CRM_Core_Form_Search {
       $this
     );
 
-    $test = CRM_Utils_Request::retrieve('test', 'Boolean',
-      CRM_Core_DAO::$_nullObject
-    );
+    $test = CRM_Utils_Request::retrieve('test', 'Boolean');
     if (isset($test)) {
       $test = CRM_Utils_Type::escape($test, 'Boolean');
       $this->_formValues['contribution_test'] = $test;

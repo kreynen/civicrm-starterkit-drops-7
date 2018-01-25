@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -51,9 +51,21 @@
         <td class="label">{$form.amount.label}</td>
         <td>{$form.amount.html}</td>
       </tr>
+      <tr class="crm-price-option-form-block-non-deductible-amount">
+        <td class="label">{$form.non_deductible_amount.label}</td>
+        <td>{$form.non_deductible_amount.html}</td>
+      </tr>
       <tr class="crm-price-option-form-block-description">
         <td class="label">{$form.description.label}</td>
         <td>{if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_price_field_value' field='description' id=$optionId}{/if}{$form.description.html}</td>
+      </tr>
+      <tr class="crm-price-option-form-block-help-pre">
+        <td class="label">{$form.help_pre.label}</td>
+        <td>{if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_price_field_value' field='help_pre' id=$optionId}{/if}{$form.help_pre.html}</td>
+      </tr>
+      <tr class="crm-price-option-form-block-help-post">
+        <td class="label">{$form.help_post.label}</td>
+        <td>{if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_price_field_value' field='help_post' id=$optionId}{/if}{$form.help_post.html}</td>
       </tr>
       <tr class="crm-price-option-form-block-financial-type">
         <td class="label">{$form.financial_type_id.label}</td>
@@ -94,6 +106,10 @@
         <td>{$form.is_default.html}</td>
       </tr>
       {/if}
+      <tr class="crm-price-field-form-block-visibility_id">
+        <td class="label">{$form.visibility_id.label}</td>
+        <td>&nbsp;{$form.visibility_id.html} {help id="id-visibility-options" file="CRM/Price/Page/Field.hlp"}</td>
+      </tr>
     </table>
 
   {literal}
@@ -118,4 +134,3 @@
   </div>
 
 </div>
-

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class generates form components for Address Section
+ * This class generates form components for Address Section.
  */
 class CRM_Admin_Form_Preferences_Address extends CRM_Admin_Form_Preferences {
   public function preProcess() {
@@ -65,25 +63,30 @@ class CRM_Admin_Form_Preferences_Address extends CRM_Admin_Form_Preferences {
           'description' => NULL,
           'weight' => 3,
         ),
+        'hideCountryMailingLabels' => array(
+          'html_type' => 'YesNo',
+          'title' => ts('Hide Country in Mailing Labels when same as domain country'),
+          'weight' => 4,
+        ),
       ),
       CRM_Core_BAO_Setting::ADDRESS_STANDARDIZATION_PREFERENCES_NAME => array(
         'address_standardization_provider' => array(
           'html_type' => 'select',
           'title' => ts('Provider'),
           'option_values' => $addrProviders,
-          'weight' => 4,
+          'weight' => 5,
         ),
         'address_standardization_userid' => array(
           'html_type' => 'text',
           'title' => ts('User ID'),
           'description' => NULL,
-          'weight' => 5,
+          'weight' => 6,
         ),
         'address_standardization_url' => array(
           'html_type' => 'text',
           'title' => ts('Web Service URL'),
           'description' => NULL,
-          'weight' => 6,
+          'weight' => 7,
         ),
       ),
     );
@@ -102,32 +105,9 @@ class CRM_Admin_Form_Preferences_Address extends CRM_Admin_Form_Preferences {
 
     $this->addressSequence = isset($newSequence) ? $newSequence : "";
 
-    if (empty($this->_config->address_format)) {
-      $defaults['address_format'] = "
-{contact.street_address}
-{contact.supplemental_address_1}
-{contact.supplemental_address_2}
-{contact.city}{, }{contact.state_province}{ }{contact.postal_code}
-{contact.country}
-";
-    }
-    else {
-      $defaults['address_format'] = $this->_config->address_format;
-    }
-
-    if (empty($this->_config->mailing_format)) {
-      $defaults['mailing_format'] = "
-{contact.addressee}
-{contact.street_address}
-{contact.supplemental_address_1}
-{contact.supplemental_address_2}
-{contact.city}{, }{contact.state_province}{ }{contact.postal_code}
-{contact.country}
-";
-    }
-    else {
-      $defaults['mailing_format'] = $this->_config->mailing_format;
-    }
+    $defaults['address_format'] = $this->_config->address_format;
+    $defaults['mailing_format'] = $this->_config->mailing_format;
+    $defaults['hideCountryMailingLabels'] = $this->_config->hideCountryMailingLabels;
 
     parent::cbsDefaultValues($defaults);
 
@@ -136,8 +116,6 @@ class CRM_Admin_Form_Preferences_Address extends CRM_Admin_Form_Preferences {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     $this->applyFilter('__ALL__', 'trim');
@@ -180,9 +158,6 @@ class CRM_Admin_Form_Preferences_Address extends CRM_Admin_Form_Preferences {
 
   /**
    * Process the form submission.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     if ($this->_action == CRM_Core_Action::VIEW) {

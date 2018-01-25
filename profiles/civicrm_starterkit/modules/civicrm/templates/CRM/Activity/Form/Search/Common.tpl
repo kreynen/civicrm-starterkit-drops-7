@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -96,8 +96,9 @@
 </tr>
 <tr>
   <td>
-    {$form.activity_subject.label}<br/>
-    {$form.activity_subject.html|crmAddClass:big}
+    {$form.activity_text.label}<br/>
+    {$form.activity_text.html|crmAddClass:big}<br/>
+    {$form.activity_option.html}<br/>
   </td>
   <td colspan="2">
     {$form.status_id.label}<br/>

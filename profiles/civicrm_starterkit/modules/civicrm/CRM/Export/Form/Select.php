@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -444,7 +444,7 @@ FROM   {$this->_componentTable}
    * @return string
    */
   public function getTitle() {
-    return ts('Export All or Selected Fields');
+    return ts('Export Options');
   }
 
   /**
@@ -488,7 +488,7 @@ FROM   {$this->_componentTable}
     $mappingTypeId = CRM_Core_OptionGroup::getValue('mapping_type', $exportType, 'name');
     $this->set('mappingTypeId', $mappingTypeId);
 
-    $mappings = CRM_Core_BAO_Mapping::getMappings($mappingTypeId);
+    $mappings = CRM_Core_BAO_Mapping::getMappings($exportType);
     if (!empty($mappings)) {
       $this->add('select', 'mapping', ts('Use Saved Field Mapping'), array('' => '-select-') + $mappings);
     }

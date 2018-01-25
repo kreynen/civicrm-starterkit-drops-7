@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -74,27 +72,24 @@ class CRM_Financial_Page_FinancialBatch extends CRM_Core_Page_Basic {
    * This method is called after the page is created. It checks for the
    * type of action and executes that action.
    * Finally it calls the parent's run method.
-   *
-   * @return void
    */
   public function run() {
     $context = CRM_Utils_Request::retrieve('context', 'String', $this);
     $this->set("context", $context);
-    // assign vars to templates
-    $id = CRM_Utils_Request::retrieve('id', 'Positive', $this, FALSE, 0);
-    $action = CRM_Utils_Request::retrieve('action', 'String', $this, FALSE, 'browse'); // default to 'browse'
+
+    $id = $this->getIdAndAction();
 
     // what action to take ?
-    if ($action & (CRM_Core_Action::UPDATE |
+    if ($this->_action & (CRM_Core_Action::UPDATE |
         CRM_Core_Action::ADD |
         CRM_Core_Action::CLOSE |
         CRM_Core_Action::REOPEN |
         CRM_Core_Action::EXPORT)
     ) {
-      $this->edit($action, $id);
+      $this->edit($this->_action, $id);
     }
     // parent run
-    return parent::run();
+    return CRM_Core_Page::run();
   }
 
 

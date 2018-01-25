@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Report_Form_Walklist_Walklist extends CRM_Report_Form {
   protected $_addressField = FALSE;
@@ -51,8 +49,7 @@ class CRM_Report_Form_Walklist_Walklist extends CRM_Report_Form {
   );
 
   /**
-   */
-  /**
+   * Class constructor.
    */
   public function __construct() {
     $this->_columns = array(
@@ -97,6 +94,7 @@ class CRM_Report_Form_Walklist_Walklist extends CRM_Report_Form {
           'state_province_id' => array(
             'title' => ts('State/Province'),
             'default' => TRUE,
+            'type' => CRM_Utils_Type::T_INT,
           ),
           'country_id' => array(
             'title' => ts('Country'),
@@ -222,18 +220,6 @@ FROM       civicrm_contact {$this->_aliases['civicrm_contact']} {$this->_aclFrom
     if ($this->_aclWhere) {
       $this->_where .= " AND {$this->_aclWhere} ";
     }
-  }
-
-  public function orderBy() {
-    $this->_orderBy = "";
-    foreach ($this->_columns as $tableName => $table) {
-      if (array_key_exists('order_bys', $table)) {
-        foreach ($table['order_bys'] as $fieldName => $field) {
-          $this->_orderBy[] = $field['dbAlias'];
-        }
-      }
-    }
-    $this->_orderBy = "ORDER BY " . implode(', ', $this->_orderBy) . " ";
   }
 
   public function postProcess() {

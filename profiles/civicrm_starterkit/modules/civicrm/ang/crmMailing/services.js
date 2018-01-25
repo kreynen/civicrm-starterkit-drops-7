@@ -155,6 +155,9 @@
             groups: {include: [], exclude: [], base: []},
             mailings: {include: [], exclude: []}
           },
+          template_type: "traditional",
+          // Workaround CRM-19756 w/template_options.nonce
+          template_options: {nonce: 1},
           name: "",
           campaign_id: null,
           replyto_email: "",
@@ -479,7 +482,7 @@
       getStats: function(mailingIds) {
         var params = {};
         angular.forEach(mailingIds, function(mailingId, name) {
-          params[name] = ['Mailing', 'stats', {mailing_id: mailingId}];
+          params[name] = ['Mailing', 'stats', {mailing_id: mailingId, is_distinct: 0}];
         });
         return crmApi(params).then(function(result) {
           var stats = {};

@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,16 +28,19 @@
 {assign var="rowCount" value=1}
 {foreach from=$viewCustomData item=customValues key=customGroupId}
   {foreach from=$customValues item=cd_edit key=cvID}
-{if $multiRecordDisplay neq 'single'}
+    {crmRegion name="custom-data-view-`$cd_edit.name`"}
+    {if $cd_edit.help_pre}
+      <div class="messages help">{$cd_edit.help_pre}</div>
+    {/if}
+    {if $multiRecordDisplay neq 'single'}
     <table class="no-border">
       {assign var='index' value=$groupId|cat:"_$cvID"}
-      {if ($editOwnCustomData and $showEdit) or ($showEdit and $editCustomData and $groupId)}
+      {if ($showEdit && $cd_edit.editable && $groupId) && ($editOwnCustomData or $editCustomData)}
         <tr>
           <td>
             <a
               href="{crmURL p="civicrm/contact/view/cd/edit" q="tableId=`$contactId`&cid=`$contactId`&groupID=`$groupId`&action=update&reset=1"}"
-              class="button" style="margin-left: 6px;"><span><div
-                  class="icon ui-icon-pencil"></div>{ts 1=$cd_edit.title}Edit %1{/ts}</span></a><br/><br/>
+              class="button" style="margin-left: 6px;"><span><i class="crm-i fa-pencil"></i> {ts 1=$cd_edit.title}Edit %1{/ts}</span></a><br/><br/>
           </td>
         </tr>
       {/if}
@@ -51,12 +54,12 @@
               </div>
             {/if}
             <div class="crm-accordion-body">
-              {if $groupId and $cvID and $editCustomData}
+              {if $groupId and $cvID and $editCustomData and $cd_edit.editable}
                 <div class="crm-submit-buttons">
                   <a href="#" class="crm-hover-button crm-custom-value-del"
                      data-post='{ldelim}"valueID": "{$cvID}", "groupID": "{$customGroupId}", "contactId": "{$contactId}", "key": "{crmKey name='civicrm/ajax/customvalue'}"{rdelim}'
                      title="{ts 1=$cd_edit.title|cat:" `$rowCount`"}Delete %1{/ts}">
-                    <span class="icon delete-icon"></span> {ts}Delete{/ts}
+                    <i class="crm-i fa-trash"></i> {ts}Delete{/ts}
                   </a>
                 </div>
               {/if}
@@ -74,40 +77,26 @@
                       </td>
                     {else}
                       <td class="label">{$element.field_title}</td>
-                      {if $element.field_type == 'File'}
-                        {if $element.field_value.displayURL}
-                          <td class="html-adjust">
-                            <a href="{$element.field_value.displayURL}" class='crm-image-popup'>
-                              <img src="{$element.field_value.displayURL}" height="100" width="100">
-                            </a>
-                          </td>
+                      {if $element.field_data_type == 'Money'}
+                        {if $element.field_type == 'Text'}
+                          <td class="html-adjust">{$element.field_value|crmMoney}</td>
                         {else}
-                          <td class="html-adjust">
-                            <a href="{$element.field_value.fileURL}">{$element.field_value.fileName}</a>
-                          </td>
+                          <td class="html-adjust">{$element.field_value}</td>
                         {/if}
                       {else}
-                        {if $element.field_data_type == 'Money'}
-                          {if $element.field_type == 'Text'}
-                            <td class="html-adjust">{$element.field_value|crmMoney}</td>
-                          {else}
-                            <td class="html-adjust">{$element.field_value}</td>
-                          {/if}
-                        {else}
-                          <td class="html-adjust">
-                            {if $element.contact_ref_id}
+                        <td class="html-adjust">
+                          {if $element.contact_ref_id}
                             <a href='{crmURL p="civicrm/contact/view" q="reset=1&cid=`$element.contact_ref_id`"}'>
-                              {/if}
-                              {if $element.field_data_type == 'Memo'}
-                                {$element.field_value|nl2br}
-                              {else}
-                                {$element.field_value}
-                              {/if}
-                              {if $element.contact_ref_id}
+                          {/if}
+                          {if $element.field_data_type == 'Memo'}
+                            {$element.field_value|nl2br}
+                          {else}
+                            {$element.field_value}
+                          {/if}
+                          {if $element.contact_ref_id}
                             </a>
-                            {/if}
-                          </td>
-                        {/if}
+                          {/if}
+                        </td>
                       {/if}
                     {/if}
                   </tr>
@@ -118,67 +107,63 @@
             <!-- end of body -->
             <div class="clear"></div>
           </div>
-          <!-- end of main accordian -->
+          <!-- end of main accordion -->
         </td>
       </tr>
     </table>
-{else}
-   {foreach from=$cd_edit.fields item=element key=field_id}
-     <div class="crm-section">
-      {if $element.options_per_line != 0}
-          <div class="label">{$element.field_title}</div>
-          <div class="content">
-          {* sort by fails for option per line. Added a variable to iterate through the element array*}
-          {foreach from=$element.field_value item=val}
-             {$val}
-             <br/>
-          {/foreach}
-          </div>
-       {else}
-          <div class="label">{$element.field_title}</div>
-          {if $element.field_type == 'File'}
-          {if $element.field_value.displayURL}
-            <div class="content">
-              <a href="{$element.field_value.displayURL}" class='crm-image-popup'>
-               <img src="{$element.field_value.displayURL}" height="100" width="100">
-              </a>
-            </div>
-          {else}
-            <div class="content">
-             {if $element.field_value}
-              <a href="{$element.field_value.fileURL}">{$element.field_value.fileName}</a>
-             {else}
-              <br/>
-             {/if}
-            </div>
-          {/if}
-          {else}
-            {if $element.field_data_type == 'Money'}
-              {if $element.field_type == 'Text'}
-                 <div class="content">{if $element.field_value}{$element.field_value|crmMoney}{else}<br/>{/if}</div>
-              {else}
-                 <div class="content">{if $element.field_value}{$element.field_value}{else}<br/>{/if}</div>
-              {/if}
-            {else}
+    {else}
+      {foreach from=$cd_edit.fields item=element key=field_id}
+        <div class="crm-section">
+          {if $element.options_per_line != 0}
+              <div class="label">{$element.field_title}</div>
               <div class="content">
-                {if $element.contact_ref_id}
-                  <a href='{crmURL p="civicrm/contact/view" q="reset=1&cid=`$element.contact_ref_id`"}'>
-                {/if}
-                {if $element.field_data_type == 'Memo'}
-                  {$element.field_value|nl2br}
-                {else}
-                  {if $element.field_value}{$element.field_value} {else}<br/>{/if}
-                {/if}
-                {if $element.contact_ref_id}
-                  </a>
-                {/if}
+              {* sort by fails for option per line. Added a variable to iterate through the element array*}
+              {foreach from=$element.field_value item=val}
+                {$val}
+                <br/>
+              {/foreach}
               </div>
+          {else}
+              <div class="label">{$element.field_title}</div>
+              {if $element.field_type == 'File'}
+                <div class="content">
+                {if $element.field_value}
+                  {$element.field_value}
+                {else}
+                  <br/>
+                {/if}
+                </div>
+              {else}
+                {if $element.field_data_type == 'Money'}
+                  {if $element.field_type == 'Text'}
+                    <div class="content">{if $element.field_value}{$element.field_value|crmMoney}{else}<br/>{/if}</div>
+                  {else}
+                    <div class="content">{if $element.field_value}{$element.field_value}{else}<br/>{/if}</div>
+                  {/if}
+                {else}
+                  <div class="content">
+                    {if $element.contact_ref_id}
+                      <a href='{crmURL p="civicrm/contact/view" q="reset=1&cid=`$element.contact_ref_id`"}'>
+                    {/if}
+                    {if $element.field_data_type == 'Memo'}
+                      {$element.field_value|nl2br}
+                    {else}
+                      {if $element.field_value}{$element.field_value} {else}<br/>{/if}
+                    {/if}
+                    {if $element.contact_ref_id}
+                      </a>
+                    {/if}
+                  </div>
+                {/if}
+              {/if}
             {/if}
-          {/if}
-       {/if}
-     </div>
-   {/foreach}
-{/if}
+          </div>
+        {/foreach}
+      {/if}
+      {if $cd_edit.help_post}
+        <div class="messages help">{$cd_edit.help_post}</div>
+      {/if}
+    {/crmRegion}
   {/foreach}
 {/foreach}
 {*currently delete is available only for tab custom data*}
@@ -205,4 +190,3 @@
     {/literal}
   </script>
 {/if}
-

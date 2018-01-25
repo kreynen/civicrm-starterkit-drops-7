@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -80,16 +80,20 @@ class Events {
   }
 
   /**
-   * @param $caseId
+   * Fire case change hook
+   *
+   * @param int|array $caseIds
    */
-  public static function fireCaseChangeForRealz($caseId) {
-    if (!isset(self::$isActive[$caseId])) {
-      $tx = new \CRM_Core_Transaction();
-      self::$isActive[$caseId] = 1;
-      $analyzer = new \Civi\CCase\Analyzer($caseId);
-      \CRM_Utils_Hook::caseChange($analyzer);
-      unset(self::$isActive[$caseId]);
-      unset($tx);
+  public static function fireCaseChangeForRealz($caseIds) {
+    foreach ((array) $caseIds as $caseId) {
+      if (!isset(self::$isActive[$caseId])) {
+        $tx = new \CRM_Core_Transaction();
+        self::$isActive[$caseId] = 1;
+        $analyzer = new \Civi\CCase\Analyzer($caseId);
+        \CRM_Utils_Hook::caseChange($analyzer);
+        unset(self::$isActive[$caseId]);
+        unset($tx);
+      }
     }
   }
 

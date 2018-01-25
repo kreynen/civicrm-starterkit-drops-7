@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CiviCRM_Hook
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id: $
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Utils_Hook_Joomla extends CRM_Utils_Hook {
   /**
@@ -67,7 +65,7 @@ class CRM_Utils_Hook_Joomla extends CRM_Utils_Hook {
    *
    * @return mixed
    */
-  public function invoke(
+  public function invokeViaUF(
     $numParams,
     &$arg1, &$arg2, &$arg3, &$arg4, &$arg5, &$arg6,
     $fnSuffix

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -177,7 +175,6 @@ class CRM_Profile_Page_Dynamic extends CRM_Core_Page {
    * This method is called after the page is created. It checks for the
    * type of action and executes that action.
    *
-   * @return void
    */
   public function run() {
     $template = CRM_Core_Smarty::singleton();
@@ -206,7 +203,7 @@ class CRM_Profile_Page_Dynamic extends CRM_Core_Page {
       $this->_isPermissionedChecksum = $allowPermission = FALSE;
       $permissionType = CRM_Core_Permission::VIEW;
       if (CRM_Core_Permission::check('administer users') || CRM_Core_Permission::check('view all contacts') || CRM_Contact_BAO_Contact_Permission::allow($this->_id)) {
-        $allowPermission =  TRUE;
+        $allowPermission = TRUE;
       }
       if ($this->_id != $userID) {
         // do not allow edit for anon users in joomla frontend, CRM-4668, unless u have checksum CRM-5228
@@ -416,9 +413,6 @@ class CRM_Profile_Page_Dynamic extends CRM_Core_Page {
    *
    * @return string
    */
-  /**
-   * @return string
-   */
   public function getTemplateFileName() {
     $fileName = $this->checkTemplateFileExists();
     return $fileName ? $fileName : parent::getTemplateFileName();
@@ -428,9 +422,6 @@ class CRM_Profile_Page_Dynamic extends CRM_Core_Page {
    * Default extra tpl file basically just replaces .tpl with .extra.tpl
    * i.e. we dont override
    *
-   * @return string
-   */
-  /**
    * @return string
    */
   public function overrideExtraTemplateFileName() {

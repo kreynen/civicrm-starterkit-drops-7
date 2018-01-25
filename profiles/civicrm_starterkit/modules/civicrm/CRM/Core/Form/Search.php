@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -80,6 +80,16 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
   protected $_taskList = array();
 
   /**
+   * Declare entity reference fields as they will need to be converted.
+   *
+   * The entity reference format looks like '2,3' whereas the Query object expects array(2, 3)
+   * or array('IN' => array(2, 3). The latter is the one we are moving towards standardising on.
+   *
+   * @var array
+   */
+  protected $entityReferenceFields = array();
+
+  /**
    * Builds the list of tasks or actions that a searcher can perform on a result set.
    *
    * To modify the task list, child classes should alter $this->_taskList,
@@ -92,17 +102,10 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
   }
 
   /**
-   * Common buildform tasks required by all searches
+   * Common buildForm tasks required by all searches.
    */
   public function buildQuickform() {
-    $resources = CRM_Core_Resources::singleton();
-
-    if ($resources->ajaxPopupsEnabled) {
-      // Script needed by some popups
-      $this->assign('includeWysiwygEditor', TRUE);
-    }
-
-    $resources
+    CRM_Core_Resources::singleton()
       ->addScriptFile('civicrm', 'js/crm.searchForm.js', 1, 'html-header')
       ->addStyleFile('civicrm', 'css/searchForm.css', 1, 'html-header');
 
@@ -116,38 +119,37 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
 
     $this->addClass('crm-search-form');
 
-    // for backwards compatibility we pass an argument to addTaskMenu even though
-    // it could just as well access $this->_taskList internally
     $tasks = $this->buildTaskList();
     $this->addTaskMenu($tasks);
   }
 
   /**
-   * Add checkboxes for each row plus a master checkbox
+   * Add checkboxes for each row plus a master checkbox.
+   *
+   * @param array $rows
    */
   public function addRowSelectors($rows) {
     $this->addElement('checkbox', 'toggleSelect', NULL, NULL, array('class' => 'select-rows'));
-    foreach ($rows as $row) {
-      $this->addElement('checkbox', $row['checkbox'], NULL, NULL, array('class' => 'select-row'));
+    if (!empty($rows)) {
+      foreach ($rows as $row) {
+        if (CRM_Utils_Array::value('checkbox', $row)) {
+          $this->addElement('checkbox', $row['checkbox'], NULL, NULL, array('class' => 'select-row'));
+        }
+      }
     }
   }
 
   /**
-   * Add actions menu to search results form
-   * @param $tasks
+   * Add actions menu to search results form.
+   *
+   * @param array $tasks
    */
   public function addTaskMenu($tasks) {
-    if (is_array($tasks) && !empty($tasks)) {
-      $tasks = array('' => ts('Actions')) + $tasks;
-      $this->add('select', 'task', NULL, $tasks, FALSE, array('class' => 'crm-select2 crm-action-menu huge crm-search-result-actions'));
-      $this->add('submit', $this->_actionButtonName, ts('Go'), array('class' => 'hiddenElement crm-search-go-button'));
-
-      // Radio to choose "All items" or "Selected items only"
-      $selectedRowsRadio = $this->addElement('radio', 'radio_ts', NULL, '', 'ts_sel', array('checked' => 'checked'));
-      $allRowsRadio = $this->addElement('radio', 'radio_ts', NULL, '', 'ts_all');
-      $this->assign('ts_sel_id', $selectedRowsRadio->_attributes['id']);
-      $this->assign('ts_all_id', $allRowsRadio->_attributes['id']);
+    $taskMetaData = array();
+    foreach ($tasks as $key => $task) {
+      $taskMetaData[$key] = array('title' => $task);
     }
+    parent::addTaskMenu($taskMetaData);
   }
 
   /**
@@ -188,6 +190,13 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
    */
   protected function getSortNameLabelWithOutEmail() {
     return ts('Name');
+  }
+
+  /**
+   * Explicitly declare the form context for addField().
+   */
+  public function getDefaultContext() {
+    return 'search';
   }
 
 }

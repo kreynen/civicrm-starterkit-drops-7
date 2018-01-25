@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -58,26 +56,68 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
    */
   protected $_fromEmails = array();
 
+  /**
+   * Details of all enabled membership types.
+   *
+   * @var array
+   */
+  protected $allMembershipTypeDetails = array();
+
+  /**
+   * Array of membership type IDs and whether they permit autorenewal.
+   *
+   * @var array
+   */
+  protected $membershipTypeRenewalStatus = array();
+
+  /**
+   * Price set ID configured for the form.
+   *
+   * @var int
+   */
+  public $_priceSetId;
+
+  /**
+   * Price set details as an array.
+   *
+   * @var array
+   */
+  public $_priceSet;
+
+  /**
+   * Values submitted to the form, processed along the way.
+   *
+   * @var array
+   */
+  protected $_params = array();
+
   public function preProcess() {
-    $this->_action = CRM_Utils_Request::retrieve('action', 'String', $this, FALSE, 'add');
-    $this->_context = CRM_Utils_Request::retrieve('context', 'String', $this, FALSE, 'membership');
-    $this->_id = CRM_Utils_Request::retrieve('id', 'Positive', $this);
-    $this->_contactID = CRM_Utils_Request::retrieve('cid', 'Positive', $this);
-    $this->_mode = CRM_Utils_Request::retrieve('mode', 'String', $this);
+    // Check for edit permission.
+    if (!CRM_Core_Permission::checkActionPermission('CiviMember', $this->_action)) {
+      CRM_Core_Error::fatal(ts('You do not have permission to access this page.'));
+    }
+    if (!CRM_Member_BAO_Membership::statusAvailabilty()) {
+      // all possible statuses are disabled - redirect back to contact form
+      CRM_Core_Error::statusBounce(ts('There are no configured membership statuses. You cannot add this membership until your membership statuses are correctly configured'));
+    }
+
+    parent::preProcess();
+    $params = array();
+    $params['context'] = CRM_Utils_Request::retrieve('context', 'String', $this, FALSE, 'membership');
+    $params['id'] = CRM_Utils_Request::retrieve('id', 'Positive', $this);
+    $params['mode'] = CRM_Utils_Request::retrieve('mode', 'String', $this);
+
+    $this->setContextVariables($params);
 
     $this->assign('context', $this->_context);
     $this->assign('membershipMode', $this->_mode);
-    $this->assign('contactID', $this->_contactID);
-
-    if ($this->_mode) {
-      $this->assignPaymentRelatedVariables();
+    $this->allMembershipTypeDetails = CRM_Member_BAO_Membership::buildMembershipTypeValues($this, array(), TRUE);
+    foreach ($this->allMembershipTypeDetails as $index => $membershipType) {
+      if ($membershipType['auto_renew']) {
+        $this->_recurMembershipTypes[$index] = $membershipType;
+        $this->membershipTypeRenewalStatus[$index] = $membershipType['auto_renew'];
+      }
     }
-
-    if ($this->_id) {
-      $this->_memType = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_Membership', $this->_id, 'membership_type_id');
-      $this->_membershipIDs[] = $this->_id;
-    }
-    $this->_fromEmails = CRM_Core_BAO_Email::getFromEmail();
   }
 
   /**
@@ -93,14 +133,13 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
     if (isset($this->_id)) {
       $params = array('id' => $this->_id);
       CRM_Member_BAO_Membership::retrieve($params, $defaults);
-    }
+      if (isset($defaults['minimum_fee'])) {
+        $defaults['minimum_fee'] = CRM_Utils_Money::format($defaults['minimum_fee'], NULL, '%a');
+      }
 
-    if (isset($defaults['minimum_fee'])) {
-      $defaults['minimum_fee'] = CRM_Utils_Money::format($defaults['minimum_fee'], NULL, '%a');
-    }
-
-    if (isset($defaults['status'])) {
-      $this->assign('membershipStatus', $defaults['status']);
+      if (isset($defaults['status'])) {
+        $this->assign('membershipStatus', $defaults['status']);
+      }
     }
 
     if ($this->_action & CRM_Core_Action::ADD) {
@@ -114,69 +153,97 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
         $defaults['member_of_contact_id'], 'display_name'
       );
     }
+    if (!empty($defaults['membership_type_id'])) {
+      $this->_memType = $defaults['membership_type_id'];
+    }
+    if (is_numeric($this->_memType)) {
+      $defaults['membership_type_id'] = array();
+      $defaults['membership_type_id'][0] = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipType',
+        $this->_memType,
+        'member_of_contact_id',
+        'id'
+      );
+      $defaults['membership_type_id'][1] = $this->_memType;
+    }
+    else {
+      $defaults['membership_type_id'] = $this->_memType;
+    }
     return $defaults;
   }
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
-    if ($this->_mode) {
-      $this->add('select', 'payment_processor_id',
-        ts('Payment Processor'),
-        $this->_processors, TRUE,
-        array('onChange' => "buildAutoRenew( null, this.value );")
+
+    $this->addPaymentProcessorSelect(TRUE, FALSE, TRUE);
+    CRM_Core_Payment_Form::buildPaymentForm($this, $this->_paymentProcessor, FALSE, TRUE, $this->getDefaultPaymentInstrumentId());
+    // Build the form for auto renew. This is displayed when in credit card mode or update mode.
+    // The reason for showing it in update mode is not that clear.
+    if ($this->_mode || ($this->_action & CRM_Core_Action::UPDATE)) {
+      if (!empty($this->_recurPaymentProcessors)) {
+        $this->assign('allowAutoRenew', TRUE);
+      }
+
+      $autoRenewElement = $this->addElement('checkbox', 'auto_renew', ts('Membership renewed automatically'),
+        NULL, array('onclick' => "showHideByValue('auto_renew','','send-receipt','table-row','radio',true); showHideNotice( );")
       );
-      CRM_Core_Payment_Form::buildPaymentForm($this, $this->_paymentProcessor, FALSE, TRUE);
+      if ($this->_action & CRM_Core_Action::UPDATE) {
+        $autoRenewElement->freeze();
+      }
+
+      $this->assign('recurProcessor', json_encode($this->_recurPaymentProcessors));
+      $this->addElement('checkbox',
+        'auto_renew',
+        ts('Membership renewed automatically')
+      );
+
     }
+    $this->assign('autoRenewOptions', json_encode($this->membershipTypeRenewalStatus));
+
     if ($this->_action & CRM_Core_Action::RENEW) {
       $this->addButtons(array(
-          array(
-            'type' => 'upload',
-            'name' => ts('Renew'),
-            'isDefault' => TRUE,
-          ),
-          array(
-            'type' => 'cancel',
-            'name' => ts('Cancel'),
-          ),
-        )
-      );
+        array(
+          'type' => 'upload',
+          'name' => ts('Renew'),
+          'isDefault' => TRUE,
+        ),
+        array(
+          'type' => 'cancel',
+          'name' => ts('Cancel'),
+        ),
+      ));
     }
     elseif ($this->_action & CRM_Core_Action::DELETE) {
       $this->addButtons(array(
-          array(
-            'type' => 'next',
-            'name' => ts('Delete'),
-            'isDefault' => TRUE,
-          ),
-          array(
-            'type' => 'cancel',
-            'name' => ts('Cancel'),
-          ),
-        )
-      );
+        array(
+          'type' => 'next',
+          'name' => ts('Delete'),
+          'isDefault' => TRUE,
+        ),
+        array(
+          'type' => 'cancel',
+          'name' => ts('Cancel'),
+        ),
+      ));
     }
     else {
       $this->addButtons(array(
-          array(
-            'type' => 'upload',
-            'name' => ts('Save'),
-            'isDefault' => TRUE,
-          ),
-          array(
-            'type' => 'upload',
-            'name' => ts('Save and New'),
-            'subName' => 'new',
-          ),
-          array(
-            'type' => 'cancel',
-            'name' => ts('Cancel'),
-          ),
-        )
-      );
+        array(
+          'type' => 'upload',
+          'name' => ts('Save'),
+          'isDefault' => TRUE,
+        ),
+        array(
+          'type' => 'upload',
+          'name' => ts('Save and New'),
+          'subName' => 'new',
+        ),
+        array(
+          'type' => 'cancel',
+          'name' => ts('Cancel'),
+        ),
+      ));
     }
   }
 
@@ -224,6 +291,34 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
   }
 
   /**
+   * Set variables in a way that can be accessed from different places.
+   *
+   * This is part of refactoring for unit testability on the submit function.
+   *
+   * @param array $params
+   */
+  protected function setContextVariables($params) {
+    $variables = array(
+      'action' => '_action',
+      'context' => '_context',
+      'id' => '_id',
+      'cid' => '_contactID',
+      'mode' => '_mode',
+    );
+    foreach ($variables as $paramKey => $classVar) {
+      if (isset($params[$paramKey]) && !isset($this->$classVar)) {
+        $this->$classVar = $params[$paramKey];
+      }
+    }
+
+    if ($this->_id) {
+      $this->_memType = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_Membership', $this->_id, 'membership_type_id');
+      $this->_membershipIDs[] = $this->_id;
+    }
+    $this->_fromEmails = CRM_Core_BAO_Email::getFromEmail();
+  }
+
+  /**
    * Create a recurring contribution record.
    *
    * Recurring contribution parameters are set explicitly rather than merging paymentParams because it's hard
@@ -241,10 +336,10 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
       'amount' => $paymentParams['total_amount'],
       'contribution_status_id' => 'Pending',
       'payment_processor_id' => $paymentParams['payment_processor_id'],
-      'campaign_id' => CRM_Utils_Array::value('campaign_id', $paymentParams),
+      'campaign_id' => $paymentParams['campaign_id'],
       'financial_type_id' => $paymentParams['financial_type_id'],
       'is_email_receipt' => $paymentParams['is_email_receipt'],
-      'payment_instrument_id' => 1,
+      'payment_instrument_id' => $paymentParams['payment_instrument_id'],
       'invoice_id' => $paymentParams['invoice_id'],
     );
 
@@ -266,6 +361,94 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
     $contributionRecur = civicrm_api3('ContributionRecur', 'create', $contributionRecurParams);
     $returnParams['contributionRecurID'] = $contributionRecur['id'];
     return $returnParams;
+  }
+
+  /**
+   * Ensure price parameters are set.
+   *
+   * If they are not set it means a quick config option has been chosen so we
+   * fill them in here to make the two flows the same. They look like 'price_2' => 2 etc.
+   *
+   * @param array $formValues
+   */
+  protected function ensurePriceParamsAreSet(&$formValues) {
+    foreach ($formValues as $key => $value) {
+      if ((substr($key, 0, 6) == 'price_') && is_numeric(substr($key, 6))) {
+        return;
+      }
+    }
+    $priceFields = CRM_Member_BAO_Membership::setQuickConfigMembershipParameters(
+      $formValues['membership_type_id'][0],
+      $formValues['membership_type_id'][1],
+      CRM_Utils_Array::value('total_amount', $formValues),
+      $this->_priceSetId
+    );
+    $formValues = array_merge($formValues, $priceFields['price_fields']);
+  }
+
+  /**
+   * Get the details for the selected price set.
+   *
+   * @param array $params
+   *   Parameters submitted to the form.
+   *
+   * @return array
+   */
+  protected static function getPriceSetDetails($params) {
+    $priceSetID = CRM_Utils_Array::value('price_set_id', $params);
+    if ($priceSetID) {
+      return CRM_Price_BAO_PriceSet::getSetDetail($priceSetID);
+    }
+    else {
+      $priceSet = CRM_Price_BAO_PriceSet::getDefaultPriceSet('membership');
+      $priceSet = reset($priceSet);
+      return CRM_Price_BAO_PriceSet::getSetDetail($priceSet['setID']);
+    }
+  }
+
+  /**
+   * Get the selected price set id.
+   *
+   * @param array $params
+   *   Parameters submitted to the form.
+   *
+   * @return int
+   */
+  protected static function getPriceSetID($params) {
+    $priceSetID = CRM_Utils_Array::value('price_set_id', $params);
+    if (!$priceSetID) {
+      $priceSetDetails = self::getPriceSetDetails($params);
+      return key($priceSetDetails);
+    }
+    return $priceSetID;
+  }
+
+  /**
+   * Store parameters relating to price sets.
+   *
+   * @param array $formValues
+   *
+   * @return array
+   */
+  protected function setPriceSetParameters($formValues) {
+    $this->_priceSetId = self::getPriceSetID($formValues);
+    $priceSetDetails = self::getPriceSetDetails($formValues);
+    $this->_priceSet = $priceSetDetails[$this->_priceSetId];
+    // process price set and get total amount and line items.
+    $this->ensurePriceParamsAreSet($formValues);
+    return $formValues;
+  }
+
+  /**
+   * Wrapper function for unit tests.
+   *
+   * @param array $formValues
+   */
+  public function testSubmit($formValues) {
+    $this->setContextVariables($formValues);
+    $this->_memType = $formValues['membership_type_id'][1];
+    $this->_params = $formValues;
+    $this->submit();
   }
 
 }

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -31,7 +31,7 @@
  * smart caching scheme on a per domain basis
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -220,6 +220,7 @@ class CRM_Core_SelectValues {
       'Activity' => ts('Activities'),
       'Relationship' => ts('Relationships'),
       'Contribution' => ts('Contributions'),
+      'ContributionRecur' => ts('Recurring Contributions'),
       'Group' => ts('Groups'),
       'Membership' => ts('Memberships'),
       'Event' => ts('Events'),
@@ -310,7 +311,8 @@ class CRM_Core_SelectValues {
    * @return array
    *   the date array
    */
-  public static function date($type = NULL, $format = NULL, $minOffset = NULL, $maxOffset = NULL) {
+  public static function date($type = NULL, $format = NULL, $minOffset = NULL, $maxOffset = NULL, $context = 'display') {
+    // These options are deprecated. Definitely not used in datepicker. Possibly not even in jcalendar+addDateTime.
     $date = array(
       'addEmptyOption' => TRUE,
       'emptyOptionText' => ts('- select -'),
@@ -327,25 +329,35 @@ class CRM_Core_SelectValues {
         if (!$dao->find(TRUE)) {
           CRM_Core_Error::fatal();
         }
-      }
+        if (!$maxOffset) {
+          $maxOffset = $dao->end;
+        }
+        if (!$minOffset) {
+          $minOffset = $dao->start;
+        }
 
-      if ($type == 'creditCard') {
-        $minOffset = $dao->start;
-        $maxOffset = $dao->end;
         $date['format'] = $dao->date_format;
-        $date['addEmptyOption'] = TRUE;
-        $date['emptyOptionText'] = ts('- select -');
-        $date['emptyOptionValue'] = '';
+        $date['time'] = (bool) $dao->time_format;
       }
 
       if (empty($date['format'])) {
-        $date['format'] = 'M d';
+        if ($context == 'Input') {
+          $date['format'] = Civi::settings()->get('dateInputFormat');
+        }
+        else {
+          $date['format'] = 'M d';
+        }
       }
     }
 
+    $date['smarty_view_format'] = CRM_Utils_Date::getDateFieldViewFormat($date['format']);
+    if (!isset($date['time'])) {
+      $date['time'] = FALSE;
+    }
+
     $year = date('Y');
-    $date['minYear'] = $year - $minOffset;
-    $date['maxYear'] = $year + $maxOffset;
+    $date['minYear'] = $year - (int) $minOffset;
+    $date['maxYear'] = $year + (int) $maxOffset;
     return $date;
   }
 
@@ -357,8 +369,8 @@ class CRM_Core_SelectValues {
   public static function ufVisibility() {
     return array(
       'User and User Admin Only' => ts('User and User Admin Only'),
-      'Public Pages' => ts('Public Pages'),
-      'Public Pages and Listings' => ts('Public Pages and Listings'),
+      'Public Pages' => ts('Expose Publicly'),
+      'Public Pages and Listings' => ts('Expose Publicly and for Listings'),
     );
   }
 
@@ -427,7 +439,7 @@ class CRM_Core_SelectValues {
   public static function mapProvider() {
     static $map = NULL;
     if (!$map) {
-      $map = CRM_Utils_System::getPluginList('templates/CRM/Contact/Form/Task/Map', ".tpl");
+      $map = array('' => '- select -') + CRM_Utils_System::getPluginList('templates/CRM/Contact/Form/Task/Map', ".tpl");
     }
     return $map;
   }
@@ -441,7 +453,7 @@ class CRM_Core_SelectValues {
   public static function geoProvider() {
     static $geo = NULL;
     if (!$geo) {
-      $geo = CRM_Utils_System::getPluginList('CRM/Utils/Geocode');
+      $geo = array('' => '- select -') + CRM_Utils_System::getPluginList('CRM/Utils/Geocode');
     }
     return $geo;
   }
@@ -547,14 +559,14 @@ class CRM_Core_SelectValues {
    * @return array
    */
   public static function contributionTokens() {
-    return array(
+    return array_merge(array(
       '{contribution.contribution_id}' => ts('Contribution ID'),
       '{contribution.total_amount}' => ts('Total Amount'),
       '{contribution.fee_amount}' => ts('Fee Amount'),
       '{contribution.net_amount}' => ts('Net Amount'),
       '{contribution.non_deductible_amount}' => ts('Non-deductible Amount'),
-      '{contribution.receive_date}' => ts('Contribution Receive Date'),
-      '{contribution.payment_instrument}' => ts('Payment Instrument'),
+      '{contribution.receive_date}' => ts('Contribution Date Received'),
+      '{contribution.payment_instrument}' => ts('Payment Method'),
       '{contribution.trxn_id}' => ts('Transaction ID'),
       '{contribution.invoice_id}' => ts('Invoice ID'),
       '{contribution.currency}' => ts('Currency'),
@@ -571,7 +583,7 @@ class CRM_Core_SelectValues {
       //'{contribution.address_id}' => ts('Address ID'),
       '{contribution.check_number}' => ts('Check Number'),
       '{contribution.campaign}' => ts('Contribution Campaign'),
-    );
+    ), CRM_Utils_Token::getCustomFieldTokens('contribution', TRUE));
   }
 
   /**
@@ -693,6 +705,25 @@ class CRM_Core_SelectValues {
   }
 
   /**
+   * @param int $caseTypeId
+   * @return array
+   */
+  public static function caseTokens($caseTypeId = NULL) {
+    static $tokens = NULL;
+    if (!$tokens) {
+      foreach (CRM_Case_BAO_Case::fields() as $field) {
+        $tokens["{case.{$field['name']}}"] = $field['title'];
+      }
+
+      $customFields = CRM_Core_BAO_CustomField::getFields('Case', FALSE, FALSE, $caseTypeId);
+      foreach ($customFields as $id => $field) {
+        $tokens["{case.custom_$id}"] = "{$field['label']} :: {$field['groupTitle']}";
+      }
+    }
+    return $tokens;
+  }
+
+  /**
    * CiviCRM supported date input formats.
    *
    * @return array
@@ -729,32 +760,6 @@ class CRM_Core_SelectValues {
     gives proper result
      */
 
-    return $dateInputFormats;
-  }
-
-  /**
-   * Map date plugin and actual format that is used by PHP.
-   *
-   * @return array
-   */
-  public static function datePluginToPHPFormats() {
-    $dateInputFormats = array(
-      "mm/dd/yy" => 'm/d/Y',
-      "dd/mm/yy" => 'd/m/Y',
-      "yy-mm-dd" => 'Y-m-d',
-      "dd-mm-yy" => 'd-m-Y',
-      "dd.mm.yy" => 'd.m.Y',
-      "M d, yy" => 'M j, Y',
-      "d M yy" => 'j M Y',
-      "MM d, yy" => 'F j, Y',
-      "d MM yy" => 'j F Y',
-      "DD, d MM yy" => 'l, j F Y',
-      "mm/dd" => 'm/d',
-      "dd-mm" => 'd-m',
-      "yy-mm" => 'Y-m',
-      "M yy" => 'M Y',
-      "yy" => 'Y',
-    );
     return $dateInputFormats;
   }
 
@@ -873,6 +878,12 @@ class CRM_Core_SelectValues {
    */
   public static function getJobFrequency() {
     return array(
+      // CRM-17669
+      'Yearly' => ts('Yearly'),
+      'Quarter' => ts('Quarterly'),
+      'Monthly' => ts('Monthly'),
+      'Weekly' => ts('Weekly'),
+
       'Daily' => ts('Daily'),
       'Hourly' => ts('Hourly'),
       'Always' => ts('Every time cron job is run'),
@@ -884,8 +895,8 @@ class CRM_Core_SelectValues {
    *
    * @return array
    */
-  public static function getSearchBuilderOperators() {
-    return array(
+  public static function getSearchBuilderOperators($fieldType = NULL) {
+    $builderOperators = array(
       '=' => '=',
       '!=' => '≠',
       '>' => '>',
@@ -902,6 +913,17 @@ class CRM_Core_SelectValues {
       'IS NULL' => ts('Is Null'),
       'IS NOT NULL' => ts('Not Null'),
     );
+    if ($fieldType) {
+      switch ($fieldType) {
+        case CRM_Utils_Type::T_STRING:
+          unset($builderOperators['>']);
+          unset($builderOperators['<']);
+          unset($builderOperators['>=']);
+          unset($builderOperators['<=']);
+          break;
+      }
+    }
+    return $builderOperators;
   }
 
   /**
@@ -976,6 +998,17 @@ class CRM_Core_SelectValues {
   }
 
   /**
+   * @return array
+   */
+  public static function contributeMode() {
+    return array(
+      CRM_Core_Payment::BILLING_MODE_FORM => 'direct',
+      CRM_Core_Payment::BILLING_MODE_BUTTON => 'directIPN',
+      CRM_Core_Payment::BILLING_MODE_NOTIFY => 'notify',
+    );
+  }
+
+  /**
    * Frequency unit for schedule reminders.
    *
    * @param int $count
@@ -992,6 +1025,86 @@ class CRM_Core_SelectValues {
       'week' => ts('week', array('plural' => 'weeks', 'count' => $count)),
       'month' => ts('month', array('plural' => 'months', 'count' => $count)),
       'year' => ts('year', array('plural' => 'years', 'count' => $count)),
+    );
+  }
+
+  /**
+   * Relative Date Terms.
+   *
+   * @return array
+   */
+  public static function getRelativeDateTerms() {
+    return array(
+      'previous' => ts('Previous'),
+      'previous_2' => ts('Previous 2'),
+      'previous_before' => ts('Prior to Previous'),
+      'before_previous' => ts('All Prior to Previous'),
+      'earlier' => ts('To End of Previous'),
+      'greater_previous' => ts('From End of Previous'),
+      'greater' => ts('From Start Of Current'),
+      'current' => ts('Current'),
+      'ending_3' => ts('Last 3'),
+      'ending_2' => ts('Last 2'),
+      'ending' => ts('Last'),
+      'this' => ts('This'),
+      'starting' => ts('Upcoming'),
+      'less' => ts('To End of'),
+      'next' => ts('Next'),
+    );
+  }
+
+  /**
+   * Relative Date Units.
+   *
+   * @return array
+   */
+  public static function getRelativeDateUnits() {
+    return array(
+      'year' => ts('Years'),
+      'fiscal_year' => ts('Fiscal Years'),
+      'quarter' => ts('Quarters'),
+      'month' => ts('Months'),
+      'week' => ts('Weeks'),
+      'day' => ts('Days'),
+    );
+  }
+
+  /**
+   * Exportable document formats.
+   *
+   * @return array
+   */
+  public static function documentFormat() {
+    return array(
+      'pdf' => ts('Portable Document Format (.pdf)'),
+      'docx' => ts('MS Word (.docx)'),
+      'odt' => ts('Open Office (.odt)'),
+      'html' => ts('Webpage (.html)'),
+    );
+  }
+
+  /**
+   * Application type of document.
+   *
+   * @return array
+   */
+  public static function documentApplicationType() {
+    return array(
+      'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'odt' => 'application/vnd.oasis.opendocument.text',
+    );
+  }
+
+  /**
+   * Activity Text options.
+   *
+   * @return array
+   */
+  public static function activityTextOptions() {
+    return array(
+      2 => ts('Details Only'),
+      3 => ts('Subject Only'),
+      6 => ts('Both'),
     );
   }
 

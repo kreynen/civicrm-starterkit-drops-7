@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Contribute_BAO_ManagePremiums extends CRM_Contribute_DAO_Product {
 
@@ -76,7 +74,7 @@ class CRM_Contribute_BAO_ManagePremiums extends CRM_Contribute_DAO_Product {
    *   Value we want to set the is_active field.
    *
    * @return Object
-   *   DAO object on sucess, null otherwise
+   *   DAO object on success, null otherwise
    */
   public static function setIsActive($id, $is_active) {
     if (!$is_active) {
@@ -88,42 +86,33 @@ class CRM_Contribute_BAO_ManagePremiums extends CRM_Contribute_DAO_Product {
   }
 
   /**
-   * add the financial types.
+   * Add a premium product to the database, and return it.
    *
    * @param array $params
    *   Reference array contains the values submitted by the form.
    * @param array $ids
    *   Reference array contains the id.
    *
-   *
-   * @return object
+   * @return CRM_Contribute_DAO_Product
    */
   public static function add(&$params, &$ids) {
-    // CRM-14283 - strip protocol and domain from image URLs
-    $image_type = array('image', 'thumbnail');
-    foreach ($image_type as $key) {
-      if (isset($params[$key])) {
-        $parsedURL = explode('/', $params[$key]);
-        $pathComponents = array_slice($parsedURL, 3);
-        $params[$key] = '/' . implode('/', $pathComponents);
-      }
-    }
+    $params = array_merge(array(
+      'id' => CRM_Utils_Array::value('premium', $ids),
+      'image' => '',
+      'thumbnail' => '',
+      'is_active' => 0,
+      'is_deductible' => FALSE,
+      'currency' => CRM_Core_Config::singleton()->defaultCurrency,
+    ), $params);
 
-    $params['is_active'] = CRM_Utils_Array::value('is_active', $params, FALSE);
-    $params['is_deductible'] = CRM_Utils_Array::value('is_deductible', $params, FALSE);
+    // Modify the submitted values for 'image' and 'thumbnail' so that we use
+    // local URLs for these images when possible.
+    $params['image'] = CRM_Utils_String::simplifyURL($params['image'], TRUE);
+    $params['thumbnail'] = CRM_Utils_String::simplifyURL($params['thumbnail'], TRUE);
 
-    // action is taken depending upon the mode
+    // Save and return
     $premium = new CRM_Contribute_DAO_Product();
     $premium->copyValues($params);
-
-    $premium->id = CRM_Utils_Array::value('premium', $ids);
-
-    // set currency for CRM-1496
-    if (!isset($premium->currency)) {
-      $config = CRM_Core_Config::singleton();
-      $premium->currency = $config->defaultCurrency;
-    }
-
     $premium->save();
     return $premium;
   }

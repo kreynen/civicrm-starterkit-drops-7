@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
   protected $_charts = array(
@@ -45,8 +43,7 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
   );
 
   /**
-   */
-  /**
+   * Class constructor.
    */
   public function __construct() {
 
@@ -84,7 +81,13 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
           ),
           'financial_type_id' => array(
             'title' => ts('Financial Type'),
-            'requried' => TRUE,
+            'required' => TRUE,
+          ),
+          'frequency_unit' => array(
+            'title' => ts('Frequency Unit'),
+          ),
+          'installments' => array(
+            'title' => ts('Installments'),
           ),
           'amount' => array(
             'title' => ts('Amount'),
@@ -104,8 +107,12 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
             'title' => ts('Pledge Made'),
             'operatorType' => CRM_Report_Form::OP_DATE,
           ),
+          'pledge_amount' => array(
+            'title' => ts('Pledged Amount'),
+            'operatorType' => CRM_Report_Form::OP_INT,
+          ),
           'currency' => array(
-            'title' => 'Currency',
+            'title' => ts('Currency'),
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => CRM_Core_OptionGroup::values('currencies_enabled'),
             'default' => NULL,
@@ -113,8 +120,20 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
           ),
           'financial_type_id' => array(
             'title' => ts('Financial Type'),
+            'type' => CRM_Utils_Type::T_INT,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => CRM_Contribute_PseudoConstant::financialType(),
+          ),
+          'pledge_status_id' => array(
+            'name' => 'status_id',
+            'title' => ts('Pledge Status'),
+            'type' => CRM_Utils_Type::T_INT,
+            'operatorType' => CRM_Report_Form::OP_MULTISELECT,
+            'options' => CRM_Core_OptionGroup::values('pledge_status'),
+          ),
+          'installments' => array(
+            'title' => ts('Installments'),
+            'type' => CRM_Utils_Type::T_INT,
           ),
         ),
         'grouping' => 'pledge-fields',
@@ -126,6 +145,10 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
             'title' => ts('Next Payment Due'),
             'type' => CRM_Utils_Type::T_DATE,
             'required' => TRUE,
+          ),
+          'scheduled_amount' => array(
+            'type' => CRM_Utils_Type::T_MONEY,
+            'title' => ts('Next Payment Amount'),
           ),
         ),
         'filters' => array(
@@ -165,6 +188,7 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
           'gid' => array(
             'name' => 'group_id',
             'title' => ts('Group'),
+            'type' => CRM_Utils_Type::T_INT,
             'group' => TRUE,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => CRM_Core_PseudoConstant::staticGroup(),
@@ -176,13 +200,14 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
     // If we have a campaign, build out the relevant elements
     if ($campaignEnabled && !empty($this->activeCampaigns)) {
       $this->_columns['civicrm_pledge']['fields']['campaign_id'] = array(
-        'title' => 'Campaign',
+        'title' => ts('Campaign'),
         'default' => 'false',
       );
       $this->_columns['civicrm_pledge']['filters']['campaign_id'] = array(
         'title' => ts('Campaign'),
         'operatorType' => CRM_Report_Form::OP_MULTISELECT,
         'options' => $this->activeCampaigns,
+        'type' => CRM_Utils_Type::T_INT,
       );
     }
 
@@ -220,6 +245,7 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
         }
       }
     }
+    $this->_selectClauses = $select;
     $this->_select = "SELECT " . implode(', ', $select) . " ";
   }
 
@@ -245,8 +271,11 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
              INNER JOIN civicrm_pledge  {$this->_aliases['civicrm_pledge']}
                         ON ({$this->_aliases['civicrm_pledge']}.contact_id =
                             {$this->_aliases['civicrm_contact']}.id)  AND
-                            {$this->_aliases['civicrm_pledge']}.status_id IN ( {$statusIds} )
-             LEFT  JOIN civicrm_pledge_payment {$this->_aliases['civicrm_pledge_payment']}
+                            {$this->_aliases['civicrm_pledge']}.status_id IN ( {$statusIds} )\n";
+
+    // Note that the derived query protects us from providing inaccurate data in the edge case where pledge
+    // payments have been edited such that they are not in id order. This might be better as a temp table.
+    $this->_from .= "LEFT JOIN (SELECT * FROM civicrm_pledge_payment ORDER BY scheduled_date) as {$this->_aliases['civicrm_pledge_payment']}
                         ON ({$this->_aliases['civicrm_pledge']}.id =
                             {$this->_aliases['civicrm_pledge_payment']}.pledge_id AND  {$this->_aliases['civicrm_pledge_payment']}.status_id = {$pendingStatus} ) ";
 
@@ -270,10 +299,12 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
   }
 
   public function groupBy() {
-    $this->_groupBy = "
-         GROUP BY {$this->_aliases['civicrm_pledge']}.contact_id,
-                  {$this->_aliases['civicrm_pledge']}.id,
-                  {$this->_aliases['civicrm_pledge']}.currency";
+    $groupBy = array(
+      "{$this->_aliases['civicrm_pledge']}.contact_id",
+      "{$this->_aliases['civicrm_pledge']}.id",
+      "{$this->_aliases['civicrm_pledge']}.currency",
+    );
+    $this->_groupBy = CRM_Contact_BAO_Query::getGroupByFromSelectColumns($this->_selectClauses, $groupBy);
   }
 
   public function orderBy() {
@@ -341,7 +372,7 @@ class CRM_Report_Form_Pledge_Pbnp extends CRM_Report_Form {
       //handle the Status Ids
       if (array_key_exists('civicrm_pledge_status_id', $row)) {
         if ($value = $row['civicrm_pledge_status_id']) {
-          $rows[$rowNum]['civicrm_pledge_status_id'] = CRM_Contribute_PseudoConstant::contributionStatus($value);
+          $rows[$rowNum]['civicrm_pledge_status_id'] = CRM_Core_PseudoConstant::getLabel('CRM_Pledge_BAO_Pledge', 'status_id', $value);
         }
         $entryFound = TRUE;
       }

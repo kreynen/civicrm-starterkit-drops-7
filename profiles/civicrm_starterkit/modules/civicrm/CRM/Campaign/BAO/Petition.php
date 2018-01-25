@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,12 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Campaign_BAO_Petition extends CRM_Campaign_BAO_Survey {
   /**
+   * Class constructor.
    */
   public function __construct() {
     parent::__construct();
@@ -241,7 +240,7 @@ SELECT  petition.id                         as id,
     // change activity status to completed (status_id = 2)
     // I wonder why do we need contact_id when we have activity_id anyway? [chastell]
     $sql = 'UPDATE civicrm_activity SET status_id = 2 WHERE id = %1';
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $sourceID = CRM_Utils_Array::key('Activity Source', $activityContacts);
     $params = array(
       1 => array($activity_id, 'Integer'),
@@ -253,11 +252,7 @@ SELECT  petition.id                         as id,
     $sql = 'UPDATE civicrm_activity_contact SET contact_id = %2 WHERE activity_id = %1 AND record_type_id = %3';
     CRM_Core_DAO::executeQuery($sql, $params);
     // remove 'Unconfirmed' tag for this contact
-    $tag_name = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
-      'tag_unconfirmed',
-      NULL,
-      'Unconfirmed'
-    );
+    $tag_name = Civi::settings()->get('tag_unconfirmed');
 
     $sql = "
 DELETE FROM civicrm_entity_tag
@@ -312,7 +307,7 @@ AND         tag_id = ( SELECT id FROM civicrm_tag WHERE name = %2 )";
                 civicrm_survey.id =  %1 AND
                 a.source_record_id =  %1  ";
 
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $sourceID = CRM_Utils_Array::key('Activity Source', $activityContacts);
     $params = array(
       1 => array($surveyId, 'Integer'),
@@ -437,7 +432,7 @@ AND         tag_id = ( SELECT id FROM civicrm_tag WHERE name = %2 )";
     }
     $sql .= " ORDER BY  a.activity_date_time";
 
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $sourceID = CRM_Utils_Array::key('Activity Source', $activityContacts);
     $params[3] = array($sourceID, 'Integer');
 
@@ -502,7 +497,7 @@ AND         tag_id = ( SELECT id FROM civicrm_tag WHERE name = %2 )";
 
     $surveyInfo = CRM_Campaign_BAO_Petition::getSurveyInfo($surveyId);
     $signature = array();
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $sourceID = CRM_Utils_Array::key('Activity Source', $activityContacts);
 
     $sql = "
@@ -548,10 +543,9 @@ AND         tag_id = ( SELECT id FROM civicrm_tag WHERE name = %2 )";
    * @param array $params
    *   (reference ) an assoc array of name/value pairs.
    *
-   * @param $sendEmailMode
+   * @param int $sendEmailMode
    *
    * @throws Exception
-   * @return void
    */
   public static function sendEmail($params, $sendEmailMode) {
 
@@ -566,11 +560,7 @@ AND         tag_id = ( SELECT id FROM civicrm_tag WHERE name = %2 )";
      */
 
     // check if the group defined by CIVICRM_PETITION_CONTACTS exists, else create it
-    $petitionGroupName = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
-      'petition_contacts',
-      NULL,
-      'Petition Contacts'
-    );
+    $petitionGroupName = Civi::settings()->get('petition_contacts');
 
     $dao = new CRM_Contact_DAO_Group();
     $dao->title = $petitionGroupName;

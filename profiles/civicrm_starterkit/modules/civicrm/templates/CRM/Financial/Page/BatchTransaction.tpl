@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -42,9 +42,9 @@
   </tbody>
 </table>
 
-<div class="crm-submit-buttons">{if $statusID eq 1}{$form.close_batch.html}{/if} {$form.export_batch.html}</div>
+<div class="crm-submit-buttons">{if in_array($batchStatus, array('Open', 'Reopened'))}{$form.close_batch.html}{/if} {$form.export_batch.html}</div>
 
-{if $statusID eq 1} {* Add / remove transactions only allowed for Open batches *}
+{if in_array($batchStatus, array('Open', 'Reopened'))} {* Add / remove transactions only allowed for Open/Reopened batches *}
   <br /><div class="form-layout-compressed">{$form.trans_remove.html}&nbsp;{$form.rSubmit.html}</div><br/>
 {/if}
 
@@ -55,14 +55,15 @@
     <table id="crm-transaction-selector-remove-{$entityID}" cellpadding="0" cellspacing="0" border="0">
       <thead>
         <tr>
-          <th class="crm-transaction-checkbox">{if $statusID eq 1}{$form.toggleSelects.html}{/if}</th>
+          <th class="crm-transaction-checkbox">{if in_array($batchStatus, array('Open', 'Reopened'))}{$form.toggleSelects.html}{/if}</th>
           <th class="crm-contact-type"></th>
           <th class="crm-contact-name">{ts}Name{/ts}</th>
           <th class="crm-amount">{ts}Amount{/ts}</th>
-    <th class="crm-trxnID">{ts}Trxn ID{/ts}</th>
-          <th class="crm-received">{ts}Received{/ts}</th>
+          <th class="crm-trxnID">{ts}Trxn ID{/ts}</th>
+          <th class="crm-trxn_date">{ts}Payment/Transaction Date{/ts}</th>
+          <th class="crm-received">{ts}Contribution Date{/ts}</th>
           <th class="crm-payment-method">{ts}Pay Method{/ts}</th>
-    <th class="crm-status">{ts}Status{/ts}</th>
+          <th class="crm-status">{ts}Status{/ts}</th>
           <th class="crm-type">{ts}Type{/ts}</th>
           <th class="crm-transaction-links"></th>
         </tr>
@@ -90,6 +91,9 @@ CRM.$(function($) {
 });
 function assignRemove(recordID, op) {
   var recordBAO = 'CRM_Batch_BAO_Batch';
+  if (op == 'assign' || op == 'remove') {
+    recordBAO = 'CRM_Batch_BAO_EntityBatch';   
+  }
   var entityID = {/literal}"{$entityID}"{literal};
   if (op == 'close' || op == 'export') {
     var mismatch = checkMismatch();

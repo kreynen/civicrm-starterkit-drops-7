@@ -1,15 +1,15 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
  | CiviCRM is free software; you can copy, modify, and distribute it  |
  | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007.                                       |
+ | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
  |                                                                    |
  | CiviCRM is distributed in the hope that it will be useful, but     |
  | WITHOUT ANY WARRANTY; without even the implied warranty of         |
@@ -23,12 +23,12 @@
  | GNU Affero General Public License or the licensing of CiviCRM,     |
  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
  +--------------------------------------------------------------------+
-*/
+ */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -89,6 +89,33 @@ function civicrm_rules_rules_action_remove_from_group($contact, $settings) {
 }
 
 /**
+ * Action contact: add a contact to a group
+ */
+function civicrm_rules_rules_action_add_tag($contact, $settings) {
+  $contactId = !empty($contact->id) ? $contact->id : $contact->getVar('_contactId');
+
+  if ($contactId) {
+    foreach ($settings as $tagid) {
+      _civicrm_rules_tag_contact($contactId, $tagid);
+    }
+    return array('contact' => $contact);
+  }
+}
+
+/**
+ * Action contact: remove a contact from a group
+ */
+function civicrm_rules_rules_action_remove_tag($contact, $settings) {
+  $contactId = !empty($contact->id) ? $contact->id : $contact->getVar('_contactId');
+  if ($contactId) {
+    foreach ($settings as $tagid) {
+      _civicrm_rules_tag_contact($contactId, $tagid, 'delete');
+    }
+    return array('contact' => $contact);
+  }
+}
+
+/**
  * Action: Creates a contact.
  * FIX ME: This function is not called, hence can be deleted
  */
@@ -117,4 +144,3 @@ function civicrm_rules_options_list() {
   $settings['groups'] = _civicrm_get_groups();
   return $settings;
 }
-

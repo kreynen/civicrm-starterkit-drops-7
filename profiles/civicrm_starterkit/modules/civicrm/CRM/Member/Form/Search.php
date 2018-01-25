@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,17 +28,13 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
+ * @copyright CiviCRM LLC (c) 2004-2017
+ */
+
+/**
+ * Membership search.
  *
- */
-
-/**
- * Files required
- */
-
-/**
- * This file is for civimember search
+ * Class is a pane in advanced search and the membership search page.
  */
 class CRM_Member_Form_Search extends CRM_Core_Form_Search {
 
@@ -52,18 +48,16 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
   /**
    * Are we restricting ourselves to a single contact.
    *
-   * @var boolean
+   * @var bool
    */
   protected $_single = FALSE;
 
   /**
    * Are we restricting ourselves to a single contact.
    *
-   * @var boolean
+   * @var bool
    */
   protected $_limit = NULL;
-
-  protected $_defaults;
 
   /**
    * Prefix for the controller.
@@ -71,16 +65,18 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
   protected $_prefix = "member_";
 
   /**
-   * Processing needed for buildForm and later.
+   * Declare entity reference fields as they will need to be converted to using 'IN'.
    *
-   * @return void
+   * @var array
+   */
+  protected $entityReferenceFields = array('membership_type_id');
+
+  /**
+   * Processing needed for buildForm and later.
    */
   public function preProcess() {
     $this->set('searchFormName', 'Search');
 
-    /**
-     * set the button names
-     */
     $this->_searchButtonName = $this->getButtonName('refresh');
     $this->_actionButtonName = $this->getButtonName('next', 'action');
 
@@ -93,7 +89,7 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
      * driven by the wizard framework
      */
 
-    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean', CRM_Core_DAO::$_nullObject);
+    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean');
     $this->_force = CRM_Utils_Request::retrieve('force', 'Boolean', $this, FALSE);
     $this->_limit = CRM_Utils_Request::retrieve('limit', 'Positive', $this);
     $this->_context = CRM_Utils_Request::retrieve('context', 'String', $this, FALSE, 'search');
@@ -121,7 +117,7 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
       );
     }
 
-    $this->_queryParams = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
+    $this->_queryParams = CRM_Contact_BAO_Query::convertFormValues($this->_formValues, 0, FALSE, NULL, $this->entityReferenceFields);
     $selector = new CRM_Member_Selector_Search($this->_queryParams,
       $this->_action,
       NULL,
@@ -154,9 +150,6 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
 
   /**
    * Build the form object.
-   *
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
@@ -210,10 +203,6 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
    *        done.
    * The processing consists of using a Selector / Controller framework for getting the
    * search results.
-   *
-   * @param
-   *
-   * @return void
    */
   public function postProcess() {
     if ($this->_done) {
@@ -233,7 +222,7 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
 
     CRM_Core_BAO_CustomValue::fixCustomFieldValue($this->_formValues);
 
-    $this->_queryParams = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
+    $this->_queryParams = CRM_Contact_BAO_Query::convertFormValues($this->_formValues, 0, FALSE, NULL, $this->entityReferenceFields);
 
     $this->set('formValues', $this->_formValues);
     $this->set('queryParams', $this->_queryParams);
@@ -256,7 +245,7 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
       );
     }
 
-    $this->_queryParams = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
+    $this->_queryParams = CRM_Contact_BAO_Query::convertFormValues($this->_formValues, 0, FALSE, NULL, $this->entityReferenceFields);
 
     $selector = new CRM_Member_Selector_Search($this->_queryParams,
       $this->_action,
@@ -286,39 +275,41 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
     $controller->run();
   }
 
+  /**
+   * Set default values.
+   *
+   * @todo - can this function override be removed?
+   *
+   * @return array
+   */
   public function setDefaultValues() {
     return $this->_defaults;
   }
 
+  /**
+   * If this search has been forced then see if there are any get values, and if so over-ride the post values.
+   *
+   * Note that this means that GET over-rides POST :) & that force with no parameters can be very destructive.
+   */
   public function fixFormValues() {
-    // if this search has been forced
-    // then see if there are any get values, and if so over-ride the post values
-    // note that this means that GET over-rides POST :)
-
     if (!$this->_force) {
       return;
     }
 
-    $status = CRM_Utils_Request::retrieve('status', 'String',
-      CRM_Core_DAO::$_nullObject
-    );
+    $status = CRM_Utils_Request::retrieve('status', 'String');
     if ($status) {
       $status = explode(',', $status);
       $this->_formValues['membership_status_id'] = $this->_defaults['membership_status_id'] = (array) $status;
     }
 
-    $membershipType = CRM_Utils_Request::retrieve('type', 'String',
-      CRM_Core_DAO::$_nullObject
-    );
+    $membershipType = CRM_Utils_Request::retrieve('type', 'String');
 
     if ($membershipType) {
       $this->_formValues['membership_type_id'] = array($membershipType);
       $this->_defaults['membership_type_id'] = array($membershipType);
     }
 
-    $cid = CRM_Utils_Request::retrieve('cid', 'Positive',
-      CRM_Core_DAO::$_nullObject
-    );
+    $cid = CRM_Utils_Request::retrieve('cid', 'Positive');
 
     if ($cid) {
       $cid = CRM_Utils_Type::escape($cid, 'Integer');
@@ -333,32 +324,24 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
       }
     }
 
-    $fromDate = CRM_Utils_Request::retrieve('start', 'Date',
-      CRM_Core_DAO::$_nullObject
-    );
+    $fromDate = CRM_Utils_Request::retrieve('start', 'Date');
     if ($fromDate) {
       list($date) = CRM_Utils_Date::setDateDefaults($fromDate);
       $this->_formValues['member_start_date_low'] = $this->_defaults['member_start_date_low'] = $date;
     }
 
-    $toDate = CRM_Utils_Request::retrieve('end', 'Date',
-      CRM_Core_DAO::$_nullObject
-    );
+    $toDate = CRM_Utils_Request::retrieve('end', 'Date');
     if ($toDate) {
       list($date) = CRM_Utils_Date::setDateDefaults($toDate);
       $this->_formValues['member_start_date_high'] = $this->_defaults['member_start_date_high'] = $date;
     }
-    $joinDate = CRM_Utils_Request::retrieve('join', 'Date',
-      CRM_Core_DAO::$_nullObject
-    );
+    $joinDate = CRM_Utils_Request::retrieve('join', 'Date');
     if ($joinDate) {
       list($date) = CRM_Utils_Date::setDateDefaults($joinDate);
       $this->_formValues['member_join_date_low'] = $this->_defaults['member_join_date_low'] = $date;
     }
 
-    $joinEndDate = CRM_Utils_Request::retrieve('joinEnd', 'Date',
-      CRM_Core_DAO::$_nullObject
-    );
+    $joinEndDate = CRM_Utils_Request::retrieve('joinEnd', 'Date');
     if ($joinEndDate) {
       list($date) = CRM_Utils_Date::setDateDefaults($joinEndDate);
       $this->_formValues['member_join_date_high'] = $this->_defaults['member_join_date_high'] = $date;
@@ -369,14 +352,14 @@ class CRM_Member_Form_Search extends CRM_Core_Form_Search {
     );
 
     //LCD also allow restrictions to membership owner via GET
-    $owner = CRM_Utils_Request::retrieve('owner', 'String', CRM_Core_DAO::$_nullObject);
-    if ($owner) {
-      $this->_formValues['member_is_primary'] = $this->_defaults['member_is_primary'] = 2;
+    $owner = CRM_Utils_Request::retrieve('owner', 'String');
+    if (in_array($owner, array('0', '1'))) {
+      $this->_formValues['member_is_primary'] = $this->_defaults['member_is_primary'] = $owner;
     }
   }
 
   /**
-   * Return a descriptive name for the page, used in wizard header
+   * Return a descriptive name for the page, used in wizard header.
    *
    * @return string
    */

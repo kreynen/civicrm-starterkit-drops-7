@@ -2,7 +2,7 @@
 
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.2                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -79,7 +79,7 @@ class GatewayRequest
 
     var $txCustomerIPAddress = "";
 
-   function GatewayRequest()   
+   function __construct()
    {
       // Empty Constructor
    }

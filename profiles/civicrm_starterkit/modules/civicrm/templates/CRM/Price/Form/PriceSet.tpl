@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -37,6 +37,7 @@
     {foreach from=$priceSet.fields item=element key=field_id}
         {* Skip 'Admin' visibility price fields WHEN this tpl is used in online registration unless user has administer CiviCRM permission. *}
         {if $element.visibility EQ 'public' || ($element.visibility EQ 'admin' && $adminFld EQ true) || $context eq 'standalone' || $context eq 'advanced' || $context eq 'search' || $context eq 'participant' || $context eq 'dashboard' || $action eq 1024}
+            {if $element.help_pre}<span class="content description">{$element.help_pre}</span><br />{/if}
             <div class="crm-section {$element.name}-section">
             {if ($element.html_type eq 'CheckBox' || $element.html_type == 'Radio') && $element.options_per_line}
               {assign var="element_name" value="price_"|cat:$field_id}
@@ -69,7 +70,8 @@
                 {assign var="element_name" value="price_"|cat:$field_id}
 
                 <div class="label">{$form.$element_name.label}</div>
-                <div class="content {$element.name}-content">{$form.$element_name.html}
+                <div class="content {$element.name}-content">
+                  {$form.$element_name.html}
                   {if $element.html_type eq 'Text'}
                     {if $element.is_display_amounts}
                     <span class="price-field-amount{if $form.$element_name.frozen EQ 1} sold-out-option{/if}">
@@ -102,17 +104,20 @@
                 </div>
 
             {/if}
-              {if !empty($extends) && $extends eq "Membership" && $element.html_type != 'Text'}
-                <div id="allow_auto_renew">
-                  <div class='crm-section auto-renew'>
-                    <div class='label'></div>
-                    <div class ='content'>
-                      {if isset($form.auto_renew) }
-                        {$form.auto_renew.html}&nbsp;{$form.auto_renew.label}
-                      {/if}
+              {if !empty($extends) && $extends eq "Membership"}
+                {if (!empty($priceSet) && $element.id == $priceSet.auto_renew_membership_field) || (empty($priceSet) && $element.name == 'membership_amount')}
+                  <div id="allow_auto_renew">
+                    <div class='crm-section auto-renew'>
+                      <div class='label'></div>
+                      <div class='content' id="auto_renew_section">
+                        {if isset($form.auto_renew) }
+                          {$form.auto_renew.html}&nbsp;{$form.auto_renew.label}
+                        {/if}
+                      </div>
+                      <div class='content' id="force_renew" style='display: none'>{ts}Membership will renew automatically.{/ts}</div>
                     </div>
                   </div>
-                </div>
+                {/if}
               {/if}
               <div class="clear"></div>
           </div>
@@ -123,9 +128,6 @@
       <div class="messages help">{$priceSet.help_post}</div>
     {/if}
 
-{* Include the total calculation widget if this is NOT a quickconfig event/contribution page. *}
-{if !$quickConfig and !$dontInclCal}
     {include file="CRM/Price/Form/Calculate.tpl"}
-{/if}
 </div>
 {/crmRegion}

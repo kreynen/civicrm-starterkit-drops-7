@@ -18,17 +18,17 @@
     "require": {
         "php": ">=5.3.3"
     },
+    "require-dev": {
+        "symfony/phpunit-bridge": "~2.7"
+    },
     "autoload": {
-        "psr-0": { "Symfony\\Component\\Finder\\": "" },
-        "exclude-from-classmap": [
-            "/Tests/"
-        ]
+        "psr-0": { "Symfony\\Component\\Finder\\": "" }
     },
     "target-dir": "Symfony/Component/Finder",
     "minimum-stability": "dev",
     "extra": {
         "branch-alias": {
-            "dev-master": "2.3-dev"
+            "dev-master": "2.6-dev"
         }
     }
 }

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Report_Form_Case_Summary extends CRM_Report_Form {
 
@@ -41,8 +39,7 @@ class CRM_Report_Form_Case_Summary extends CRM_Report_Form {
   protected $_customGroupExtends = array('Case');
 
   /**
-   */
-  /**
+   * Class constructor.
    */
   public function __construct() {
     $this->case_types = CRM_Case_PseudoConstant::caseType();
@@ -64,7 +61,7 @@ class CRM_Report_Form_Case_Summary extends CRM_Report_Form {
         'fields' => array(
           'client_name' => array(
             'name' => 'sort_name',
-            'title' => ts('Client'),
+            'title' => ts('Contact Name'),
             'required' => TRUE,
           ),
           'id' => array(
@@ -72,6 +69,13 @@ class CRM_Report_Form_Case_Summary extends CRM_Report_Form {
             'required' => TRUE,
           ),
         ),
+        'order_bys' => array(
+          'client_name' => array(
+            'title' => ts('Contact Name'),
+            'name' => 'sort_name',
+          ),
+        ),
+        'grouping'  => 'case-fields',
       ),
       'civicrm_case' => array(
         'dao' => 'CRM_Case_DAO_Case',
@@ -126,12 +130,13 @@ class CRM_Report_Form_Case_Summary extends CRM_Report_Form {
           'case_type_id' => array(
             'title' => ts('Case Type'),
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
-            'options' => $this->case_types,
+            'options' => CRM_Case_BAO_Case::buildOptions('case_type_id', 'search'),
           ),
           'status_id' => array(
             'title' => ts('Status'),
+            'type' => CRM_Utils_Type::T_INT,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
-            'options' => $this->case_statuses,
+            'options' => CRM_Case_BAO_Case::buildOptions('status_id', 'search'),
           ),
           'is_deleted' => array(
             'title' => ts('Deleted?'),
@@ -141,6 +146,18 @@ class CRM_Report_Form_Case_Summary extends CRM_Report_Form {
             'default' => 0,
           ),
         ),
+        'order_bys'  => array(
+          'start_date' => array(
+            'title' => ts('Start Date'),
+          ),
+          'end_date' => array(
+            'title' => ts('End Date'),
+          ),
+          'status_id' => array(
+            'title' => ts('Status'),
+          ),
+        ),
+        'grouping'  => 'case-fields',
       ),
       'civicrm_contact' => array(
         'dao' => 'CRM_Contact_DAO_Contact',
@@ -161,6 +178,7 @@ class CRM_Report_Form_Case_Summary extends CRM_Report_Form {
         'filters' => array(
           'relationship_type_id' => array(
             'title' => ts('Staff Relationship'),
+            'type' => CRM_Utils_Type::T_INT,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => $this->rel_types,
           ),
@@ -213,6 +231,7 @@ class CRM_Report_Form_Case_Summary extends CRM_Report_Form {
         }
       }
     }
+    $this->_selectClauses = $select;
 
     $this->_select = "SELECT " . implode(', ', $select) . " ";
   }
@@ -263,7 +282,7 @@ inner join civicrm_contact $c2 on ${c2}.id=${ccc}.contact_id
     }
     else {
       $this->_from = "
-            FROM civicrm_contact $c, civicrm_case $cc
+            FROM civicrm_case $cc
 inner join civicrm_case_contact $ccc on ${ccc}.case_id = ${cc}.id
 inner join civicrm_contact $c2 on ${c2}.id=${ccc}.contact_id
 ";
@@ -330,7 +349,7 @@ inner join civicrm_contact $c2 on ${c2}.id=${ccc}.contact_id
   }
 
   public function groupBy() {
-    $this->_groupBy = "GROUP BY {$this->_aliases['civicrm_c2']}.id";
+    $this->_groupBy = "";
   }
 
   public function postProcess() {

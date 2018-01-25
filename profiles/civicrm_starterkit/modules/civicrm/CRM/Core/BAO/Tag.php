@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,11 +28,14 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
+
+  /**
+   * @var array
+   */
+  protected $tree;
 
   /**
    * Class constructor.
@@ -63,7 +66,9 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
   }
 
   /**
-   * @param null $usedFor
+   * Get tag tree.
+   *
+   * @param string $usedFor
    * @param bool $excludeHidden
    *
    * @return mixed
@@ -76,7 +81,9 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
   }
 
   /**
-   * Build a nested array from hierarchical tags. Supports infinite levels of nesting.
+   * Build a nested array from hierarchical tags.
+   *
+   * Supports infinite levels of nesting.
    * @param null $usedFor
    * @param bool $excludeHidden
    */
@@ -97,9 +104,10 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
 
     $sql .= " ORDER BY parent_id,name";
 
-    $dao = CRM_Core_DAO::executeQuery($sql, CRM_Core_DAO::$_nullArray, TRUE, NULL, FALSE, FALSE);
+    $dao = CRM_Core_DAO::executeQuery($sql, array(), TRUE, NULL, FALSE, FALSE);
 
     $refs = array();
+    $this->tree = array();
     while ($dao->fetch()) {
       $thisref = &$refs[$dao->id];
 
@@ -115,10 +123,11 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
         $refs[$dao->parent_id]['children'][$dao->id] = &$thisref;
       }
     }
-
   }
 
   /**
+   * Get tags used for the given entity/entities.
+   *
    * @param array $usedFor
    * @param bool $buildSelect
    * @param bool $all
@@ -172,6 +181,8 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
           $tags[$tag->id]['parent_id'] = $tag->parent_id;
           $tags[$tag->id]['is_tagset'] = $tag->is_tagset;
           $tags[$tag->id]['used_for'] = $tag->used_for;
+          $tags[$tag->id]['description'] = $tag->description;
+          $tags[$tag->id]['color'] = !empty($tag->color) ? $tag->color : NULL;
         }
       }
       $tag->free();
@@ -208,10 +219,10 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
       $tags = array();
     }
     // We need to build a list of tags ordered by hierarchy and sorted by
-    // name. The heirarchy will be communicated by an accumulation of
+    // name. The hierarchy will be communicated by an accumulation of
     // separators in front of the name to give it a visual offset.
     // Instead of recursively making mysql queries, we'll make one big
-    // query and build the heirarchy with the algorithm below.
+    // query and build the hierarchy with the algorithm below.
     $args = array(1 => array('%' . $usedFor . '%', 'String'));
     $query = "SELECT id, name, parent_id, is_tagset, is_selectable
                   FROM civicrm_tag
@@ -314,6 +325,45 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
   }
 
   /**
+   * @param string $usedFor
+   * @param bool $allowSelectingNonSelectable
+   * @param null $exclude
+   * @return array
+   * @throws \CiviCRM_API3_Exception
+   */
+  public static function getColorTags($usedFor = NULL, $allowSelectingNonSelectable = FALSE, $exclude = NULL) {
+    $params = array(
+      'options' => array(
+        'limit' => 0,
+        'sort' => "name ASC",
+      ),
+      'is_tagset' => 0,
+      'return' => array('name', 'description', 'parent_id', 'color', 'is_selectable', 'used_for'),
+    );
+    if ($usedFor) {
+      $params['used_for'] = array('LIKE' => "%$usedFor%");
+    }
+    if ($exclude) {
+      $params['id'] = array('!=' => $exclude);
+    }
+    $allTags = array();
+    foreach (CRM_Utils_Array::value('values', civicrm_api3('Tag', 'get', $params)) as $id => $tag) {
+      $allTags[$id] = array(
+        'text' => $tag['name'],
+        'id' => $id,
+        'description' => CRM_Utils_Array::value('description', $tag),
+        'parent_id' => CRM_Utils_Array::value('parent_id', $tag),
+        'used_for' => CRM_Utils_Array::value('used_for', $tag),
+        'color' => CRM_Utils_Array::value('color', $tag),
+      );
+      if (!$allowSelectingNonSelectable && empty($tag['is_selectable'])) {
+        $allTags[$id]['disabled'] = TRUE;
+      }
+    }
+    return CRM_Utils_Array::buildTree($allTags);
+  }
+
+  /**
    * Delete the tag.
    *
    * @param int $id
@@ -323,7 +373,7 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
    */
   public static function del($id) {
     // since this is a destructive operation, lets make sure
-    // id is a postive number
+    // id is a positive number
     CRM_Utils_Type::validate($id, 'Positive');
 
     // delete all crm_entity_tag records with the selected tag id
@@ -345,7 +395,7 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
   }
 
   /**
-   * Takes an associative array and creates a contact object.
+   * Takes an associative array and creates a tag object.
    *
    * The function extract all the params it needs to initialize the create a
    * contact object. the params array could contain additional unused name/value
@@ -357,13 +407,27 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
    *   (optional) the array that holds all the db ids - we are moving away from this in bao.
    * signatures
    *
-   * @return object
-   *   CRM_Core_DAO_Tag object on success, otherwise null
+   * @return CRM_Core_DAO_Tag|null
+   *   object on success, otherwise null
    */
   public static function add(&$params, $ids = array()) {
     $id = CRM_Utils_Array::value('id', $params, CRM_Utils_Array::value('tag', $ids));
     if (!$id && !self::dataExists($params)) {
       return NULL;
+    }
+
+    // Check permission to create or modify reserved tag
+    if (!empty($params['check_permissions']) && !CRM_Core_Permission::check('administer reserved tags')) {
+      if (!empty($params['is_reserved']) || ($id && CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Tag', $id, 'is_reserved'))) {
+        throw new CRM_Core_Exception('Insufficient permission to administer reserved tag.');
+      }
+    }
+
+    // Check permission to create or modify tagset
+    if (!empty($params['check_permissions']) && !CRM_Core_Permission::check('administer Tagsets')) {
+      if (!empty($params['is_tagset']) || ($id && CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Tag', $id, 'is_tagset'))) {
+        throw new CRM_Core_Exception('Insufficient permission to administer tagset.');
+      }
     }
 
     $tag = new CRM_Core_DAO_Tag();
@@ -372,6 +436,13 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
     if (!empty($params['parent_id'])) {
       // get parent details
       $params['used_for'] = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Tag', $params['parent_id'], 'used_for');
+    }
+    elseif (isset($params['used_for']) && is_array($params['used_for'])) {
+      $params['used_for'] = implode(',', $params['used_for']);
+    }
+
+    if (isset($params['color']) && strtolower($params['color']) === '#ffffff') {
+      $params['color'] = '';
     }
 
     $tag->copyValues($params);
@@ -390,10 +461,11 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
     CRM_Utils_Hook::post($hook, 'Tag', $tag->id, $tag);
 
     // if we modify parent tag, then we need to update all children
-    if ($tag->parent_id === 'null') {
+    $tag->find(TRUE);
+    if (!$tag->parent_id && $tag->used_for) {
       CRM_Core_DAO::executeQuery("UPDATE civicrm_tag SET used_for=%1 WHERE parent_id = %2",
         array(
-          1 => array($params['used_for'], 'String'),
+          1 => array($tag->used_for, 'String'),
           2 => array($tag->id, 'Integer'),
         )
       );
@@ -456,7 +528,7 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
     $tags = $tagSets = array();
     // first get all the tag sets
     $query = "SELECT id FROM civicrm_tag WHERE is_tagset=1 AND parent_id IS NULL";
-    $dao = CRM_Core_DAO::executeQuery($query, CRM_Core_DAO::$_nullArray);
+    $dao = CRM_Core_DAO::executeQuery($query);
     while ($dao->fetch()) {
       $tagSets[] = $dao->id;
     }
@@ -474,6 +546,42 @@ class CRM_Core_BAO_Tag extends CRM_Core_DAO_Tag {
     }
 
     return $tags;
+  }
+
+  /**
+   * Get child tags IDs
+   *
+   * @return array $childTagIDs
+   *   associated array of child tags in Array('Parent Tag ID' => Array('Child Tag 1', ...)) format
+   */
+  public static function getChildTags() {
+    $childTagIDs = array();
+
+    // only fetch those tags which has child tags
+    $getChildGroupSQL = "SELECT parent.id as parent_id, GROUP_CONCAT(child.id) as child_id
+        FROM civicrm_tag parent,
+        civicrm_tag child
+        WHERE parent.is_tagset <> 1 AND child.parent_id = parent.id
+        GROUP BY parent.id
+    ";
+    $dao = CRM_Core_DAO::executeQuery($getChildGroupSQL);
+    while ($dao->fetch()) {
+      $childTagIDs[$dao->parent_id] = (array) explode(',', $dao->child_id);
+    }
+
+    // check if child tag has any childs, if found then include those child tags inside parent tag
+    //  i.e. format Array('parent_tag' => array('child_tag_1', ...), 'child_tag_1' => array(child_tag_1_1, ..), ..)
+    //  to Array('parent_tag' => array('child_tag_1', 'child_tag_1_1'...), ..)
+    foreach ($childTagIDs as $parentTagID => $childTags) {
+      foreach ($childTags as $childTag) {
+        // if $childTag has any child tag of its own
+        if (array_key_exists($childTag, $childTagIDs)) {
+          $childTagIDs[$parentTagID] = array_merge($childTagIDs[$parentTagID], $childTagIDs[$childTag]);
+        }
+      }
+    }
+
+    return $childTagIDs;
   }
 
 }

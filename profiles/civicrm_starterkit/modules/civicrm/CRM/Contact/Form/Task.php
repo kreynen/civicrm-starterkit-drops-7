@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,12 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class generates form components for search-result tasks
+ * This class generates form components for search-result tasks.
  */
 class CRM_Contact_Form_Task extends CRM_Core_Form {
 
@@ -98,9 +97,21 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
    * @param bool $useTable
    */
   public static function preProcessCommon(&$form, $useTable = FALSE) {
-
     $form->_contactIds = array();
     $form->_contactTypes = array();
+
+    $isStandAlone = (in_array('task', $form->urlPath));
+    if ($isStandAlone) {
+      list($form->_task, $title) = CRM_Contact_Task::getTaskAndTitleByClass(get_class($form));
+      if (!array_key_exists($form->_task, CRM_Contact_Task::permissionedTaskTitles(CRM_Core_Permission::getPermission()))) {
+        CRM_Core_Error::fatal(ts('You do not have enough permission to do this task.'));
+      }
+      $form->_contactIds = explode(',', CRM_Utils_Request::retrieve('cids', 'String', $form, TRUE));
+      if (empty($form->_contactIds)) {
+        CRM_Core_Error::statusBounce(ts("You did't selected any contact to perform this task."));
+      }
+      $form->setTitle($title);
+    }
 
     // get the submitted values of the search form
     // we'll need to get fv from either search or adv search in the future
@@ -117,7 +128,7 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
       self::$_searchFormValues = $form->controller->exportValues('Custom');
       $fragment .= '/custom';
     }
-    else {
+    elseif (!$isStandAlone) {
       self::$_searchFormValues = $form->controller->exportValues('Basic');
     }
 
@@ -143,7 +154,7 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
       $sql = " DROP TABLE IF EXISTS {$form->_componentTable}";
       CRM_Core_DAO::executeQuery($sql);
 
-      $sql = "CREATE TABLE {$form->_componentTable} ( contact_id int primary key) ENGINE=MyISAM DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci";
+      $sql = "CREATE TABLE {$form->_componentTable} ( contact_id int primary key) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci";
       CRM_Core_DAO::executeQuery($sql);
     }
 
@@ -184,7 +195,7 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
           CRM_Core_DAO::executeQuery($sql);
         }
       }
-      else {
+      elseif (empty($form->_contactIds)) {
         // filter duplicates here
         // CRM-7058
         // might be better to do this in the query, but that logic is a bit complex
@@ -201,7 +212,7 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
       // need to perform action on only selected contacts
       $insertString = array();
 
-      // refire sql in case of custom seach
+      // refire sql in case of custom search
       if ($form->_action == CRM_Core_Action::COPY) {
         // selected contacts only
         // need to perform action on only selected contacts
@@ -374,7 +385,7 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
         array(
           'type' => $backType,
           'name' => ts('Cancel'),
-          'icon' => 'close',
+          'icon' => 'fa-times',
         ),
       )
     );
@@ -429,7 +440,7 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
       $today = date('Ymd');
       $relationActive = " AND (crel.is_active = 1 AND ( crel.end_date is NULL OR crel.end_date >= {$today} ) )";
       $relationWhere = " WHERE contact_household.is_deleted = 0  AND crel.{$contactA} IN ( {$relID} ) {$relationActive}";
-      $relationGroupBy = " GROUP BY crel.{$contactA}";
+      $relationGroupBy = " GROUP BY crel.{$contactA}, contact_household.id";
       $relationQueryString = "$relationSelect $relationFrom $relationWhere $relationGroupBy";
 
       $householdsDAO = CRM_Core_DAO::executeQuery($relationQueryString);
@@ -443,6 +454,20 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
         }
       }
       $householdsDAO->free();
+    }
+
+    // If contact list has changed, households will probably be at the end of
+    // the list. Sort it again by sort_name.
+    if (implode(',', $this->_contactIds) != $relID) {
+      $result = civicrm_api3('Contact', 'get', array(
+        'return' => array('id'),
+        'id' => array('IN' => $this->_contactIds),
+        'options' => array(
+          'limit' => 0,
+          'sort' => "sort_name",
+        ),
+      ));
+      $this->_contactIds = array_keys($result['values']);
     }
   }
 
@@ -458,7 +483,6 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
     $searchParams = $this->controller->exportValues();
     if ($searchParams['radio_ts'] == 'ts_sel') {
       // Create a static group.
-
       $randID = md5(time() . rand(1, 1000)); // groups require a unique name
       $grpTitle = "Hidden Group {$randID}";
       $grpID = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Group', $grpTitle, 'id', 'title');
@@ -483,7 +507,7 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
           'title' => $newGroupTitle,
           'group_type' => array('2' => 1),
         );
-        $group = CRM_Contact_BAO_Group::create($groupParams);
+        CRM_Contact_BAO_Group::create($groupParams);
       }
 
       // note at this point its a static group
@@ -491,7 +515,6 @@ class CRM_Contact_Form_Task extends CRM_Core_Form {
     }
     else {
       // Create a smart group.
-
       $ssId = $this->get('ssID');
       $hiddenSmartParams = array(
         'group_type' => array('2' => 1),

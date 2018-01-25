@@ -7,7 +7,6 @@
  * =================
  *  + Introduction
  *  + License Abbreviations
- *  + How-To: PEAR install instructions
  *  + How-To: Manual upgrade of a forked package
  *  + Package List: PEAR
  *  + Package List: Manually installed
@@ -24,6 +23,13 @@
  * file provides all the notes about how/where to download/upgrade third-party
  * library.
  *
+ * Note that the packages directory is generally deprecated for
+ * managing dependencies. Instead, one should update a config file
+ * in the main civicrm-core project:
+ *
+ *  - For PHP dependencies, use composer.json
+ *  - For client-side CSS/JS resources, use bower.json
+ *  - For CLI JS tools, use package.json
  *
  * License Abbreviations
  * =====================
@@ -44,23 +50,6 @@
  *   X11       X11 (a.k.a. MIT) license
  *
  *
- * How-To: PEAR install instructions
- * =================================
- *
- * pear config-set download_dir /tmp
- * pear config-set bin_dir   packages/bin
- * pear config-set doc_dir   packages/doc
- * pear config-set ext_dir   packages/ext
- * pear config-set php_dir   packages
- * pear config-set cache_dir packages/cache
- * pear config-set cfg_dir   packages/cfg
- * pear config-set data_dir  packages/data
- * pear config-set temp_dir  packages/temp
- * pear config-set test_dir  packages/test
- * pear config-set www_dir   packages/www
- * pear install Archive_Tar  # etc., in the main CiviCRM dir
- *
- *
  * How-To: Manual upgrade of a forked package
  * ==========================================
  *
@@ -74,7 +63,6 @@
  *
  * Package List: PEAR
  * ==================
- * Auth_SASL                     1.0.3      BSD 3-cl.
  * Contact_Vcard_Build           1.1.2      PHP 3          local changes
  * Contact_Vcard_Parse           1.32.0     PHP 3.0
  * Date                          1.4.7      BSD 3-cl.
@@ -93,14 +81,11 @@
  * Mail_mimeDecode               1.5.1      BSD 3-cl.
  * Net_Curl                      1.2.5      BSD 3-cl.
  * Net_DIME                      1.0.1      BSD 3-cl.
- * Net_SMTP                      1.6.1      PHP 2          local changes
- * Net_Socket                    1.0.9      PHP 2
  * Net_URL                       1.0.15     BSD 3-cl.
  * Net_UserAgent_Detect          2.5.1      PHP 2
  * Pager                         2.4.8      BSD 3-cl.
  * PEAR                          1.9.0      PHP 3.0
  * PHP_Beautifier                0.1.14     PHP 3.0
- * Services_JSON                 1.0.1      BSD 2-cl.
  * Services_Twilio               3.10.0     MIT
  * Structures_Graph              1.0.2      LGPL 2.1+
  * System_Command                1.0.6      PHP 2
@@ -145,5 +130,4 @@
  * ============================
  * Facebook      BSD 2-cl.
  * Google        Apache 2/GPL 2+
- * TinyMCE       LGPL 2.1
  */

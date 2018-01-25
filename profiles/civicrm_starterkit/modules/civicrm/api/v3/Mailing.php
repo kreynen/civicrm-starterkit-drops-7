@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -133,16 +133,11 @@ function _civicrm_api3_mailing_gettokens_spec(&$params) {
  *   Array of parameters determined by getfields.
  */
 function _civicrm_api3_mailing_create_spec(&$params) {
-  $params['created_id']['api.required'] = 1;
   $params['created_id']['api.default'] = 'user_contact_id';
 
-  $params['override_verp']['api.default'] = !CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::MAILING_PREFERENCES_NAME,
-    'track_civimail_replies', NULL, FALSE
-  );
+  $params['override_verp']['api.default'] = !CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::MAILING_PREFERENCES_NAME, 'track_civimail_replies');
   $params['visibility']['api.default'] = 'Public Pages';
-  $params['dedupe_email']['api.default'] = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::MAILING_PREFERENCES_NAME,
-    'dedupe_email_default', NULL, FALSE
-  );
+  $params['dedupe_email']['api.default'] = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::MAILING_PREFERENCES_NAME, 'dedupe_email_default');
 
   $params['forward_replies']['api.default'] = FALSE;
   $params['auto_responder']['api.default'] = FALSE;
@@ -157,7 +152,7 @@ function _civicrm_api3_mailing_create_spec(&$params) {
   $params['unsubscribe_id']['api.default'] = CRM_Mailing_PseudoConstant::defaultComponent('Unsubscribe', '');
   $params['mailing_type']['api.default'] = 'standalone';
   $defaultAddress = CRM_Core_OptionGroup::values('from_email_address', NULL, NULL, NULL, ' AND is_default = 1');
-  foreach ($defaultAddress as $id => $value) {
+  foreach ($defaultAddress as $value) {
     if (preg_match('/"(.*)" <(.*)>/', $value, $match)) {
       $params['from_email']['api.default'] = $match[2];
       $params['from_name']['api.default'] = $match[1];
@@ -165,12 +160,25 @@ function _civicrm_api3_mailing_create_spec(&$params) {
   }
 }
 
+/**
+ * Adjust metadata for clone spec action.
+ *
+ * @param array $spec
+ */
 function _civicrm_api3_mailing_clone_spec(&$spec) {
   $mailingFields = CRM_Mailing_DAO_Mailing::fields();
   $spec['id'] = $mailingFields['id'];
   $spec['id']['api.required'] = 1;
 }
 
+/**
+ * Clone mailing.
+ *
+ * @param array $params
+ *
+ * @return array
+ * @throws \CiviCRM_API3_Exception
+ */
 function civicrm_api3_mailing_clone($params) {
   $BLACKLIST = array(
     'id',
@@ -185,6 +193,7 @@ function civicrm_api3_mailing_clone($params) {
     'approval_note',
     'is_archived',
     'hash',
+    'mailing_type',
   );
 
   $get = civicrm_api3('Mailing', 'getsingle', array('id' => $params['id']));
@@ -559,7 +568,7 @@ function civicrm_api3_mailing_preview($params) {
 
   $details = CRM_Utils_Token::getTokenDetails($mailingParams, $returnProperties, TRUE, TRUE, NULL, $mailing->getFlattenedTokens());
 
-  $mime = &$mailing->compose(NULL, NULL, NULL, $session->get('userID'), $fromEmail, $fromEmail,
+  $mime = $mailing->compose(NULL, NULL, NULL, $session->get('userID'), $fromEmail, $fromEmail,
     TRUE, $details[0][$contactID], $attachments
   );
 
@@ -603,9 +612,11 @@ function civicrm_api3_mailing_send_test($params) {
 
   $testEmailParams = _civicrm_api3_generic_replace_base_params($params);
   $testEmailParams['is_test'] = 1;
+  $testEmailParams['status'] = 'Scheduled';
+  $testEmailParams['scheduled_date'] = CRM_Utils_Date::processDate(date('Y-m-d'), date('H:i:s'));
   $job = civicrm_api3('MailingJob', 'create', $testEmailParams);
   $testEmailParams['job_id'] = $job['id'];
-  $testEmailParams['emails'] = explode(',', $testEmailParams['test_email']);
+  $testEmailParams['emails'] = array_key_exists('test_email', $testEmailParams) ? explode(',', $testEmailParams['test_email']) : NULL;
   if (!empty($params['test_email'])) {
     $query = CRM_Utils_SQL_Select::from('civicrm_email e')
         ->select(array('e.id', 'e.contact_id', 'e.email'))
@@ -660,7 +671,7 @@ function civicrm_api3_mailing_send_test($params) {
 
   $isComplete = FALSE;
   $config = CRM_Core_Config::singleton();
-  $mailerJobSize = (property_exists($config, 'mailerJobSize')) ? $config->mailerJobSize : NULL;
+  $mailerJobSize = Civi::settings()->get('mailerJobSize');
   while (!$isComplete) {
     // Q: In CRM_Mailing_BAO_Mailing::processQueue(), the three runJobs*()
     // functions are all called. Why does Mailing.send_test only call one?
@@ -686,6 +697,8 @@ function civicrm_api3_mailing_send_test($params) {
 function _civicrm_api3_mailing_stats_spec(&$params) {
   $params['date']['api.default'] = 'now';
   $params['date']['title'] = 'Date';
+  $params['is_distinct']['api.default'] = FALSE;
+  $params['is_distinct']['title'] = 'Is Distinct';
 }
 
 /**
@@ -718,31 +731,31 @@ function civicrm_api3_mailing_stats($params) {
     switch ($detail) {
       case 'Delivered':
         $stats[$params['mailing_id']] += array(
-          $detail => CRM_Mailing_Event_BAO_Delivered::getTotalCount($params['mailing_id'], $params['job_id'], FALSE, $params['date']),
+          $detail => CRM_Mailing_Event_BAO_Delivered::getTotalCount($params['mailing_id'], $params['job_id'], (bool) $params['is_distinct'], $params['date']),
         );
         break;
 
       case 'Bounces':
         $stats[$params['mailing_id']] += array(
-          $detail => CRM_Mailing_Event_BAO_Bounce::getTotalCount($params['mailing_id'], $params['job_id'], FALSE, $params['date']),
+          $detail => CRM_Mailing_Event_BAO_Bounce::getTotalCount($params['mailing_id'], $params['job_id'], (bool) $params['is_distinct'], $params['date']),
         );
         break;
 
       case 'Unsubscribers':
         $stats[$params['mailing_id']] += array(
-          $detail => CRM_Mailing_Event_BAO_Unsubscribe::getTotalCount($params['mailing_id'], $params['job_id'], FALSE, NULL, $params['date']),
+          $detail => CRM_Mailing_Event_BAO_Unsubscribe::getTotalCount($params['mailing_id'], $params['job_id'], (bool) $params['is_distinct'], NULL, $params['date']),
         );
         break;
 
       case 'Unique Clicks':
         $stats[$params['mailing_id']] += array(
-          $detail => CRM_Mailing_Event_BAO_TrackableURLOpen::getTotalCount($params['mailing_id'], $params['job_id'], FALSE, NULL, $params['date']),
+          $detail => CRM_Mailing_Event_BAO_TrackableURLOpen::getTotalCount($params['mailing_id'], $params['job_id'], (bool) $params['is_distinct'], NULL, $params['date']),
         );
         break;
 
       case 'Opened':
         $stats[$params['mailing_id']] += array(
-          $detail => CRM_Mailing_Event_BAO_Opened::getTotalCount($params['mailing_id'], $params['job_id'], FALSE, $params['date']),
+          $detail => CRM_Mailing_Event_BAO_Opened::getTotalCount($params['mailing_id'], $params['job_id'], (bool) $params['is_distinct'], $params['date']),
         );
         break;
     }

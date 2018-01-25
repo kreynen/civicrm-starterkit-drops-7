@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 
@@ -85,7 +83,7 @@ class CRM_Mailing_Event_BAO_Subscribe extends CRM_Mailing_Event_DAO_Subscribe {
       $contact_id = $contactId;
     }
     else {
-      /* First, find out if the contact already exists */
+      // First, find out if the contact already exists.
 
       $query = "
    SELECT DISTINCT contact_a.id as contact_id
@@ -95,7 +93,6 @@ LEFT JOIN civicrm_email      ON contact_a.id = civicrm_email.contact_id
 
       $params = array(1 => array($email, 'String'));
       $dao = CRM_Core_DAO::executeQuery($query, $params);
-      $id = array();
       // lets just use the first contact id we got
       if ($dao->fetch()) {
         $contact_id = $dao->contact_id;
@@ -106,25 +103,16 @@ LEFT JOIN civicrm_email      ON contact_a.id = civicrm_email.contact_id
     $transaction = new CRM_Core_Transaction();
 
     if (!$contact_id) {
-      require_once 'CRM/Utils/DeprecatedUtils.php';
-
-      /* If the contact does not exist, create one. */
-
+      $locationType = CRM_Core_BAO_LocationType::getDefault();
       $formatted = array(
         'contact_type' => 'Individual',
-        'version' => 3,
-      );
-      $locationType = CRM_Core_BAO_LocationType::getDefault();
-      $value = array(
         'email' => $email,
         'location_type_id' => $locationType->id,
       );
-      _civicrm_api3_deprecated_add_formatted_param($value, $formatted);
 
       $formatted['onDuplicate'] = CRM_Import_Parser::DUPLICATE_SKIP;
       $formatted['fixAddress'] = TRUE;
-      require_once 'api/api.php';
-      $contact = civicrm_api('contact', 'create', $formatted);
+      $contact = civicrm_api3('contact', 'create', $formatted);
       if (civicrm_error($contact)) {
         return $success;
       }
@@ -137,10 +125,7 @@ LEFT JOIN civicrm_email      ON contact_a.id = civicrm_email.contact_id
       return $success;
     }
 
-    /* Get the primary email id from the contact to use as a hash input */
-
-    $dao = new CRM_Core_DAO();
-
+    // Get the primary email id from the contact to use as a hash input.
     $query = "
 SELECT     civicrm_email.id as email_id
   FROM     civicrm_email
@@ -205,8 +190,6 @@ SELECT     civicrm_email.id as email_id
    *
    * @param string $email
    *   The email address.
-   *
-   * @return void
    */
   public function send_confirm_request($email) {
     $config = CRM_Core_Config::singleton();
@@ -291,7 +274,7 @@ SELECT     civicrm_email.id as email_id
       $this->id,
       $this->hash
     );
-    $mailer = $config->getMailer();
+    $mailer = \Civi::service('pear_mail');
 
     if (is_object($mailer)) {
       $errorScope = CRM_Core_TemporaryErrorScope::ignoreException();
@@ -376,8 +359,6 @@ SELECT     civicrm_email.id as email_id
    *   Specifically to avoid linking group to wrong duplicate contact
    *   during event registration.
    * @param string $context
-   *
-   * @return void
    */
   public static function commonSubscribe(&$groups, &$params, $contactId = NULL, $context = NULL) {
     $contactGroups = CRM_Mailing_Event_BAO_Subscribe::getContactGroups($params['email'], $contactId);

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -106,14 +106,9 @@ class CRM_Event_Form_ParticipantFeeSelection extends CRM_Core_Form {
 
     $ids = CRM_Event_BAO_Participant::getParticipantIds($this->_contributionId);
     if (count($ids) > 1) {
-      $total = 0;
-      foreach ($ids as $val) {
-        $total += CRM_Price_BAO_LineItem::getLineTotal($val, 'civicrm_participant');
-      }
+      $total = CRM_Price_BAO_LineItem::getLineTotal($this->_contributionId);
       $this->assign('totalLineTotal', $total);
-
-      $lineItemTotal = CRM_Price_BAO_LineItem::getLineTotal($this->_participantId, 'civicrm_participant');
-      $this->assign('lineItemTotal', $lineItemTotal);
+      $this->assign('lineItemTotal', $total);
     }
 
     $title = ts("Change selections for %1", array(1 => $this->_contributorDisplayName));
@@ -122,6 +117,11 @@ class CRM_Event_Form_ParticipantFeeSelection extends CRM_Core_Form {
     }
   }
 
+  /**
+   * Set default values for the form.
+   *
+   * @return array
+   */
   public function setDefaultValues() {
     $params = array('id' => $this->_participantId);
 
@@ -239,7 +239,7 @@ class CRM_Event_Form_ParticipantFeeSelection extends CRM_Core_Form {
 
     $feeBlock = $this->_values['fee'];
     $lineItems = $this->_values['line_items'];
-    CRM_Event_BAO_Participant::changeFeeSelections($params, $this->_participantId, $this->_contributionId, $feeBlock, $lineItems, $this->_paidAmount, $params['priceSetId']);
+    CRM_Price_BAO_LineItem::changeFeeSelections($params, $this->_participantId, 'participant', $this->_contributionId, $feeBlock, $lineItems, $this->_paidAmount);
     $this->contributionAmt = CRM_Core_DAO::getFieldValue('CRM_Contribute_BAO_Contribution', $this->_contributionId, 'total_amount');
     // email sending
     if (!empty($params['send_receipt'])) {
@@ -278,7 +278,7 @@ class CRM_Event_Form_ParticipantFeeSelection extends CRM_Core_Form {
    * @return mixed
    */
   public function emailReceipt(&$params) {
-    $updatedLineItem = CRM_Price_BAO_LineItem::getLineItems($this->_participantId, 'participant', NULL, FALSE);
+    $updatedLineItem = CRM_Price_BAO_LineItem::getLineItems($this->_participantId, 'participant', FALSE, FALSE);
     $lineItem = array();
     if ($updatedLineItem) {
       $lineItem[] = $updatedLineItem;

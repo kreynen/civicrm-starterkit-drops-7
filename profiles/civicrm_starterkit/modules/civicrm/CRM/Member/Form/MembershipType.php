@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -167,9 +167,8 @@ class CRM_Member_Form_MembershipType extends CRM_Member_Form_MembershipConfig {
     $this->add('date', 'month_fixed_period_rollover_day', ts('Fixed Period Rollover Day'),
       CRM_Core_SelectValues::date(NULL, 'd'), FALSE
     );
-
     $this->add('select', 'financial_type_id', ts('Financial Type'),
-      array('' => ts('- select -')) + CRM_Contribute_PseudoConstant::financialType(), TRUE, array('class' => 'crm-select2')
+      array('' => ts('- select -')) + CRM_Financial_BAO_FinancialType::getAvailableFinancialTypes($financialTypes, $this->_action), TRUE, array('class' => 'crm-select2')
     );
 
     $relTypeInd = CRM_Contact_BAO_Relationship::getContactRelationshipType(NULL, NULL, NULL, NULL, TRUE);
@@ -188,10 +187,9 @@ class CRM_Member_Form_MembershipType extends CRM_Member_Form_MembershipConfig {
 
     $membershipRecords = FALSE;
     if ($this->_action & CRM_Core_Action::UPDATE) {
-      $membershipType = new CRM_Member_BAO_Membership();
-      $membershipType->membership_type_id = $this->_id;
-      if ($membershipType->find(TRUE)) {
-        $membershipRecords = TRUE;
+      $result = civicrm_api3("Membership", "get", array("membership_type_id" => $this->_id, "options" => array("limit" => 1)));
+      $membershipRecords = ($result["count"] > 0);
+      if ($membershipRecords) {
         $memberRel->freeze();
       }
     }
@@ -205,6 +203,11 @@ class CRM_Member_Form_MembershipType extends CRM_Member_Form_MembershipConfig {
     $this->addFormRule(array('CRM_Member_Form_MembershipType', 'formRule'));
 
     $this->assign('membershipTypeId', $this->_id);
+
+    if (CRM_Contribute_BAO_Contribution::checkContributeSettings('deferred_revenue_enabled')) {
+      $deferredFinancialType = CRM_Financial_BAO_FinancialAccount::getDeferredFinancialType();
+      $this->assign('deferredFinancialType', array_keys($deferredFinancialType));
+    }
   }
 
   /**

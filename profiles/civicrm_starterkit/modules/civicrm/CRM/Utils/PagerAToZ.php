@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -26,16 +26,12 @@
  */
 
 /**
- *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
  * This class is for displaying alphabetical bar
- *
  */
 class CRM_Utils_PagerAToZ {
 
@@ -61,7 +57,7 @@ class CRM_Utils_PagerAToZ {
    * Return the all the static characters.
    *
    * @return array
-   *   is a array of static characters
+   *   is an array of static characters
    */
   public static function getStaticCharacters() {
     $staticAlphabets = array(
@@ -102,7 +98,7 @@ class CRM_Utils_PagerAToZ {
    * @param $isDAO
    *
    * @return array
-   *   is a array of dynamic characters
+   *   is an array of dynamic characters
    */
   public static function getDynamicCharacters(&$query, $isDAO) {
     if ($isDAO) {
@@ -147,7 +143,7 @@ class CRM_Utils_PagerAToZ {
     sort($AToZBar, SORT_STRING);
     $AToZBar = array_unique($AToZBar);
 
-    //get the current path
+    // get the current path
     $path = CRM_Utils_System::currentPath();
 
     $qfKey = NULL;
@@ -155,7 +151,9 @@ class CRM_Utils_PagerAToZ {
       $qfKey = CRM_Utils_Array::value('qfKey', $query->_formValues);
     }
     if (empty($qfKey)) {
-      $qfKey = CRM_Utils_Request::retrieve('qfKey', 'String', $this, FALSE, NULL, $_REQUEST);
+      // CRM-20943 Can only pass variables by reference and also cannot use $this so using $empty setting to NULL which is default.
+      $emptyVariable = NULL;
+      $qfKey = CRM_Utils_Request::retrieve('qfKey', 'String', $emptyVariable, FALSE, NULL, $_REQUEST);
     }
 
     $aToZBar = array();

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
 
@@ -112,8 +110,6 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
    *
    * @param CRM_Core_Controller $controller
    *   The controller object.
-   *
-   * @return void
    */
   public function addValues($controller) {
   }
@@ -134,12 +130,10 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
 
   /**
    * Run the basic page (run essentially starts execution for that page).
-   *
-   * @return void
    */
   public function run() {
     // CRM-9034
-    // dont see args or pageArgs being used, so we should
+    // do not see args or pageArgs being used, so we should
     // consider eliminating them in a future version
     $n = func_num_args();
     $args = ($n > 0) ? func_get_arg(0) : NULL;
@@ -147,19 +141,7 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
     $sort = ($n > 2) ? func_get_arg(2) : NULL;
     // what action do we want to perform ? (store it for smarty too.. :)
 
-    $this->_action = CRM_Utils_Request::retrieve('action', 'String', $this, FALSE, 'browse');
-    $this->assign('action', $this->_action);
-
-    // get 'id' if present
-    $id = CRM_Utils_Request::retrieve('id', 'Positive', $this, FALSE, 0);
-
-    require_once str_replace('_', DIRECTORY_SEPARATOR, $this->getBAOName()) . ".php";
-
-    if ($id) {
-      if (!$this->checkPermission($id, NULL)) {
-        CRM_Core_Error::fatal(ts('You do not have permission to make changes to the record'));
-      }
-    }
+    $id = $this->getIdAndAction();
 
     if ($this->_action & (CRM_Core_Action::VIEW |
         CRM_Core_Action::ADD |
@@ -182,6 +164,33 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
   }
 
   /**
+   * Retrieve the action and ID from the request.
+   *
+   * Action is assigned to the template while we're at it.  This is pulled from
+   * the `run()` method above.
+   *
+   * @return int
+   *   The ID if present, or 0.
+   */
+  public function getIdAndAction() {
+    $this->_action = CRM_Utils_Request::retrieve('action', 'String', $this, FALSE, 'browse');
+    $this->assign('action', $this->_action);
+
+    // get 'id' if present
+    $id = CRM_Utils_Request::retrieve('id', 'Positive', $this, FALSE, 0);
+
+    require_once str_replace('_', DIRECTORY_SEPARATOR, $this->getBAOName()) . ".php";
+
+    if ($id) {
+      if (!$this->checkPermission($id, NULL)) {
+        CRM_Core_Error::fatal(ts('You do not have permission to make changes to the record'));
+      }
+    }
+
+    return $id;
+  }
+
+  /**
    * @return string
    */
   public function superRun() {
@@ -190,8 +199,6 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
 
   /**
    * Browse all entities.
-   *
-   * @return void
    */
   public function browse() {
     $n = func_num_args();
@@ -234,10 +241,7 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
       $object->orderBy($key . ' asc');
     }
 
-    //@todo FIXME - using the CRM_Core_DAO::VALUE_SEPARATOR creates invalid html - if you can find the form
-    // this is loaded onto then replace with something like '__' & test
-    $separator = CRM_Core_DAO::VALUE_SEPARATOR;
-    $contactTypes = CRM_Contact_BAO_ContactType::getSelectElements(FALSE, TRUE, $separator);
+    $contactTypes = CRM_Contact_BAO_ContactType::getSelectElements(FALSE, FALSE);
     // find all objects
     $object->find();
     while ($object->fetch()) {
@@ -254,8 +258,12 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
           CRM_Core_DAO::storeValues($object, $values[$object->id]);
 
           if (is_a($object, 'CRM_Contact_DAO_RelationshipType')) {
-            $values[$object->id]['contact_type_a_display'] = $contactTypes[$values[$object->id]['contact_type_a']];
-            $values[$object->id]['contact_type_b_display'] = $contactTypes[$values[$object->id]['contact_type_b']];
+            if (isset($values[$object->id]['contact_type_a'])) {
+              $values[$object->id]['contact_type_a_display'] = $contactTypes[$values[$object->id]['contact_type_a']];
+            }
+            if (isset($values[$object->id]['contact_type_b'])) {
+              $values[$object->id]['contact_type_b_display'] = $contactTypes[$values[$object->id]['contact_type_b']];
+            }
           }
 
           // populate action links
@@ -288,8 +296,6 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
    *   The permission assigned to this object.
    *
    * @param bool $forceAction
-   *
-   * @return void
    */
   public function action(&$object, $action, &$values, &$links, $permission, $forceAction = FALSE) {
     $values['class'] = '';
@@ -297,11 +303,10 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
     $hasDelete = $hasDisable = TRUE;
 
     if (!empty($values['name']) && in_array($values['name'], array(
-        'encounter_medium',
-        'case_type',
-        'case_status',
-      ))
-    ) {
+      'encounter_medium',
+      'case_type',
+      'case_status',
+    ))) {
       static $caseCount = NULL;
       if (!isset($caseCount)) {
         $caseCount = CRM_Case_BAO_Case::caseCount(NULL, FALSE);
@@ -370,8 +375,6 @@ abstract class CRM_Core_Page_Basic extends CRM_Core_Page {
    *
    * @param bool $imageUpload
    * @param bool $pushUserContext
-   *
-   * @return void
    */
   public function edit($mode, $id = NULL, $imageUpload = FALSE, $pushUserContext = TRUE) {
     $controller = new CRM_Core_Controller_Simple($this->editForm(),

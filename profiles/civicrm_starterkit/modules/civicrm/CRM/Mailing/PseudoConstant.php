@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,14 +28,12 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
  * This class holds all the Pseudo constants that are specific to Mass mailing. This avoids
- * polluting the core class and isolates the mass mailer class
+ * polluting the core class and isolates the mass mailer class.
  */
 class CRM_Mailing_PseudoConstant extends CRM_Core_PseudoConstant {
 
@@ -198,7 +196,7 @@ class CRM_Mailing_PseudoConstant extends CRM_Core_PseudoConstant {
                 FROM    civicrm_mailing_component
                 WHERE   is_active = 1
                 AND     is_default = 1
-                GROUP BY component_type";
+                GROUP BY component_type, id";
 
       $dao = CRM_Core_DAO::executeQuery($queryDefaultComponents);
 

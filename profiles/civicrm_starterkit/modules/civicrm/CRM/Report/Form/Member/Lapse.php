@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -45,8 +45,20 @@ class CRM_Report_Form_Member_Lapse extends CRM_Report_Form {
   public $_drilldownReport = array('member/detail' => 'Link to Detail Report');
 
   /**
+   * This report has not been optimised for group filtering.
+   *
+   * The functionality for group filtering has been improved but not
+   * all reports have been adjusted to take care of it. This report has not
+   * and will run an inefficient query until fixed.
+   *
+   * CRM-19170
+   *
+   * @var bool
    */
+  protected $groupFilterNotOptimised = TRUE;
+
   /**
+   * Class constructor.
    */
   public function __construct() {
 
@@ -78,10 +90,6 @@ class CRM_Report_Form_Member_Lapse extends CRM_Report_Form {
             'title' => ts('First Name'),
             'no_repeat' => TRUE,
           ),
-          'id' => array(
-            'no_display' => TRUE,
-            'required' => TRUE,
-          ),
           'last_name' => array(
             'title' => ts('Last Name'),
             'no_repeat' => TRUE,
@@ -102,6 +110,7 @@ class CRM_Report_Form_Member_Lapse extends CRM_Report_Form {
           'tid' => array(
             'name' => 'id',
             'title' => ts('Membership Types'),
+            'type' => CRM_Utils_Type::T_INT,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => CRM_Member_PseudoConstant::membershipType(),
           ),
@@ -112,7 +121,7 @@ class CRM_Report_Form_Member_Lapse extends CRM_Report_Form {
         'grouping' => 'member-fields',
         'fields' => array(
           'membership_type_id' => array(
-            'title' => 'Membership Type',
+            'title' => ts('Membership Type'),
             'required' => TRUE,
             'type' => CRM_Utils_Type::T_STRING,
           ),
@@ -126,7 +135,7 @@ class CRM_Report_Form_Member_Lapse extends CRM_Report_Form {
         ),
         'filters' => array(
           'membership_end_date' => array(
-            'title' => 'Lapsed Memberships',
+            'title' => ts('Lapsed Memberships'),
             'operatorType' => CRM_Report_Form::OP_DATE,
           ),
         ),
@@ -174,13 +183,14 @@ class CRM_Report_Form_Member_Lapse extends CRM_Report_Form {
     // If we have a campaign, build out the relevant elements
     if ($campaignEnabled && !empty($this->activeCampaigns)) {
       $this->_columns['civicrm_membership']['fields']['campaign_id'] = array(
-        'title' => 'Campaign',
+        'title' => ts('Campaign'),
         'default' => 'false',
       );
       $this->_columns['civicrm_membership']['filters']['campaign_id'] = array(
         'title' => ts('Campaign'),
         'operatorType' => CRM_Report_Form::OP_MULTISELECT,
         'options' => $this->activeCampaigns,
+        'type' => CRM_Utils_Type::T_INT,
       );
     }
 

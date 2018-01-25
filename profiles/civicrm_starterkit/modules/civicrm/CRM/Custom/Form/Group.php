@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -58,13 +58,6 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
    * @var array
    */
   protected $_subtypes = array();
-
-  /**
-   * Array of default params.
-   *
-   * @var array
-   */
-  protected $_defaults = array();
 
   /**
    * Set variables up before form is built.
@@ -208,9 +201,6 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
     $campaignTypes = CRM_Campaign_PseudoConstant::campaignType();
     $membershipType = CRM_Member_BAO_MembershipType::getMembershipTypes(FALSE);
     $participantRole = CRM_Core_OptionGroup::values('participant_role');
-    $relTypeInd = CRM_Contact_BAO_Relationship::getContactRelationshipType(NULL, 'null', NULL, 'Individual');
-    $relTypeOrg = CRM_Contact_BAO_Relationship::getContactRelationshipType(NULL, 'null', NULL, 'Organization');
-    $relTypeHou = CRM_Contact_BAO_Relationship::getContactRelationshipType(NULL, 'null', NULL, 'Household');
 
     ksort($sel1);
     asort($activityType);
@@ -218,19 +208,6 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
     asort($grantType);
     asort($membershipType);
     asort($participantRole);
-    $allRelationshipType = array();
-    $allRelationshipType = array_merge($relTypeInd, $relTypeOrg);
-    $allRelationshipType = array_merge($allRelationshipType, $relTypeHou);
-
-    //adding subtype specific relationships CRM-5256
-    $subTypes = CRM_Contact_BAO_ContactType::subTypeInfo();
-
-    foreach ($subTypes as $subType => $val) {
-      $subTypeRelationshipTypes = CRM_Contact_BAO_Relationship::getContactRelationshipType(NULL, NULL, NULL, $val['parent'],
-        FALSE, 'label', TRUE, $subType
-      );
-      $allRelationshipType = array_merge($allRelationshipType, $subTypeRelationshipTypes);
-    }
 
     $sel2['Event'] = $eventType;
     $sel2['Grant'] = $grantType;
@@ -241,7 +218,7 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
     $sel2['ParticipantEventName'] = CRM_Event_PseudoConstant::event(NULL, FALSE, "( is_template IS NULL OR is_template != 1 )");
     $sel2['ParticipantEventType'] = $eventType;
     $sel2['Contribution'] = CRM_Contribute_PseudoConstant::financialType();
-    $sel2['Relationship'] = $allRelationshipType;
+    $sel2['Relationship'] = self::getRelationshipTypes();
 
     $sel2['Individual'] = CRM_Contact_BAO_ContactType::subTypePairs('Individual', FALSE, NULL);
     $sel2['Household'] = CRM_Contact_BAO_ContactType::subTypePairs('Household', FALSE, NULL);
@@ -251,17 +228,9 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
 
     foreach ($sel2 as $main => $sub) {
       if (!empty($sel2[$main])) {
-        if ($main == 'Relationship') {
-          $relName = self::getFormattedList($sel2[$main]);
-          $sel2[$main] = array(
-            '' => ts("- Any -"),
-          ) + $relName;
-        }
-        else {
-          $sel2[$main] = array(
-            '' => ts("- Any -"),
-          ) + $sel2[$main];
-        }
+        $sel2[$main] = array(
+          '' => ts("- Any -"),
+        ) + $sel2[$main];
       }
     }
 
@@ -335,8 +304,8 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
     $this->assign('defaultSubtypes', json_encode($this->_subtypes));
 
     // help text
-    $this->addWysiwyg('help_pre', ts('Pre-form Help'), $attributes['help_pre']);
-    $this->addWysiwyg('help_post', ts('Post-form Help'), $attributes['help_post']);
+    $this->add('wysiwyg', 'help_pre', ts('Pre-form Help'), $attributes['help_pre']);
+    $this->add('wysiwyg', 'help_post', ts('Post-form Help'), $attributes['help_post']);
 
     // weight
     $this->add('text', 'weight', ts('Order'), $attributes['weight'], TRUE);
@@ -346,16 +315,19 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
     $this->add('select', 'style', ts('Display Style'), CRM_Core_SelectValues::customGroupStyle());
 
     // is this set collapsed or expanded ?
-    $this->addElement('checkbox', 'collapse_display', ts('Collapse this set on initial display'));
+    $this->addElement('advcheckbox', 'collapse_display', ts('Collapse this set on initial display'));
 
     // is this set collapsed or expanded ? in advanced search
-    $this->addElement('checkbox', 'collapse_adv_display', ts('Collapse this set in Advanced Search'));
+    $this->addElement('advcheckbox', 'collapse_adv_display', ts('Collapse this set in Advanced Search'));
 
     // is this set active ?
-    $this->addElement('checkbox', 'is_active', ts('Is this Custom Data Set active?'));
+    $this->addElement('advcheckbox', 'is_active', ts('Is this Custom Data Set active?'));
+
+    //Is this set visible on public pages?
+    $this->addElement('advcheckbox', 'is_public', ts('Is this Custom Data Set public?'));
 
     // does this set have multiple record?
-    $multiple = $this->addElement('checkbox', 'is_multiple',
+    $multiple = $this->addElement('advcheckbox', 'is_multiple',
       ts('Does this Custom Field Set allow multiple records?'), NULL);
 
     // $min_multiple = $this->add('text', 'min_multiple', ts('Minimum number of multiple records'), $attributes['min_multiple'] );
@@ -413,7 +385,7 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
       $defaults['weight'] = CRM_Utils_Weight::getDefaultWeight('CRM_Core_DAO_CustomGroup');
 
       $defaults['is_multiple'] = $defaults['min_multiple'] = 0;
-      $defaults['is_active'] = $defaults['collapse_display'] = 1;
+      $defaults['is_active'] = $defaults['is_public'] = $defaults['collapse_display'] = 1;
       $defaults['style'] = 'Inline';
     }
     elseif (empty($defaults['max_multiple']) && !$this->_isGroupEmpty) {
@@ -467,8 +439,13 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
       }
 
       if (!empty($this->_subtypes)) {
-        $subtypesToBeRemoved = array_diff($this->_subtypes, array_intersect($this->_subtypes, $params['extends'][1]));
-        CRM_Contact_BAO_ContactType::deleteCustomRowsOfSubtype($this->_id, $subtypesToBeRemoved);
+        $subtypesToBeRemoved = array();
+        $subtypesToPreserve = $params['extends'][1];
+        // Don't remove any value if group is extended to -any- subtype
+        if (!empty($subtypesToPreserve[0])) {
+          $subtypesToBeRemoved = array_diff($this->_subtypes, array_intersect($this->_subtypes, $subtypesToPreserve));
+        }
+        CRM_Contact_BAO_ContactType::deleteCustomRowsOfSubtype($this->_id, $subtypesToBeRemoved, $subtypesToPreserve);
       }
     }
     elseif ($this->_action & CRM_Core_Action::ADD) {
@@ -521,36 +498,29 @@ class CRM_Custom_Form_Group extends CRM_Core_Form {
   }
 
   /**
-   * Return a formatted list of relationship name.
-   *
-   * @param array $list
-   *   Array of relationship name.
+   * Return a formatted list of relationship labels.
    *
    * @return array
-   *   Array of relationship name.
+   *   Array (int $id => string $label).
    */
-  public static function getFormattedList(&$list) {
-    $relName = array();
-
-    foreach ($list as $listItemKey => $itemValue) {
-      // Extract the relationship ID.
-      $key = substr($listItemKey, 0, strpos($listItemKey, '_'));
-      if (isset($list["{$key}_b_a"])) {
-        $relName["$key"] = $list["{$key}_a_b"];
-        // Are the two labels different?
-        if ($list["{$key}_a_b"] != $list["{$key}_b_a"]) {
-          $relName["$key"] = $list["{$key}_a_b"] . ' / ' . $list["{$key}_b_a"];
-        }
-        unset($list["{$key}_b_a"]);
-        unset($list["{$key}_a_b"]);
-      }
-      else {
-        // If no '_b_a' label exists save the '_a_b' one and unset it from the list
-        $relName["{$key}"] = $list["{$key}_a_b"];
-        unset($list["{$key}_a_b"]);
-      }
-    }
-    return $relName;
+  public static function getRelationshipTypes() {
+    // Note: We include inactive reltypes because we don't want to break custom-data
+    // UI when a reltype is disabled.
+    return CRM_Core_DAO::executeQuery('
+      SELECT
+        id,
+        (CASE 1
+           WHEN label_a_b is not null AND label_b_a is not null AND label_a_b != label_b_a
+            THEN concat(label_a_b, \' / \', label_b_a)
+           WHEN label_a_b is not null
+            THEN label_a_b
+           WHEN label_b_a is not null
+            THEN label_b_a
+           ELSE concat("RelType #", id)
+        END) as label
+      FROM civicrm_relationship_type
+      '
+    )->fetchMap('id', 'label');
   }
 
 }

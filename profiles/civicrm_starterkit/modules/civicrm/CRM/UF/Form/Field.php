@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * form to process actions on the field aspect of Custom
+ * Form to process actions on the field aspect of Custom.
  */
 class CRM_UF_Form_Field extends CRM_Core_Form {
 
@@ -46,7 +44,7 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
   protected $_gid;
 
   /**
-   * The field id, used when editing the field
+   * The field id, used when editing the field.
    *
    * @var int
    */
@@ -185,18 +183,17 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
   public function buildQuickForm() {
     if ($this->_action & CRM_Core_Action::DELETE) {
       $this->addButtons(array(
-          array(
-            'type' => 'next',
-            'name' => ts('Delete Profile Field'),
-            'spacing' => '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;',
-            'isDefault' => TRUE,
-          ),
-          array(
-            'type' => 'cancel',
-            'name' => ts('Cancel'),
-          ),
-        )
-      );
+        array(
+          'type' => 'next',
+          'name' => ts('Delete Profile Field'),
+          'spacing' => '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;',
+          'isDefault' => TRUE,
+        ),
+        array(
+          'type' => 'cancel',
+          'name' => ts('Cancel'),
+        ),
+      ));
       return;
     }
 
@@ -436,8 +433,8 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
     //CRM-4363
     $js = array('onChange' => "mixProfile();");
     // should the field appear in selectors (as a column)?
-    $this->add('checkbox', 'in_selector', ts('Results Column?'), NULL, NULL, $js);
-    $this->add('checkbox', 'is_searchable', ts('Searchable?'), NULL, NULL, $js);
+    $this->add('advcheckbox', 'in_selector', ts('Results Column?'), NULL, NULL, $js);
+    $this->add('advcheckbox', 'is_searchable', ts('Searchable?'), NULL, NULL, $js);
 
     $attributes = CRM_Core_DAO::getAttribute('CRM_Core_DAO_UFField');
 
@@ -448,14 +445,11 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
     $this->add('textarea', 'help_pre', ts('Field Pre Help'), $attributes['help_pre']);
     $this->add('textarea', 'help_post', ts('Field Post Help'), $attributes['help_post']);
 
-    $this->add('checkbox', 'is_required', ts('Required?'));
+    $this->add('advcheckbox', 'is_required', ts('Required?'));
 
-    $this->add('checkbox', 'is_multi_summary', ts('Include in multi-record listing?'));
-    $this->add('checkbox', 'is_active', ts('Active?'));
-    $this->add('checkbox', 'is_view', ts('View Only?'));
-
-    // $this->add( 'checkbox', 'is_registration', ts( 'Display in Registration Form?' ) );
-    //$this->add( 'checkbox', 'is_match'       , ts( 'Key to Match Contacts?'        ) );
+    $this->add('advcheckbox', 'is_multi_summary', ts('Include in multi-record listing?'));
+    $this->add('advcheckbox', 'is_active', ts('Active?'));
+    $this->add('advcheckbox', 'is_view', ts('View Only?'));
 
     $this->add('text', 'label', ts('Field Label'), $attributes['label']);
 
@@ -466,24 +460,23 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
 
     // add buttons
     $this->addButtons(array(
-        array(
-          'type' => 'next',
-          'name' => ts('Save'),
-          'isDefault' => TRUE,
-          'js' => $js,
-        ),
-        array(
-          'type' => 'next',
-          'name' => ts('Save and New'),
-          'subName' => 'new',
-          'js' => $js,
-        ),
-        array(
-          'type' => 'cancel',
-          'name' => ts('Cancel'),
-        ),
-      )
-    );
+      array(
+        'type' => 'next',
+        'name' => ts('Save'),
+        'isDefault' => TRUE,
+        'js' => $js,
+      ),
+      array(
+        'type' => 'next',
+        'name' => ts('Save and New'),
+        'subName' => 'new',
+        'js' => $js,
+      ),
+      array(
+        'type' => 'cancel',
+        'name' => ts('Cancel'),
+      ),
+    ));
 
     $this->addFormRule(array('CRM_UF_Form_Field', 'formRule'), $this);
 
@@ -504,7 +497,7 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
    * @return void
    */
   public function postProcess() {
-    $ids = array('uf_group' => $this->_gid);
+
     if ($this->_action & CRM_Core_Action::DELETE) {
       $fieldValues = array('uf_group_id' => $this->_gid);
       CRM_Utils_Weight::delWeight('CRM_Core_DAO_UFField', $this->_id, $fieldValues);
@@ -523,12 +516,13 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
 
     // store the submitted values in an array
     $params = $this->controller->exportValues('Field');
+    $params['uf_group_id'] = $this->_gid;
     if ($params['visibility'] == 'User and User Admin Only') {
       $params['is_searchable'] = $params['in_selector'] = 0;
     }
 
     if ($this->_action & CRM_Core_Action::UPDATE) {
-      $ids['uf_field'] = $this->_id;
+      $params['id'] = $this->_id;
     }
 
     $name = NULL;
@@ -539,58 +533,44 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
 
     //Hack for Formatting Field Name
     if ($params['field_name'][0] == 'Formatting') {
-      $params['field_name'][1] = 'formatting_' . rand(1000, 9999);
+      $fieldName = 'formatting_' . rand(1000, 9999);
+    }
+    else {
+      $fieldName = $params['field_name'][1];
     }
 
     //check for duplicate fields
-    if ($params["field_name"][0] != "Formatting" && CRM_Core_BAO_UFField::duplicateField($params, $ids)) {
-      CRM_Core_Session::setStatus(ts('The selected field already exists in this profile.'), ts('Field Not Added'), 'error');
-      return;
+    $apiFormattedParams = $params;
+    $apiFormattedParams['field_type'] = $params['field_name'][0];
+    $apiFormattedParams['field_name'] = $fieldName;
+    if (!empty($params['field_name'][2])) {
+      if ($fieldName === 'url') {
+        $apiFormattedParams['website_type_id'] = $params['field_name'][2];
+      }
+      else {
+        $apiFormattedParams['location_type_id'] = $params['field_name'][2];
+      }
+    }
+    if (!empty($params['field_name'][3])) {
+      $apiFormattedParams['phone_type_id'] = $params['field_name'][3];
+    }
+
+    if ($apiFormattedParams['field_type'] != "Formatting" && CRM_Core_BAO_UFField::duplicateField($apiFormattedParams)) {
+      CRM_Core_Error::statusBounce(ts('The selected field already exists in this profile.'), NULL, ts('Field Not Added'));
     }
     else {
-      $params['weight'] = CRM_Core_BAO_UFField::autoWeight($params);
-      $ufField = CRM_Core_BAO_UFField::add($params, $ids);
+      $apiFormattedParams['weight'] = CRM_Core_BAO_UFField::autoWeight($params);
+      civicrm_api3('UFField', 'create', $apiFormattedParams);
 
       //reset other field is searchable and in selector settings, CRM-4363
       if ($this->_hasSearchableORInSelector &&
-        in_array($ufField->field_type, array('Participant', 'Contribution', 'Membership', 'Activity', 'Case'))
+        in_array($apiFormattedParams['field_type'], array('Participant', 'Contribution', 'Membership', 'Activity', 'Case'))
       ) {
         CRM_Core_BAO_UFField::resetInSelectorANDSearchable($this->_gid);
       }
 
-      $config = CRM_Core_Config::singleton();
-      $showBestResult = FALSE;
-      if (in_array($ufField->field_name, array(
-          'country',
-          'state_province',
-        )) && count($config->countryLimit) > 1
-      ) {
-        // get state or country field weight if exists
-        $field = 'state_province';
-        if ($ufField->field_name == 'state_province') {
-          $field = 'country';
-        }
-        $ufFieldDAO = new CRM_Core_DAO_UFField();
-        $ufFieldDAO->field_name = $field;
-        $ufFieldDAO->location_type_id = $ufField->location_type_id;
-        $ufFieldDAO->uf_group_id = $ufField->uf_group_id;
+      $this->setMessageIfCountryNotAboveState($fieldName, CRM_Utils_Array::value('location_type_id', $apiFormattedParams), $apiFormattedParams['weight'], $apiFormattedParams['uf_group_id']);
 
-        if ($ufFieldDAO->find(TRUE)) {
-          if ($field == 'country' && $ufFieldDAO->weight > $ufField->weight) {
-            $showBestResult = TRUE;
-          }
-          elseif ($field == 'state_province' && $ufFieldDAO->weight < $ufField->weight) {
-            $showBestResult = TRUE;
-          }
-        }
-      }
-
-      //update group_type every time. CRM-3608
-      if ($this->_gid && is_a($ufField, 'CRM_Core_DAO_UFField')) {
-        // get the profile type.
-        $fieldsType = CRM_Core_BAO_UFGroup::calculateGroupType($this->_gid, TRUE);
-        CRM_Core_BAO_UFGroup::updateGroupTypes($this->_gid, $fieldsType);
-      }
       CRM_Core_Session::setStatus(ts('Your CiviCRM Profile Field \'%1\' has been saved to \'%2\'.',
         array(1 => $name, 2 => $this->_title)
       ), ts('Profile Field Saved'), 'success');
@@ -600,14 +580,13 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
     $session = CRM_Core_Session::singleton();
     if ($buttonName == $this->getButtonName('next', 'new')) {
       $session->replaceUserContext(CRM_Utils_System::url('civicrm/admin/uf/group/field/add',
-        "reset=1&action=add&gid={$this->_gid}&sbr={$showBestResult}"
+        "reset=1&action=add&gid={$this->_gid}"
       ));
     }
     else {
       $session->replaceUserContext(CRM_Utils_System::url('civicrm/admin/uf/group/field',
         "reset=1&action=browse&gid={$this->_gid}"
       ));
-      $session->set('showBestResult', $showBestResult);
     }
   }
 
@@ -789,13 +768,13 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
     }
 
     if ($in_selector && in_array($entityName, array(
-        'Contribution',
-        'Participant',
-        'Membership',
-        'Activity',
-      ))
+      'Contribution',
+      'Participant',
+      'Membership',
+      'Activity',
+    ))
     ) {
-      $errors['in_selector'] = ts("'In Selector' cannot be checked for %1 fields.", array(1 => $entityName));
+      $errors['in_selector'] = ts("'Results Column' cannot be checked for %1 fields.", array(1 => $entityName));
     }
 
     $isCustomField = FALSE;
@@ -983,9 +962,9 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
           if (CRM_Contact_BAO_ContactType::isaSubType($profileType)) {
             if ($fieldType != $profileType) {
               $errors['field_name'] = ts('Cannot add or update profile field type "%1" with combination of "%2".', array(
-                  1 => $fieldType,
-                  2 => $profileType,
-                ));
+                1 => $fieldType,
+                2 => $profileType,
+              ));
             }
           }
           else {
@@ -995,9 +974,9 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
               $profileType != 'Contact'
             ) {
               $errors['field_name'] = ts('Cannot add or update profile field type "%1" with combination of "%2".', array(
-                  1 => $fieldType,
-                  2 => $profileType,
-                ));
+                1 => $fieldType,
+                2 => $profileType,
+              ));
             }
           }
         }
@@ -1010,6 +989,39 @@ class CRM_UF_Form_Field extends CRM_Core_Form {
         }
     }
     return empty($errors) ? TRUE : $errors;
+  }
+
+  /**
+   * Set a message warning the user about putting country first to render states, if required.
+   *
+   * @param string $fieldName
+   * @param int $locationTypeID
+   * @param int $weight
+   * @param int $ufGroupID
+   */
+  protected function setMessageIfCountryNotAboveState($fieldName, $locationTypeID, $weight, $ufGroupID) {
+    $message = ts('For best results, the Country field should precede the State-Province field in your Profile form. You can use the up and down arrows on field listing page for this profile to change the order of these fields or manually edit weight for Country/State-Province Field.');
+
+    if (in_array($fieldName, array(
+        'country',
+        'state_province',
+      )) && count(CRM_Core_Config::singleton()->countryLimit) > 1
+    ) {
+      // get state or country field weight if exists
+      $ufFieldDAO = new CRM_Core_DAO_UFField();
+      $ufFieldDAO->field_name = ($fieldName == 'state_province' ? 'country' : 'state_province');
+      $ufFieldDAO->location_type_id = $locationTypeID;
+      $ufFieldDAO->uf_group_id = $ufGroupID;
+
+      if ($ufFieldDAO->find(TRUE)) {
+        if ($ufFieldDAO->field_name == 'country' && $ufFieldDAO->weight > $weight) {
+          CRM_Core_Session::setStatus($message);
+        }
+        elseif ($ufFieldDAO->field_name == 'state_province' && $ufFieldDAO->weight < $weight) {
+          CRM_Core_Session::setStatus($message);
+        }
+      }
+    }
   }
 
 }

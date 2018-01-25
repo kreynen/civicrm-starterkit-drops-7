@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,15 +28,13 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 require_once 'HTML/QuickForm/Rule/Email.php';
 
 /**
  * This class contains string functions.
- *
  */
 class CRM_Utils_String {
   const COMMA = ",", SEMICOLON = ";", SPACE = " ", TAB = "\t", LINEFEED = "\n", CARRIAGELINE = "\r\n", LINECARRIAGE = "\n\r", CARRIAGERETURN = "\r";
@@ -49,7 +47,7 @@ class CRM_Utils_String {
   /**
    * Convert a display name into a potential variable name.
    *
-   * @param $title title of the string
+   * @param string $title title of the string
    * @param int $maxLength
    *
    * @return string
@@ -86,6 +84,11 @@ class CRM_Utils_String {
     // CRM-11744
     $name = preg_replace('/[^a-zA-Z0-9]+/', $char, trim($name));
 
+    //If there are no ascii characters present.
+    if ($name == $char) {
+      $name = self::createRandom($len, self::ALPHANUMERIC);
+    }
+
     if ($len) {
       // lets keep variable names short
       return substr($name, 0, $len);
@@ -104,6 +107,16 @@ class CRM_Utils_String {
    * @return string
    */
   public static function convertStringToCamel($string) {
+    $map = array(
+      'acl' => 'Acl',
+      'ACL' => 'Acl',
+      'im' => 'Im',
+      'IM' => 'Im',
+    );
+    if (isset($map[$string])) {
+      return $map[$string];
+    }
+
     $fragments = explode('_', $string);
     foreach ($fragments as & $fragment) {
       $fragment = ucfirst($fragment);
@@ -211,13 +224,13 @@ class CRM_Utils_String {
       $str = preg_replace('/\s+/', '', $str);
       // FIXME:  This is a pretty brutal hack to make utf8 and 8859-1 work.
 
-      /* match low- or high-ascii characters */
+      // match low- or high-ascii characters
       if (preg_match('/[\x00-\x20]|[\x7F-\xFF]/', $str)) {
         // || // low ascii characters
         // high ascii characters
         //  preg_match( '/[\x7F-\xFF]/', $str ) ) {
         if ($utf8) {
-          /* if we did match, try for utf-8, or iso8859-1 */
+          // if we did match, try for utf-8, or iso8859-1
 
           return self::isUtf8($str);
         }
@@ -250,7 +263,7 @@ class CRM_Utils_String {
    *   array of strings w/ corresponding redacted outputs
    */
   public static function regex($str, $regexRules) {
-    //redact the regular expressions
+    // redact the regular expressions
     if (!empty($regexRules) && isset($str)) {
       static $matches, $totalMatches, $match = array();
       foreach ($regexRules as $pattern => $replacement) {
@@ -288,14 +301,14 @@ class CRM_Utils_String {
    * @return mixed
    */
   public static function redaction($str, $stringRules) {
-    //redact the strings
+    // redact the strings
     if (!empty($stringRules)) {
       foreach ($stringRules as $match => $replace) {
         $str = str_ireplace($match, $replace, $str);
       }
     }
 
-    //return the redacted output
+    // return the redacted output
     return $str;
   }
 
@@ -312,11 +325,9 @@ class CRM_Utils_String {
       // eliminate all white space from the string
       $str = preg_replace('/\s+/', '', $str);
 
-      /* pattern stolen from the php.net function documentation for
-       * utf8decode();
-       * comment by JF Sebastian, 30-Mar-2005
-       */
-
+      // pattern stolen from the php.net function documentation for
+      // utf8decode();
+      // comment by JF Sebastian, 30-Mar-2005
       return preg_match('/^([\x00-\x7f]|[\xc2-\xdf][\x80-\xbf]|\xe0[\xa0-\xbf][\x80-\xbf]|[\xe1-\xec][\x80-\xbf]{2}|\xed[\x80-\x9f][\x80-\xbf]|[\xee-\xef][\x80-\xbf]{2}|f0[\x90-\xbf][\x80-\xbf]{2}|[\xf1-\xf3][\x80-\xbf]{3}|\xf4[\x80-\x8f][\x80-\xbf]{2})*$/', $str);
       // ||
       // iconv('ISO-8859-1', 'UTF-8', $str);
@@ -328,7 +339,7 @@ class CRM_Utils_String {
   }
 
   /**
-   * Determine if two href's are equivalent (fuzzy match)
+   * Determine if two hrefs are equivalent (fuzzy match)
    *
    * @param string $url1
    *   The first url to be matched.
@@ -779,6 +790,80 @@ class CRM_Utils_String {
   }
 
   /**
+   * When a user supplies a URL (e.g. to an image), we'd like to:
+   *  - Remove the protocol and domain name if the URL points to the current
+   *    site.
+   *  - Keep the domain name for remote URLs.
+   *  - Optionally, force remote URLs to use https instead of http (which is
+   *    useful for images)
+   *
+   * @param string $url
+   *   The URL to simplify. Examples:
+   *     "https://example.org/sites/default/files/coffee-mug.jpg"
+   *     "sites/default/files/coffee-mug.jpg"
+   *     "http://i.stack.imgur.com/9jb2ial01b.png"
+   * @param bool $forceHttps = FALSE
+   *   If TRUE, ensure that remote URLs use https. If a URL with
+   *   http is supplied, then we'll change it to https.
+   *   This is useful for situations like showing a premium product on a
+   *   contribution, because (as reported in CRM-14283) if the user gets a
+   *   browser warning like "page contains insecure elements" on a contribution
+   *   page, that's a very bad thing. Thus, even if changing http to https
+   *   breaks the image, that's better than leaving http content in a
+   *   contribution page.
+   *
+   * @return string
+   *   The simplified URL. Examples:
+   *     "/sites/default/files/coffee-mug.jpg"
+   *     "https://i.stack.imgur.com/9jb2ial01b.png"
+   */
+  public static function simplifyURL($url, $forceHttps = FALSE) {
+    $config = CRM_Core_Config::singleton();
+    $siteURLParts = self::simpleParseUrl($config->userFrameworkBaseURL);
+    $urlParts = self::simpleParseUrl($url);
+
+    // If the image is locally hosted, then only give the path to the image
+    $urlIsLocal
+      = ($urlParts['host+port'] == '')
+      | ($urlParts['host+port'] == $siteURLParts['host+port']);
+    if ($urlIsLocal) {
+      // and make sure it begins with one forward slash
+      return preg_replace('_^/*(?=.)_', '/', $urlParts['path+query']);
+    }
+
+    // If the URL is external, then keep the full URL as supplied
+    else {
+      return $forceHttps ? preg_replace('_^http://_', 'https://', $url) : $url;
+    }
+  }
+
+  /**
+   * A simplified version of PHP's parse_url() function.
+   *
+   * @param string $url
+   *   e.g. "https://example.com:8000/foo/bar/?id=1#fragment"
+   *
+   * @return array
+   *   Will always contain keys 'host+port' and 'path+query', even if they're
+   *   empty strings. Example:
+   *   [
+   *     'host+port' => "example.com:8000",
+   *     'path+query' => "/foo/bar/?id=1",
+   *   ]
+   */
+  public static function simpleParseUrl($url) {
+    $parts = parse_url($url);
+    $host = isset($parts['host']) ? $parts['host'] : '';
+    $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+    $path = isset($parts['path']) ? $parts['path'] : '';
+    $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+    return array(
+      'host+port' => "$host$port",
+      'path+query' => "$path$query",
+    );
+  }
+
+  /**
    * Formats a string of attributes for insertion in an html tag.
    *
    * @param array $attributes
@@ -791,6 +876,68 @@ class CRM_Utils_String {
       $output .= " $name=\"" . htmlspecialchars(implode(' ', (array) $vals)) . '"';
     }
     return ltrim($output);
+  }
+
+  /**
+   * Determine if $string starts with $fragment.
+   *
+   * @param string $string
+   *   The long string.
+   * @param string $fragment
+   *   The fragment to look for.
+   * @return bool
+   */
+  public static function startsWith($string, $fragment) {
+    if ($fragment === '') {
+      return TRUE;
+    }
+    $len = strlen($fragment);
+    return substr($string, 0, $len) === $fragment;
+  }
+
+  /**
+   * Determine if $string ends with $fragment.
+   *
+   * @param string $string
+   *   The long string.
+   * @param string $fragment
+   *   The fragment to look for.
+   * @return bool
+   */
+  public static function endsWith($string, $fragment) {
+    if ($fragment === '') {
+      return TRUE;
+    }
+    $len = strlen($fragment);
+    return substr($string, -1 * $len) === $fragment;
+  }
+
+  /**
+   * @param string|array $patterns
+   * @param array $allStrings
+   * @param bool $allowNew
+   *   Whether to return new, unrecognized names.
+   * @return array
+   */
+  public static function filterByWildcards($patterns, $allStrings, $allowNew = FALSE) {
+    $patterns = (array) $patterns;
+    $result = array();
+    foreach ($patterns as $pattern) {
+      if (!\CRM_Utils_String::endsWith($pattern, '*')) {
+        if ($allowNew || in_array($pattern, $allStrings)) {
+          $result[] = $pattern;
+        }
+      }
+      else {
+        $prefix = rtrim($pattern, '*');
+        foreach ($allStrings as $key) {
+          if (\CRM_Utils_String::startsWith($key, $prefix)) {
+            $result[] = $key;
+          }
+        }
+      }
+    }
+    return array_values(array_unique($result));
   }
 
 }

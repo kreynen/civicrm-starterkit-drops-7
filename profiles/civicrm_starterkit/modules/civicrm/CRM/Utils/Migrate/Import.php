@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,28 +28,29 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Utils_Migrate_Import {
   /**
+   * Class constructor.
    */
   public function __construct() {
   }
 
   /**
-   * Import custom-data from an XML file
+   * Import custom-data from an XML file.
    *
    * @param string $file
    *   Path to an XML file.
+   *
    * @throws CRM_Core_Exception
-   * @return void;
    */
   public function run($file) {
     // read xml file
     $dom = new DomDocument();
-    if (!$dom->load($file)) {
+    $xmlString = file_get_contents($file);
+    $load = $dom->loadXML($xmlString);
+    if (!$load) {
       throw new CRM_Core_Exception("Failed to parse XML file \"$file\"");
     }
     $dom->xinclude();
@@ -58,10 +59,9 @@ class CRM_Utils_Migrate_Import {
   }
 
   /**
-   * Import custom-data from an XML element
+   * Import custom-data from an XML element.
    *
    * @param SimpleXMLElement $xml
-   * @return void
    */
   public function runXmlElement($xml) {
     $idMap = array(
@@ -85,7 +85,7 @@ class CRM_Utils_Migrate_Import {
     $this->profileFields($xml, $idMap);
     $this->profileJoins($xml, $idMap);
 
-    //create DB Template String sample data
+    // create DB Template String sample data
     $this->dbTemplateString($xml, $idMap);
 
     // clean up all caches etc
@@ -157,6 +157,10 @@ class CRM_Utils_Migrate_Import {
       foreach ($optionValuesXML->OptionValue as $optionValueXML) {
         $optionValue = new CRM_Core_DAO_OptionValue();
         $optionValue->option_group_id = $idMap['option_group'][(string ) $optionValueXML->option_group_name];
+        if (empty($optionValue->option_group_id)) {
+          //CRM-17410 check if option group already exist.
+          $optionValue->option_group_id = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_OptionGroup', $optionValueXML->option_group_name, 'id', 'name');
+        }
         $this->copyData($optionValue, $optionValueXML, FALSE, 'label');
         if (!isset($optionValue->value)) {
           $sql = "

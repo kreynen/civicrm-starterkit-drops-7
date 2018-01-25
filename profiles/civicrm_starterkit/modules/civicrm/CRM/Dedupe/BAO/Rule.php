@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -134,9 +134,11 @@ class CRM_Dedupe_BAO_Rule extends CRM_Dedupe_DAO_Rule {
     // if there are params provided, id1 should be 0
     if ($this->params) {
       $select = "t1.$id id1, {$this->rule_weight} weight";
+      $subSelect = 'id1, weight';
     }
     else {
       $select = "t1.$id id1, t2.$id id2, {$this->rule_weight} weight";
+      $subSelect = 'id1, id2, weight';
     }
 
     // build FROM (and WHERE, if it's a parametrised search)
@@ -171,20 +173,25 @@ class CRM_Dedupe_BAO_Rule extends CRM_Dedupe_DAO_Rule {
       $where[] = "t1.{$this->rule_field} IS NOT NULL";
       $where[] = "t1.{$this->rule_field} <> ''";
     }
+    $query = "SELECT $select FROM $from WHERE " . implode(' AND ', $where);
     if ($this->contactIds) {
       $cids = array();
       foreach ($this->contactIds as $cid) {
         $cids[] = CRM_Utils_Type::escape($cid, 'Integer');
       }
       if (count($cids) == 1) {
-        $where[] = "(t1.$id = {$cids[0]} OR t2.$id = {$cids[0]})";
+        $query .= " AND (t1.$id = {$cids[0]}) UNION $query AND t2.$id = {$cids[0]}";
       }
       else {
-        $where[] = "(t1.$id IN (" . implode(',', $cids) . ") OR t2.$id IN (" . implode(',', $cids) . "))";
+        $query .= " AND t1.$id IN (" . implode(',', $cids) . ")
+        UNION $query AND  t2.$id IN (" . implode(',', $cids) . ")";
       }
+      // The `weight` is ambiguous in the context of the union; put the whole
+      // thing in a subquery.
+      $query = "SELECT $subSelect FROM ($query) subunion";
     }
 
-    return "SELECT $select FROM $from WHERE " . implode(' AND ', $where);
+    return $query;
   }
 
   /**

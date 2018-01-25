@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
-require_once 'CRM/Campaign/DAO/Survey.php';
 
 /**
- * Class CRM_Campaign_BAO_Survey
+ * Class CRM_Campaign_BAO_Survey.
  */
 class CRM_Campaign_BAO_Survey extends CRM_Campaign_DAO_Survey {
 
@@ -81,7 +78,7 @@ class CRM_Campaign_BAO_Survey extends CRM_Campaign_DAO_Survey {
 
     if (!empty($params['is_default'])) {
       $query = "UPDATE civicrm_survey SET is_default = 0";
-      CRM_Core_DAO::executeQuery($query, CRM_Core_DAO::$_nullArray);
+      CRM_Core_DAO::executeQuery($query);
     }
 
     if (!(CRM_Utils_Array::value('id', $params))) {
@@ -110,6 +107,10 @@ class CRM_Campaign_BAO_Survey extends CRM_Campaign_DAO_Survey {
   /**
    * Retrieve surveys for dashboard.
    *
+   * @param array $params
+   * @param bool $onlyCount
+   *
+   * @return array|int
    */
   public static function getSurveySummary($params = array(), $onlyCount = FALSE) {
     //build the limit and order clause.
@@ -268,7 +269,7 @@ SELECT  survey.id                         as id,
       if (!$includePetition) {
         //we only have activity type as a
         //difference between survey and petition.
-        $petitionTypeID = CRM_Core_OptionGroup::getValue('activity_type', 'petition', 'name');
+        $petitionTypeID = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', 'petition');
 
         $where = array();
         if ($petitionTypeID) {
@@ -300,6 +301,11 @@ SELECT  survey.id    as id,
 
   /**
    * Get Survey activity types.
+   *
+   * @param string $returnColumn
+   * @param bool $includePetitionActivityType
+   *
+   * @return string
    */
   public static function getSurveyActivityType($returnColumn = 'label', $includePetitionActivityType = FALSE) {
     static $activityTypes;
@@ -377,7 +383,7 @@ SELECT  survey.id    as id,
    *   Value we want to set the is_active field.
    *
    * @return Object
-   *   DAO object on sucess, null otherwise
+   *   DAO object on success, null otherwise
    */
   public static function setIsActive($id, $is_active) {
     return CRM_Core_DAO::setFieldValue('CRM_Campaign_DAO_Survey', $id, 'is_active', $is_active);
@@ -475,8 +481,7 @@ SELECT  survey.id    as id,
       $query = "
   SELECT  contact.id as contactId, $selectClause
     FROM  $fromClause
-   WHERE  $whereClause
-Group By  contact.id";
+   WHERE  $whereClause";
 
       $contact = CRM_Core_DAO::executeQuery($query);
       while ($contact->fetch()) {
@@ -524,7 +529,7 @@ Group By  contact.id";
     }
 
     $targetContactIds = ' ( ' . implode(',', $voterIds) . ' ) ';
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $assigneeID = CRM_Utils_Array::key('Activity Assignees', $activityContacts);
     $targetID = CRM_Utils_Array::key('Activity Targets', $activityContacts);
 
@@ -620,7 +625,7 @@ INNER JOIN  civicrm_activity_contact activityAssignment
             contact_a.display_name as voter_name";
     }
 
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $assigneeID = CRM_Utils_Array::key('Activity Assignees', $activityContacts);
     $targetID = CRM_Utils_Array::key('Activity Targets', $activityContacts);
 
@@ -863,6 +868,10 @@ INNER JOIN  civicrm_contact contact_a ON ( activityTarget.contact_id = contact_a
 
   /**
    * Retrieve survey associated profile id.
+   *
+   * @param int $surveyId
+   *
+   * @return mixed|null
    */
   public static function getSurveyProfileId($surveyId) {
     if (!$surveyId) {
@@ -909,6 +918,10 @@ INNER JOIN  civicrm_contact contact_a ON ( activityTarget.contact_id = contact_a
 
   /**
    * Decides the contact type for given survey.
+   *
+   * @param int $surveyId
+   *
+   * @return null|string
    */
   public static function getSurveyContactType($surveyId) {
     $contactType = NULL;
@@ -1033,7 +1046,7 @@ INNER JOIN  civicrm_contact contact_a ON ( activityTarget.contact_id = contact_a
     }
 
     $interviewers = array();
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $assigneeID = CRM_Utils_Array::key('Activity Assignees', $activityContacts);
 
     $query = "

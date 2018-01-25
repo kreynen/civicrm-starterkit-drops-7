@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -35,7 +35,7 @@ use Civi\API\Provider\ProviderInterface;
 
 /**
  * @package Civi
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class Kernel {
 
@@ -61,6 +61,7 @@ class Kernel {
   }
 
   /**
+   * @deprecated
    * @param string $entity
    *   Type of entities to deal with.
    * @param string $action
@@ -68,38 +69,39 @@ class Kernel {
    * @param array $params
    *   Array to be passed to API function.
    * @param mixed $extra
-   *   Who knows.
-   *
+   *   Unused/deprecated.
    * @return array|int
+   * @see runSafe
    */
   public function run($entity, $action, $params, $extra = NULL) {
-    /**
-     * @var $apiProvider \Civi\API\Provider\ProviderInterface|NULL
-     */
-    $apiProvider = NULL;
+    return $this->runSafe($entity, $action, $params, $extra);
+  }
 
-    // TODO Define alternative calling convention makes it easier to construct $apiRequest
-    // without the ambiguity of "data" vs "options"
+  /**
+   * Parse and execute an API request. Any errors will be converted to
+   * normal format.
+   *
+   * @param string $entity
+   *   Type of entities to deal with.
+   * @param string $action
+   *   Create, get, delete or some special action name.
+   * @param array $params
+   *   Array to be passed to API function.
+   * @param mixed $extra
+   *   Unused/deprecated.
+   *
+   * @return array|int
+   * @throws \API_Exception
+   */
+  public function runSafe($entity, $action, $params, $extra = NULL) {
     $apiRequest = Request::create($entity, $action, $params, $extra);
 
     try {
-      if (!is_array($params)) {
-        throw new \API_Exception('Input variable `params` is not an array', 2000);
-      }
-
-      $this->boot();
-      $errorScope = \CRM_Core_TemporaryErrorScope::useException();
-
-      list($apiProvider, $apiRequest) = $this->resolve($apiRequest);
-      $this->authorize($apiProvider, $apiRequest);
-      $apiRequest = $this->prepare($apiProvider, $apiRequest);
-      $result = $apiProvider->invoke($apiRequest);
-
-      $apiResponse = $this->respond($apiProvider, $apiRequest, $result);
+      $apiResponse = $this->runRequest($apiRequest);
       return $this->formatResult($apiRequest, $apiResponse);
     }
     catch (\Exception $e) {
-      $this->dispatcher->dispatch(Events::EXCEPTION, new ExceptionEvent($e, $apiProvider, $apiRequest, $this));
+      $this->dispatcher->dispatch(Events::EXCEPTION, new ExceptionEvent($e, NULL, $apiRequest, $this));
 
       if ($e instanceof \PEAR_Exception) {
         $err = $this->formatPearException($e, $apiRequest);
@@ -125,7 +127,8 @@ class Kernel {
    * @param array $params
    *   Array to be passed to function.
    * @param mixed $extra
-   *   Who knows.
+   *   Unused/deprecated.
+   *
    * @return bool
    *   TRUE if authorization would succeed.
    * @throws \Exception
@@ -135,7 +138,7 @@ class Kernel {
     $apiRequest = Request::create($entity, $action, $params, $extra);
 
     try {
-      $this->boot();
+      $this->boot($apiRequest);
       list($apiProvider, $apiRequest) = $this->resolve($apiRequest);
       $this->authorize($apiProvider, $apiRequest);
       return TRUE;
@@ -146,12 +149,61 @@ class Kernel {
   }
 
   /**
-   * Bootstrap - Load basic dependencies.
+   * Execute an API request.
+   *
+   * The request must be in canonical format. Exceptions will be propagated out.
+   *
+   * @param array $apiRequest
+   * @return array
+   * @throws \API_Exception
+   * @throws \Civi\API\Exception\NotImplementedException
+   * @throws \Civi\API\Exception\UnauthorizedException
    */
-  public function boot() {
-    require_once 'api/v3/utils.php';
+  public function runRequest($apiRequest) {
+    $this->boot($apiRequest);
+    $errorScope = \CRM_Core_TemporaryErrorScope::useException();
+
+    list($apiProvider, $apiRequest) = $this->resolve($apiRequest);
+    $this->authorize($apiProvider, $apiRequest);
+    $apiRequest = $this->prepare($apiProvider, $apiRequest);
+    $result = $apiProvider->invoke($apiRequest);
+
+    return $this->respond($apiProvider, $apiRequest, $result);
+  }
+
+  /**
+   * Bootstrap - Load basic dependencies and sanity-check inputs.
+   *
+   * @param \Civi\API\V4\Action|array $apiRequest
+   * @throws \API_Exception
+   */
+  public function boot($apiRequest) {
     require_once 'api/Exception.php';
-    _civicrm_api3_initialize();
+
+    if (!is_array($apiRequest['params'])) {
+      throw new \API_Exception('Input variable `params` is not an array', 2000);
+    }
+    switch ($apiRequest['version']) {
+      case 2:
+      case 3:
+        require_once 'api/v3/utils.php';
+        _civicrm_api3_initialize();
+        break;
+
+      case 4:
+        // nothing to do
+        break;
+
+      default:
+        throw new \API_Exception('Unknown api version', 2000);
+    }
+  }
+
+  /**
+   * @param array $apiRequest
+   * @throws \API_Exception
+   */
+  protected function validate($apiRequest) {
   }
 
   /**
@@ -161,7 +213,8 @@ class Kernel {
    *   The full description of the API request.
    * @throws Exception\NotImplementedException
    * @return array
-   *   Array(0 => ProviderInterface, 1 => array).
+   *   A tuple with the provider-object and a revised apiRequest.
+   *   Array(0 => ProviderInterface, 1 => array $apiRequest).
    */
   public function resolve($apiRequest) {
     /** @var ResolveEvent $resolveEvent */
@@ -197,7 +250,8 @@ class Kernel {
    *   The API provider responsible for executing the request.
    * @param array $apiRequest
    *   The full description of the API request.
-   * @return mixed
+   * @return array
+   *   The revised API request.
    */
   public function prepare($apiProvider, $apiRequest) {
     /** @var PrepareEvent $event */
@@ -215,6 +269,7 @@ class Kernel {
    * @param array $result
    *   The response to return to the client.
    * @return mixed
+   *   The revised $result.
    */
   public function respond($apiProvider, $apiRequest, $result) {
     /** @var RespondEvent $event */
@@ -348,14 +403,14 @@ class Kernel {
     if ($msg == 'DB Error: constraint violation' || substr($msg, 0, 9) == 'DB Error:' || $msg == 'DB Error: already exists') {
       try {
         $fields = _civicrm_api3_api_getfields($apiRequest);
-        _civicrm_api3_validate_fields($apiRequest['entity'], $apiRequest['action'], $apiRequest['params'], $fields, TRUE);
+        _civicrm_api3_validate_foreign_keys($apiRequest['entity'], $apiRequest['action'], $apiRequest['params'], $fields);
       }
       catch (\Exception $e) {
         $msg = $e->getMessage();
       }
     }
 
-    $data = civicrm_api3_create_error($msg, $data);
+    $data = \civicrm_api3_create_error($msg, $data);
 
     if (isset($apiRequest['params']) && is_array($apiRequest['params']) && !empty($apiRequest['params']['api.has_parent'])) {
       $errorCode = empty($data['error_code']) ? 'chained_api_failed' : $data['error_code'];

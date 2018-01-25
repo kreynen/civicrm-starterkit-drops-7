@@ -19,8 +19,8 @@ use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
 use Symfony\Component\DependencyInjection\Exception\RuntimeException;
 use Symfony\Component\Config\Resource\FileResource;
-use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Parser as YamlParser;
+use Symfony\Component\ExpressionLanguage\Expression;
 
 /**
  * YamlFileLoader loads YAML files service definitions.
@@ -94,13 +94,12 @@ class YamlFileLoader extends FileLoader
             throw new InvalidArgumentException(sprintf('The "imports" key should contain an array in %s. Check your YAML syntax.', $file));
         }
 
-        $defaultDirectory = dirname($file);
         foreach ($content['imports'] as $import) {
             if (!is_array($import)) {
                 throw new InvalidArgumentException(sprintf('The values in the "imports" key should be arrays in %s. Check your YAML syntax.', $file));
             }
 
-            $this->setCurrentDir($defaultDirectory);
+            $this->setCurrentDir(dirname($file));
             $this->import($import['resource'], null, isset($import['ignore_errors']) ? (bool) $import['ignore_errors'] : false, $file);
         }
     }
@@ -188,6 +187,19 @@ class YamlFileLoader extends FileLoader
             $definition->setAbstract($service['abstract']);
         }
 
+        if (isset($service['factory'])) {
+            if (is_string($service['factory'])) {
+                if (strpos($service['factory'], ':') !== false && strpos($service['factory'], '::') === false) {
+                    $parts = explode(':', $service['factory']);
+                    $definition->setFactory(array($this->resolveServices('@'.$parts[0]), $parts[1]));
+                } else {
+                    $definition->setFactory($service['factory']);
+                }
+            } else {
+                $definition->setFactory(array($this->resolveServices($service['factory'][0]), $service['factory'][1]));
+            }
+        }
+
         if (isset($service['factory_class'])) {
             $definition->setFactoryClass($service['factory_class']);
         }
@@ -245,21 +257,22 @@ class YamlFileLoader extends FileLoader
                     throw new InvalidArgumentException(sprintf('A "tags" entry is missing a "name" key for service "%s" in %s.', $id, $file));
                 }
 
-                if (!is_string($tag['name']) || '' === $tag['name']) {
-                    throw new InvalidArgumentException(sprintf('The tag name for service "%s" in %s must be a non-empty string.', $id, $file));
-                }
-
                 $name = $tag['name'];
                 unset($tag['name']);
 
-                foreach ($tag as $value) {
-                    if (!is_scalar($value)) {
-                        throw new InvalidArgumentException(sprintf('A "tags" attribute must be of a scalar-type for service "%s", tag "%s" in %s. Check your YAML syntax.', $id, $name, $file));
+                foreach ($tag as $attribute => $value) {
+                    if (!is_scalar($value) && null !== $value) {
+                        throw new InvalidArgumentException(sprintf('A "tags" attribute must be of a scalar-type for service "%s", tag "%s", attribute "%s" in %s. Check your YAML syntax.', $id, $name, $attribute, $file));
                     }
                 }
 
                 $definition->addTag($name, $tag);
             }
+        }
+
+        if (isset($service['decorates'])) {
+            $renameId = isset($service['decoration_inner_name']) ? $service['decoration_inner_name'] : null;
+            $definition->setDecoratedService($service['decorates'], $renameId);
         }
 
         $this->container->setDefinition($id, $definition);
@@ -292,13 +305,7 @@ class YamlFileLoader extends FileLoader
             $this->yamlParser = new YamlParser();
         }
 
-        try {
-            $configuration = $this->yamlParser->parse(file_get_contents($file));
-        } catch (ParseException $e) {
-            throw new InvalidArgumentException(sprintf('The file "%s" does not contain valid YAML.', $file), 0, $e);
-        }
-
-        return $this->validate($configuration, $file);
+        return $this->validate($this->yamlParser->parse(file_get_contents($file)), $file);
     }
 
     /**
@@ -352,6 +359,8 @@ class YamlFileLoader extends FileLoader
     {
         if (is_array($value)) {
             $value = array_map(array($this, 'resolveServices'), $value);
+        } elseif (is_string($value) &&  0 === strpos($value, '@=')) {
+            return new Expression(substr($value, 2));
         } elseif (is_string($value) &&  0 === strpos($value, '@')) {
             if (0 === strpos($value, '@@')) {
                 $value = substr($value, 1);

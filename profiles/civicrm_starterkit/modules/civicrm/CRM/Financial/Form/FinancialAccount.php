@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
  * This class generates form components for Financial Account
- *
  */
 class CRM_Financial_Form_FinancialAccount extends CRM_Contribute_Form {
 
@@ -49,8 +46,6 @@ class CRM_Financial_Form_FinancialAccount extends CRM_Contribute_Form {
 
   /**
    * Set variables up before form is built.
-   *
-   * @return void
    */
   public function preProcess() {
     parent::preProcess();
@@ -60,10 +55,10 @@ class CRM_Financial_Form_FinancialAccount extends CRM_Contribute_Form {
         'id' => $this->_id,
       );
       $financialAccount = CRM_Financial_BAO_FinancialAccount::retrieve($params, CRM_Core_DAO::$_nullArray);
-      $financialAccountType = CRM_Core_PseudoConstant::accountOptionValues('financial_account_type');
-      if ($financialAccount->financial_account_type_id == array_search('Asset', $financialAccountType)
+      $financialAccountTypeId = key(CRM_Core_PseudoConstant::accountOptionValues('financial_account_type', NULL, " AND v.name LIKE 'Asset' "));
+      if ($financialAccount->financial_account_type_id == $financialAccountTypeId
         && strtolower($financialAccount->account_type_code) == 'ar'
-        && !CRM_Financial_BAO_FinancialAccount::getARAccounts($this->_id, array_search('Asset', $financialAccountType))
+        && !CRM_Financial_BAO_FinancialAccount::getARAccounts($this->_id, $financialAccountTypeId)
       ) {
         $this->_isARFlag = TRUE;
         if ($this->_action & CRM_Core_Action::DELETE) {
@@ -76,8 +71,6 @@ class CRM_Financial_Form_FinancialAccount extends CRM_Contribute_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
@@ -119,6 +112,9 @@ class CRM_Financial_Form_FinancialAccount extends CRM_Contribute_Form {
         $element->freeze();
         $elementAccounting->freeze();
         $elementActive->freeze();
+      }
+      elseif ($this->_id && CRM_Financial_BAO_FinancialAccount::validateFinancialAccount($this->_id)) {
+        $element->freeze();
       }
     }
 
@@ -175,10 +171,7 @@ class CRM_Financial_Form_FinancialAccount extends CRM_Contribute_Form {
 
   /**
    * Set default values for the form.
-   * the default values are retrieved from the database
-   *
-   *
-   * @return void
+   * the default values are retrieved from the database.
    */
   public function setDefaultValues() {
     $defaults = parent::setDefaultValues();
@@ -190,25 +183,26 @@ class CRM_Financial_Form_FinancialAccount extends CRM_Contribute_Form {
 
   /**
    * Process the form submission.
-   *
-   * @return void
    */
   public function postProcess() {
     if ($this->_action & CRM_Core_Action::DELETE) {
-      CRM_Financial_BAO_FinancialAccount::del($this->_id);
-      CRM_Core_Session::setStatus(ts('Selected Financial Account has been deleted.'));
+      if (CRM_Financial_BAO_FinancialAccount::del($this->_id)) {
+        CRM_Core_Session::setStatus(ts('Selected Financial Account has been deleted.'));
+      }
+      else {
+        CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/admin/financial/financialAccount', "reset=1&action=browse"));
+      }
     }
     else {
-      $ids = array();
       // store the submitted values in an array
       $params = $this->exportValues();
 
       if ($this->_action & CRM_Core_Action::UPDATE) {
-        $ids['contributionType'] = $this->_id;
+        $params['id'] = $this->_id;
       }
 
-      $contributionType = CRM_Financial_BAO_FinancialAccount::add($params, $ids);
-      CRM_Core_Session::setStatus(ts('The Financial Account \'%1\' has been saved.', array(1 => $contributionType->name)));
+      $financialAccount = CRM_Financial_BAO_FinancialAccount::add($params);
+      CRM_Core_Session::setStatus(ts('The Financial Account \'%1\' has been saved.', array(1 => $financialAccount->name)), ts('Saved'), 'success');
     }
   }
 

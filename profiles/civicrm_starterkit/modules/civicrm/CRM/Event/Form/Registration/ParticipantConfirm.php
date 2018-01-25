@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -29,7 +29,7 @@
  *
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -213,9 +213,8 @@ class CRM_Event_Form_Registration_ParticipantConfirm extends CRM_Event_Form_Regi
       }
 
       $this->postProcessHook();
-
-      CRM_Core_Error::statusBounce($statusMessage,
-        CRM_Utils_System::url('civicrm/event/info',
+      CRM_Core_Session::setStatus($statusMessage);
+      CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/event/info',
           "reset=1&id={$this->_eventId}&noFullMsg=1",
           FALSE, NULL, FALSE, TRUE
         )

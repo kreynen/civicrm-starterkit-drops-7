@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -23,12 +23,12 @@
  | GNU Affero General Public License or the licensing of CiviCRM,     |
  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
  +--------------------------------------------------------------------+
-*/
+ */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -53,7 +53,7 @@ function civicrmtheme_list_themes() {
 }
 
 /**
- * Implementation of hook_form_alter().
+ * Implements hook_form_alter().
  */
 function civicrmtheme_form_system_themes_admin_form_alter(&$form, $form_state) {
   // Define a fieldset for civicrm theme setting section
@@ -98,7 +98,7 @@ function civicrmtheme_system_themes_admin_form_submit($form, &$form_state) {
 }
 
 /**
- * Implementation of hook_custom_theme().
+ * Implements hook_custom_theme().
  */
 function civicrmtheme_custom_theme() {
   if (arg(0) != 'civicrm') {
@@ -124,7 +124,8 @@ function civicrmtheme_custom_theme() {
 
   // Check for public pages
   // If public page and civicrm public theme is set, apply civicrm public theme
-  if (CRM_Utils_Array::value('is_public', $item)) {
+  // If user does not have access to CiviCRM use the public page for the error message
+  if (!user_access('access CiviCRM') || CRM_Utils_Array::value('is_public', $item)) {
     if ($public_theme) {
       return $public_theme;
     }
@@ -134,4 +135,3 @@ function civicrmtheme_custom_theme() {
     return $admin_theme;
   }
 }
-

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,26 +28,27 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class generates form components for DedupeRules
- *
+ * This class generates form components for DedupeRules.
  */
 class CRM_Contact_Form_DedupeRules extends CRM_Admin_Form {
   const RULES_COUNT = 5;
   protected $_contactType;
-  protected $_defaults = array();
   protected $_fields = array();
   protected $_rgid;
 
   /**
+   * Explicitly declare the entity api name.
+   */
+  public function getDefaultEntity() {
+    return 'RuleGroup';
+  }
+
+  /**
    * Pre processing.
-   *
-   * @return void
    */
   public function preProcess() {
     // Ensure user has permission to be here
@@ -57,7 +58,14 @@ class CRM_Contact_Form_DedupeRules extends CRM_Admin_Form {
     }
     $this->_options = CRM_Core_SelectValues::getDedupeRuleTypes();
     $this->_rgid = CRM_Utils_Request::retrieve('id', 'Positive', $this, FALSE, 0);
-    $this->_contactType = CRM_Utils_Request::retrieve('contact_type', 'String', $this, FALSE, 0);
+    $contactTypes = civicrm_api3('Contact', 'getOptions', array('field' => "contact_type"));
+    $contactType = CRM_Utils_Request::retrieve('contact_type', 'String', $this, FALSE, 0);
+    if (CRM_Utils_Array::value($contactType, $contactTypes['values'])) {
+      $this->_contactType = CRM_Utils_Array::value($contactType, $contactTypes['values']);
+    }
+    elseif (!empty($contactType)) {
+      throw new CRM_Core_Exception('Contact Type is Not valid');
+    }
     if ($this->_rgid) {
       $rgDao = new CRM_Dedupe_DAO_RuleGroup();
       $rgDao->id = $this->_rgid;
@@ -65,7 +73,7 @@ class CRM_Contact_Form_DedupeRules extends CRM_Admin_Form {
 
       $this->_defaults['threshold'] = $rgDao->threshold;
       $this->_contactType = $rgDao->contact_type;
-      $this->_defaults['used'] = CRM_Utils_Array::key($rgDao->used, $this->_options);
+      $this->_defaults['used'] = $rgDao->used;
       $this->_defaults['title'] = $rgDao->title;
       $this->_defaults['name'] = $rgDao->name;
       $this->_defaults['is_reserved'] = $rgDao->is_reserved;
@@ -95,24 +103,18 @@ class CRM_Contact_Form_DedupeRules extends CRM_Admin_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
-    $foo = CRM_Core_DAO::getAttribute('CRM_Dedupe_DAO_Rule', 'title');
-
-    $this->add('text', 'title', ts('Rule Name'), array('maxlength' => 255, 'class' => 'huge'), TRUE);
+    $this->addField('title', array('label' => ts('Rule Name')), TRUE);
     $this->addRule('title', ts('A duplicate matching rule with this name already exists. Please select another name.'),
       'objectExists', array('CRM_Dedupe_DAO_RuleGroup', $this->_rgid, 'title')
     );
 
-    $this->addRadio('used', ts('Usage'), $this->_options, NULL, NULL, TRUE);
-
+    $this->addField('used', array('label' => ts('Usage')), TRUE);
     $disabled = array();
-    $reserved = $this->add('checkbox', 'is_reserved', ts('Reserved?'));
+    $reserved = $this->addField('is_reserved', array('label' => ts('Reserved?')));
     if (!empty($this->_defaults['is_reserved'])) {
       $reserved->freeze();
-      $disabled = array('disabled' => TRUE);
     }
 
     $attributes = array('class' => 'two');
@@ -126,11 +128,11 @@ class CRM_Contact_Form_DedupeRules extends CRM_Admin_Form {
           NULL => ts('- none -'),
         ) + $this->_fields, FALSE, $disabled
       );
-      $this->add('text', "length_$count", ts('Length'), $attributes);
-      $this->add('text', "weight_$count", ts('Weight'), $attributes);
+      $this->addField("length_$count", array('entity' => 'Rule', 'name' => 'rule_length') + $attributes);
+      $this->addField("weight_$count", array('entity' => 'Rule', 'name' => 'rule_weight') + $attributes);
     }
 
-    $this->add('text', 'threshold', ts("Weight Threshold to Consider Contacts 'Matching':"), $attributes);
+    $this->addField('threshold', array('label' => ts("Weight Threshold to Consider Contacts 'Matching':")) + $attributes);
 
     $this->assign('contact_type', $this->_contactType);
 
@@ -160,6 +162,13 @@ class CRM_Contact_Form_DedupeRules extends CRM_Admin_Form {
         break;
       }
     }
+    if (empty($fields['threshold'])) {
+      // CRM-20607 - Don't validate the threshold of hard-coded rules
+      if (!(CRM_Utils_Array::value('is_reserved', $fields) &&
+        CRM_Utils_File::isIncludable("CRM/Dedupe/BAO/QueryBuilder/{$self->_defaultValues['name']}.php"))) {
+        $errors['threshold'] = ts('Threshold weight cannot be empty or zero.');
+      }
+    }
 
     if (!$fieldSelected) {
       $errors['_qf_default'] = ts('Please select at least one field.');
@@ -184,9 +193,6 @@ class CRM_Contact_Form_DedupeRules extends CRM_Admin_Form {
 
   /**
    * Process the form submission.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     $values = $this->exportValues();

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -87,7 +87,7 @@ class AdhocProvider implements EventSubscriberInterface, ProviderInterface {
    *   Permissions required for invoking the action.
    * @param mixed $callback
    *   The function which executes the API.
-   * @return ReflectionProvider
+   * @return AdhocProvider
    */
   public function addAction($name, $perm, $callback) {
     $this->actions[strtolower($name)] = array(
@@ -123,7 +123,7 @@ class AdhocProvider implements EventSubscriberInterface, ProviderInterface {
   }
 
   /**
-   * {inheritdoc}
+   * @inheritDoc
    * @param array $apiRequest
    * @return array|mixed
    */
@@ -132,7 +132,7 @@ class AdhocProvider implements EventSubscriberInterface, ProviderInterface {
   }
 
   /**
-   * {inheritdoc}
+   * @inheritDoc
    * @param int $version
    * @return array
    */
@@ -141,7 +141,7 @@ class AdhocProvider implements EventSubscriberInterface, ProviderInterface {
   }
 
   /**
-   * {inheritdoc}
+   * @inheritDoc
    * @param int $version
    * @param string $entity
    * @return array

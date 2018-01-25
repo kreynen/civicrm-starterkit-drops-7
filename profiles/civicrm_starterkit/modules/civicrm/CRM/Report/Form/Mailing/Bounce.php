@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
 
@@ -39,9 +37,6 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
   protected $_emailField = FALSE;
 
   protected $_phoneField = FALSE;
-
-  // just a toggle we use to build the from
-  protected $_mailingidField = FALSE;
 
   protected $_customGroupExtends = array(
     'Contact',
@@ -57,8 +52,20 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
   );
 
   /**
+   * This report has not been optimised for group filtering.
+   *
+   * The functionality for group filtering has been improved but not
+   * all reports have been adjusted to take care of it. This report has not
+   * and will run an inefficient query until fixed.
+   *
+   * CRM-19170
+   *
+   * @var bool
    */
+  protected $groupFilterNotOptimised = TRUE;
+
   /**
+   * Class constructor.
    */
   public function __construct() {
     $this->_columns = array();
@@ -103,7 +110,7 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
       'fields' => array(
         'mailing_name' => array(
           'name' => 'name',
-          'title' => ts('Mailing'),
+          'title' => ts('Mailing Name'),
           'default' => TRUE,
         ),
         'mailing_name_alias' => array(
@@ -111,21 +118,36 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
           'required' => TRUE,
           'no_display' => TRUE,
         ),
+        'mailing_subject' => array(
+          'name' => 'subject',
+          'title' => ts('Mailing Subject'),
+          'default' => TRUE,
+        ),
       ),
       'filters' => array(
         'mailing_id' => array(
           'name' => 'id',
-          'title' => ts('Mailing'),
+          'title' => ts('Mailing Name'),
           'operatorType' => CRM_Report_Form::OP_MULTISELECT,
           'type' => CRM_Utils_Type::T_INT,
           'options' => CRM_Mailing_BAO_Mailing::getMailingsList(),
+          'operator' => 'like',
+        ),
+        'mailing_subject' => array(
+          'name' => 'subject',
+          'title' => ts('Mailing Subject'),
+          'type' => CRM_Utils_Type::T_STRING,
           'operator' => 'like',
         ),
       ),
       'order_bys' => array(
         'mailing_name' => array(
           'name' => 'name',
-          'title' => ts('Mailing'),
+          'title' => ts('Mailing Name'),
+        ),
+        'mailing_subject' => array(
+          'name' => 'subject',
+          'title' => ts('Mailing Subject'),
         ),
       ),
       'grouping' => 'mailing-fields',
@@ -137,9 +159,28 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
         'bounce_reason' => array(
           'title' => ts('Bounce Reason'),
         ),
+        'time_stamp' => array(
+          'title' => ts('Bounce Date'),
+        ),
+      ),
+      'filters' => array(
+        'bounce_reason' => array(
+          'title' => ts('Bounce Reason'),
+          'type' => CRM_Utils_Type::T_STRING,
+        ),
+        'time_stamp' => array(
+          'title' => ts('Bounce Date'),
+          'operatorType' => CRM_Report_Form::OP_DATE,
+          'type' => CRM_Utils_Type::T_DATE,
+        ),
       ),
       'order_bys' => array(
-        'bounce_reason' => array('title' => ts('Bounce Reason')),
+        'bounce_reason' => array(
+          'title' => ts('Bounce Reason'),
+        ),
+        'time_stamp' => array(
+          'title' => ts('Bounce Date'),
+        ),
       ),
       'grouping' => 'mailing-fields',
     );
@@ -156,7 +197,7 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
         'bounce_type_name' => array(
           'name' => 'name',
           'title' => ts('Bounce Type'),
-          'operatorType' => CRM_Report_Form::OP_SELECT,
+          'operatorType' => CRM_Report_Form::OP_MULTISELECT,
           'type' => CRM_Utils_Type::T_STRING,
           'options' => self::bounce_type(),
           'operator' => 'like',
@@ -177,7 +218,30 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
         'email' => array(
           'title' => ts('Email'),
           'no_repeat' => TRUE,
-          'required' => TRUE,
+        ),
+        'on_hold' => array(
+          'title' => ts('On hold'),
+        ),
+        'hold_date' => array(
+          'title' => ts('Hold date'),
+        ),
+        'reset_date' => array(
+          'title' => ts('Hold reset date'),
+        ),
+      ),
+      'filters' => array(
+        'on_hold' => array(
+          'title' => ts('On hold'),
+        ),
+        'hold_date' => array(
+          'title' => ts('Hold date'),
+          'operatorType' => CRM_Report_Form::OP_DATE,
+          'type' => CRM_Utils_Type::T_DATE,
+        ),
+        'reset_date' => array(
+          'title' => ts('Hold reset date'),
+          'operatorType' => CRM_Report_Form::OP_DATE,
+          'type' => CRM_Utils_Type::T_DATE,
         ),
       ),
       'order_bys' => array(
@@ -233,6 +297,7 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
       $this->_columnHeaders["civicrm_mailing_bounce_count"]['title'] = ts('Bounce Count');
     }
 
+    $this->_selectClauses = $select;
     $this->_select = "SELECT " . implode(', ', $select) . " ";
   }
 
@@ -258,7 +323,7 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
     $this->_from .= "
         INNER JOIN civicrm_mailing_event_queue
           ON civicrm_mailing_event_queue.contact_id = {$this->_aliases['civicrm_contact']}.id
-        INNER JOIN civicrm_email {$this->_aliases['civicrm_email']}
+        LEFT JOIN civicrm_email {$this->_aliases['civicrm_email']}
           ON civicrm_mailing_event_queue.email_id = {$this->_aliases['civicrm_email']}.id
         INNER JOIN civicrm_mailing_event_bounce {$this->_aliases['civicrm_mailing_event_bounce']}
           ON {$this->_aliases['civicrm_mailing_event_bounce']}.event_queue_id = civicrm_mailing_event_queue.id
@@ -279,17 +344,56 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
   }
 
   public function where() {
-    parent::where();
-    $this->_where .= " AND {$this->_aliases['civicrm_mailing']}.sms_provider_id IS NULL";
+
+    $clauses = array();
+
+    // Exclude SMS mailing type
+    $clauses[] = "{$this->_aliases['civicrm_mailing']}.sms_provider_id IS NULL";
+
+    // Build date filter clauses
+    foreach ($this->_columns as $tableName => $table) {
+      if (array_key_exists('filters', $table)) {
+        foreach ($table['filters'] as $fieldName => $field) {
+          $clause = NULL;
+          if (CRM_Utils_Array::value('type', $field) & CRM_Utils_Type::T_DATE) {
+            $relative = CRM_Utils_Array::value("{$fieldName}_relative", $this->_params);
+            $from = CRM_Utils_Array::value("{$fieldName}_from", $this->_params);
+            $to = CRM_Utils_Array::value("{$fieldName}_to", $this->_params);
+
+            $clause = $this->dateClause($this->_aliases[$tableName] . '.' . $field['name'], $relative, $from, $to, $field['type']);
+          }
+          else {
+            $op = CRM_Utils_Array::value("{$fieldName}_op", $this->_params);
+
+            if ($op) {
+              $clause = $this->whereClause($field,
+                $op,
+                CRM_Utils_Array::value("{$fieldName}_value", $this->_params),
+                CRM_Utils_Array::value("{$fieldName}_min", $this->_params),
+                CRM_Utils_Array::value("{$fieldName}_max", $this->_params)
+              );
+            }
+
+          }
+
+          if (!empty($clause)) {
+            $clauses[] = $clause;
+          }
+        }
+      }
+    }
+
+    $this->_where = "WHERE " . implode(' AND ', $clauses);
   }
 
   public function groupBy() {
     if (!empty($this->_params['charts'])) {
-      $this->_groupBy = " GROUP BY {$this->_aliases['civicrm_mailing']}.id";
+      $groupBy = "{$this->_aliases['civicrm_mailing']}.id";
     }
     else {
-      $this->_groupBy = " GROUP BY {$this->_aliases['civicrm_mailing_event_bounce']}.id";
+      $groupBy = "{$this->_aliases['civicrm_mailing_event_bounce']}.id";
     }
+    $this->_groupBy = CRM_Contact_BAO_Query::getGroupByFromSelectColumns($this->_selectClauses, $groupBy);
   }
 
   public function postProcess() {
@@ -337,7 +441,7 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
    */
   public function bounce_type() {
 
-    $data = array('' => '--Please Select--');
+    $data = array();
 
     $bounce_type = new CRM_Mailing_DAO_BounceType();
     $query = "SELECT name FROM civicrm_mailing_bounce_type";
@@ -360,8 +464,20 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
    *   Rows generated by SQL, with an array for each row.
    */
   public function alterDisplay(&$rows) {
+
+    $config = CRM_Core_Config::Singleton();
+
     $entryFound = FALSE;
     foreach ($rows as $rowNum => $row) {
+
+      // If the email address has been deleted
+      if (array_key_exists('civicrm_email_email', $row)) {
+        if (empty($rows[$rowNum]['civicrm_email_email'])) {
+          $rows[$rowNum]['civicrm_email_email'] = '<del>Email address deleted</del>';
+        }
+        $entryFound = TRUE;
+      }
+
       // make count columns point to detail report
       // convert display name to links
       if (array_key_exists('civicrm_contact_sort_name', $row) &&
@@ -374,6 +490,28 @@ class CRM_Report_Form_Mailing_Bounce extends CRM_Report_Form {
         $rows[$rowNum]['civicrm_contact_sort_name_link'] = $url;
         $rows[$rowNum]['civicrm_contact_sort_name_hover'] = ts("View Contact details for this contact.");
         $entryFound = TRUE;
+      }
+
+      // Handle on_hold boolean display
+      if (array_key_exists('civicrm_email_on_hold', $row)) {
+        $rows[$rowNum]['civicrm_email_on_hold'] = (!empty($row['civicrm_email_on_hold'])) ? 'Yes' : 'No';
+        $entryFound = TRUE;
+      }
+
+      // Convert datetime values to custom date and time format
+      $dateFields = array(
+        'civicrm_mailing_event_bounce_time_stamp',
+        'civicrm_email_hold_date',
+        'civicrm_email_reset_date',
+      );
+
+      foreach ($dateFields as $dateField) {
+        if (array_key_exists($dateField, $row)) {
+          if (!empty($rows[$rowNum][$dateField])) {
+            $rows[$rowNum][$dateField] = CRM_Utils_Date::customFormat($row[$dateField], $config->dateformatDatetime);
+          }
+          $entryFound = TRUE;
+        }
       }
 
       // skip looking further in rows, if first row itself doesn't

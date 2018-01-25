@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,18 +28,17 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class contains all the function that are called using AJAX
+ * This class contains all the function that are called using AJAX.
  */
 class CRM_Admin_Page_AJAX {
 
   /**
-   * CRM-12337 Output navigation menu as executable javascript
+   * CRM-12337 Output navigation menu as executable javascript.
+   *
    * @see smarty_function_crmNavigationMenu
    */
   public static function getNavigationMenu() {
@@ -56,23 +55,14 @@ class CRM_Admin_Page_AJAX {
   }
 
   /**
-   * Return menu tree as json data for editing.
-   */
-  public static function getNavigationList() {
-    echo CRM_Core_BAO_Navigation::buildNavigation(TRUE, FALSE);
-    CRM_Utils_System::civiExit();
-  }
-
-  /**
-   * Process drag/move action for menu tree
+   * Process drag/move action for menu tree.
    */
   public static function menuTree() {
     CRM_Core_BAO_Navigation::processNavigation($_GET);
   }
 
   /**
-   * Build status message while.
-   * enabling/ disabling various objects
+   * Build status message while enabling/ disabling various objects.
    */
   public static function getStatusMsg() {
     require_once 'api/v3/utils.php';
@@ -249,54 +239,6 @@ class CRM_Admin_Page_AJAX {
     CRM_Core_Page_AJAX::returnJsonResponse($ret);
   }
 
-  public static function mergeTagList() {
-    $name = CRM_Utils_Type::escape($_GET['term'], 'String');
-    $fromId = CRM_Utils_Type::escape($_GET['fromId'], 'Integer');
-    $limit = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME, 'search_autocomplete_count', NULL, 10);
-
-    // build used-for clause to be used in main query
-    $usedForTagA = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Tag', $fromId, 'used_for');
-    $usedForClause = array();
-    if ($usedForTagA) {
-      $usedForTagA = explode(",", $usedForTagA);
-      foreach ($usedForTagA as $key => $value) {
-        $usedForClause[] = "t1.used_for LIKE '%{$value}%'";
-      }
-    }
-    $usedForClause = !empty($usedForClause) ? implode(' OR ', $usedForClause) : '1';
-    sort($usedForTagA);
-
-    // query to list mergable tags
-    $query = "
-SELECT t1.name, t1.id, t1.used_for, t2.name as parent
-FROM   civicrm_tag t1
-LEFT JOIN civicrm_tag t2 ON t1.parent_id = t2.id
-WHERE  t1.id <> {$fromId} AND
-       t1.name LIKE '%{$name}%' AND
-       ({$usedForClause})
-LIMIT $limit";
-    $dao = CRM_Core_DAO::executeQuery($query);
-    $result = array();
-
-    while ($dao->fetch()) {
-      $row = array(
-        'id' => $dao->id,
-        'text' => ($dao->parent ? "{$dao->parent} :: " : '') . $dao->name,
-      );
-      // Add warning about used_for types
-      if (!empty($dao->used_for)) {
-        $usedForTagB = explode(',', $dao->used_for);
-        sort($usedForTagB);
-        $usedForDiff = array_diff($usedForTagA, $usedForTagB);
-        if (!empty($usedForDiff)) {
-          $row['warning'] = TRUE;
-        }
-      }
-      $result[] = $row;
-    }
-    CRM_Utils_JSON::output($result);
-  }
-
   /**
    * Get a list of mappings.
    *
@@ -307,42 +249,109 @@ LIMIT $limit";
       CRM_Utils_JSON::output(array('status' => 'error', 'error_msg' => 'required params missing.'));
     }
 
-    $selectionOptions = CRM_Core_BAO_ActionSchedule::getSelection1($_GET['mappingID'], $_GET['isLimit']);
+    $mapping = CRM_Core_BAO_ActionSchedule::getMapping($_GET['mappingID']);
+    $dateFieldLabels = $mapping ? $mapping->getDateFields() : array();
+
+    // The UX here is quirky -- for "Activity" types, there's a simple drop "Recipients"
+    // dropdown which is always displayed. For other types, the "Recipients" drop down is
+    // conditional upon the weird isLimit ('Limit To / Also Include / Neither') dropdown.
+    $noThanksJustKidding = !$_GET['isLimit'];
+    if ($mapping instanceof CRM_Activity_ActionMapping || !$noThanksJustKidding) {
+      $entityRecipientLabels = $mapping ? ($mapping->getRecipientTypes() + CRM_Core_BAO_ActionSchedule::getAdditionalRecipients()) : array();
+    }
+    else {
+      $entityRecipientLabels = CRM_Core_BAO_ActionSchedule::getAdditionalRecipients();
+    }
+    $recipientMapping = array_combine(array_keys($entityRecipientLabels), array_keys($entityRecipientLabels));
 
     $output = array(
-      'sel4' => array(),
-      'sel5' => array(),
-      'recipientMapping' => $selectionOptions['recipientMapping'],
+      'sel4' => CRM_Utils_Array::toKeyValueRows($dateFieldLabels),
+      'sel5' => CRM_Utils_Array::toKeyValueRows($entityRecipientLabels),
+      'recipientMapping' => $recipientMapping,
     );
-    foreach (array(4, 5) as $sel) {
-      foreach ($selectionOptions["sel$sel"] as $id => $name) {
-        $output["sel$sel"][] = array(
-          'value' => $name,
-          'key' => $id,
-        );
-      }
-    }
 
     CRM_Utils_JSON::output($output);
   }
 
-  public static function mergeTags() {
-    $tagAId = CRM_Utils_Type::escape($_POST['fromId'], 'Integer');
-    $tagBId = CRM_Utils_Type::escape($_POST['toId'], 'Integer');
+  /**
+   * (Scheduled Reminders) Get the list of possible recipient filters.
+   *
+   * Ex: GET /civicrm/ajax/recipientListing?mappingID=contribpage&recipientType=
+   */
+  public static function recipientListing() {
+    $mappingID = filter_input(INPUT_GET, 'mappingID', FILTER_VALIDATE_REGEXP, array(
+      'options' => array(
+        'regexp' => '/^[a-zA-Z0-9_\-]+$/',
+      ),
+    ));
+    $recipientType = filter_input(INPUT_GET, 'recipientType', FILTER_VALIDATE_REGEXP, array(
+      'options' => array(
+        'regexp' => '/^[a-zA-Z0-9_\-]+$/',
+      ),
+    ));
 
-    $result = CRM_Core_BAO_EntityTag::mergeTags($tagAId, $tagBId);
+    CRM_Utils_JSON::output(array(
+      'recipients' => CRM_Utils_Array::toKeyValueRows(CRM_Core_BAO_ActionSchedule::getRecipientListing($mappingID, $recipientType)),
+    ));
+  }
 
-    if (!empty($result['tagB_used_for'])) {
-      $usedFor = CRM_Core_OptionGroup::values('tag_used_for');
-      foreach ($result['tagB_used_for'] as & $val) {
-        $val = $usedFor[$val];
+  /**
+   * Outputs one branch in the tag tree
+   *
+   * Used by jstree to incrementally load tags
+   */
+  public static function getTagTree() {
+    $parent = CRM_Utils_Type::escape(CRM_Utils_Array::value('parent_id', $_GET, 0), 'Integer');
+    $result = array();
+
+    $parentClause = $parent ? "AND parent_id = $parent" : 'AND parent_id IS NULL';
+    $sql = "SELECT *
+      FROM civicrm_tag
+      WHERE is_tagset <> 1 $parentClause
+      GROUP BY id
+      ORDER BY name";
+
+    // fetch all child tags in Array('parent_tag' => array('child_tag_1', 'child_tag_2', ...)) format
+    $childTagIDs = CRM_Core_BAO_Tag::getChildTags();
+
+    $dao = CRM_Core_DAO::executeQuery($sql);
+    while ($dao->fetch()) {
+      $style = '';
+      if ($dao->color) {
+        $style = "background-color: {$dao->color}; color: " . CRM_Utils_Color::getContrast($dao->color);
       }
-      $result['tagB_used_for'] = implode(', ', $result['tagB_used_for']);
+      $hasChildTags = empty($childTagIDs[$dao->id]) ? FALSE : TRUE;
+      $usedFor = (array) explode(',', $dao->used_for);
+      $result[] = array(
+        'id' => $dao->id,
+        'text' => $dao->name,
+        'icon' => FALSE,
+        'li_attr' => array(
+          'title' => ((string) $dao->description) . ($dao->is_reserved ? ' (*' . ts('Reserved') . ')' : ''),
+          'class' => $dao->is_reserved ? 'is-reserved' : '',
+        ),
+        'a_attr' => array(
+          'style' => $style,
+          'class' => 'crm-tag-item',
+        ),
+        'children' => $hasChildTags,
+        'data' => array(
+          'description' => (string) $dao->description,
+          'is_selectable' => (bool) $dao->is_selectable,
+          'is_reserved' => (bool) $dao->is_reserved,
+          'used_for' => $usedFor,
+          'color' => $dao->color ? $dao->color : '#ffffff',
+          'usages' => civicrm_api3('EntityTag', 'getcount', array(
+            'entity_table' => array('IN' => $usedFor),
+            'tag_id' => $dao->id,
+          )),
+        ),
+      );
     }
 
-    $result['message'] = ts('"%1" has been merged with "%2". All records previously tagged "%1" are now tagged "%2".',
-      array(1 => $result['tagA'], 2 => $result['tagB'])
-    );
+    if (!empty($_REQUEST['is_unit_test'])) {
+      return $result;
+    }
 
     CRM_Utils_JSON::output($result);
   }

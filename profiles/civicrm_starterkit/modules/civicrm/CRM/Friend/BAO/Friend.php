@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -54,11 +54,10 @@ class CRM_Friend_BAO_Friend extends CRM_Friend_DAO_Friend {
    * @param array $params
    *   (reference ) an assoc array of name/value pairs.
    *
-   * @return CRM_Friend_BAO_Friend
+   * @return int
    */
   public static function add(&$params) {
-    $friend = CRM_Contact_BAO_Contact::createProfileContact($params, CRM_Core_DAO::$_nullArray);
-    return $friend;
+    return CRM_Contact_BAO_Contact::createProfileContact($params, CRM_Core_DAO::$_nullArray);
   }
 
   /**
@@ -135,7 +134,7 @@ class CRM_Friend_BAO_Friend extends CRM_Friend_DAO_Friend {
 
     //activity creation
     $activity = CRM_Activity_BAO_Activity::create($activityParams);
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $targetID = CRM_Utils_Array::key('Activity Targets', $activityContacts);
 
     //friend contacts creation
@@ -143,27 +142,26 @@ class CRM_Friend_BAO_Friend extends CRM_Friend_DAO_Friend {
 
       //create contact only if it does not exits in db
       $value['email'] = $value['email-Primary'];
-      $value['check_permission'] = FALSE;
-      $contact = CRM_Core_BAO_UFGroup::findContact($value, NULL, 'Individual');
+      $contactID = CRM_Contact_BAO_Contact::getFirstDuplicateContact($value, 'Individual', 'Supervised', array(), FALSE);
 
-      if (!$contact) {
-        $contact = self::add($value);
+      if (!$contactID) {
+        $contactID = self::add($value);
       }
 
       // attempt to save activity targets
       $targetParams = array(
         'activity_id' => $activity->id,
-        'contact_id' => $contact,
+        'contact_id' => $contactID,
         'record_type_id' => $targetID,
       );
 
       // See if it already exists
       $activityContact = new CRM_Activity_DAO_ActivityContact();
       $activityContact->activity_id = $activity->id;
-      $activityContact->contact_id = $contact;
+      $activityContact->contact_id = $contactID;
       $activityContact->find(TRUE);
       if (empty($activityContact->id)) {
-        $resultTarget = CRM_Activity_BAO_ActivityContact::create($targetParams);
+        CRM_Activity_BAO_ActivityContact::create($targetParams);
       }
     }
 
@@ -246,7 +244,7 @@ class CRM_Friend_BAO_Friend extends CRM_Friend_DAO_Friend {
     $form->add('text', 'tf_title', ts('Title'), CRM_Core_DAO::getAttribute('CRM_Friend_DAO_Friend', 'title'), TRUE);
 
     // intro-text and thank-you text
-    $form->addWysiwyg('intro', ts('Introduction'), CRM_Core_DAO::getAttribute('CRM_Friend_DAO_Friend', 'intro'), TRUE);
+    $form->add('wysiwyg', 'intro', ts('Introduction'), CRM_Core_DAO::getAttribute('CRM_Friend_DAO_Friend', 'intro') + array('class' => 'collapsed'));
 
     $form->add('textarea', 'suggested_message', ts('Suggested Message'),
       CRM_Core_DAO::getAttribute('CRM_Friend_DAO_Friend', 'suggested_message'), FALSE
@@ -256,7 +254,7 @@ class CRM_Friend_BAO_Friend extends CRM_Friend_DAO_Friend {
 
     $form->add('text', 'tf_thankyou_title', ts('Thank-you Title'), CRM_Core_DAO::getAttribute('CRM_Friend_DAO_Friend', 'thankyou_title'), TRUE);
 
-    $form->addWysiwyg('tf_thankyou_text', ts('Thank-you Message'), CRM_Core_DAO::getAttribute('CRM_Friend_DAO_Friend', 'thankyou_text'), TRUE);
+    $form->add('wysiwyg', 'tf_thankyou_text', ts('Thank-you Message'), CRM_Core_DAO::getAttribute('CRM_Friend_DAO_Friend', 'thankyou_text') + array('class' => 'collapsed'));
 
     if ($form->_friendId) {
       // CRM-14200 the i18n dialogs need this for translation

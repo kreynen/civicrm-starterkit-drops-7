@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -36,6 +36,9 @@
     <table>
       <tr class="columnheader">
         <th>{ts}Item{/ts}</th>
+        {if $displayLineItemFinancialType}
+          <th>{ts}Financial Type{/ts}</th>
+        {/if}
         {if $context EQ "Membership"}
           <th class="right">{ts}Fee{/ts}</th>
         {else}
@@ -59,7 +62,10 @@
       </tr>
       {foreach from=$value item=line}
         <tr{if $line.qty EQ 0} class="cancelled"{/if}>
-          <td>{if $line.html_type eq 'Text'}{$line.label}{else}{$line.field_title} - {$line.label}{/if} {if $line.description}<div class="description">{$line.description}</div>{/if}</td>
+          <td>{if $line.field_title && $line.html_type neq 'Text'}{$line.field_title} &ndash; {$line.label}{else}{$line.label}{/if} {if $line.description}<div class="description">{$line.description}</div>{/if}</td>
+          {if $displayLineItemFinancialType}
+            <td>{$line.financial_type}</td>
+          {/if}
           {if $context NEQ "Membership"}
             <td class="right">{$line.qty}</td>
             <td class="right">{$line.unit_price|crmMoney}</td>
@@ -72,7 +78,7 @@
     {if $getTaxDetails}
       <td class="right">{$line.line_total|crmMoney}</td>
       {if $line.tax_rate != "" || $line.tax_amount != ""}
-        <td class="right">{$taxTerm} ({$line.tax_rate|string_format:"%.3f"}%)</td>
+        <td class="right">{$taxTerm} ({$line.tax_rate}%)</td>
         <td class="right">{$line.tax_amount|crmMoney}</td>
       {else}
         <td></td>
@@ -92,7 +98,7 @@
 <div class="crm-section no-label total_amount-section">
   <div class="content bold">
     {if $getTaxDetails && $totalTaxAmount}
-      {ts}Total Tax Amount{/ts}: {$totalTaxAmount|crmMoney}<br />
+      {ts 1=$taxTerm}Total %1 Amount{/ts}: {$totalTaxAmount|crmMoney}<br />
     {/if}
     {if $context EQ "Contribution"}
       {ts}Contribution Total{/ts}:

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class generates task actions for CiviEvent
- *
+ * This class generates task actions for CiviEvent.
  */
 class CRM_Case_Form_Task extends CRM_Core_Form {
 
@@ -65,14 +62,10 @@ class CRM_Case_Form_Task extends CRM_Core_Form {
    *
    * @var array
    */
-  protected $_caseIds;
+  public $_caseIds;
 
   /**
    * Build all the data structures needed to build the form.
-   *
-   * @param
-   *
-   * @return void
    */
   public function preProcess() {
     self::preProcessCommon($this);
@@ -144,7 +137,7 @@ class CRM_Case_Form_Task extends CRM_Core_Form {
    */
   public function setContactIDs() {
     $this->_contactIds = &CRM_Core_DAO::getContactIDsFromComponent($this->_caseIds,
-      'civicrm_case'
+      'civicrm_case_contact'
     );
   }
 
@@ -158,8 +151,6 @@ class CRM_Case_Form_Task extends CRM_Core_Form {
    *   Button type for the form after processing.
    * @param string $backType
    * @param bool $submitOnce
-   *
-   * @return void
    */
   public function addDefaultButtons($title, $nextType = 'next', $backType = 'back', $submitOnce = FALSE) {
     $this->addButtons(array(

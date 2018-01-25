@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -125,6 +123,22 @@ class CRM_Utils_Money {
       '%c' => CRM_Utils_Array::value($currency, self::$_currencySymbols, $currency),
     );
     return strtr($format, $replacements);
+  }
+
+  /**
+   * This is a placeholder function for calculating the number of decimal places for a currency.
+   *
+   * Currently code assumes 2 decimal places but some currencies (bitcoin, middle eastern) have
+   * more. By using this function we can signpost the locations where the number of decimal places is
+   * currency specific for future enhancement.
+   *
+   * @param string $currency
+   *
+   * @return int
+   *   Number of decimal places.
+   */
+  public static function getCurrencyPrecision($currency = NULL) {
+    return 2;
   }
 
 }

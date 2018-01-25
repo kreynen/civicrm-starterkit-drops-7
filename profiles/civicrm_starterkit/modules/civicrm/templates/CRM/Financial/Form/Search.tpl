@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -27,7 +27,7 @@
 {* Financial search component. *}
 <div id="enableDisableStatusMsg" class="crm-container" style="display:none"></div>
 <div class="crm-submit-buttons">
-  <a accesskey="N" href="{crmURL p='civicrm/financial/batch' q="reset=1&action=add&context=$batchStatus"}" id="newBatch" class="button"><span><div class="icon ui-icon-circle-plus"></div>{ts}New Accounting Batch{/ts}</span></a>
+  <a accesskey="N" href="{crmURL p='civicrm/financial/batch' q="reset=1&action=add&context=$batchStatus"}" id="newBatch" class="button"><span><i class="crm-i fa-plus-circle"></i> {ts}New Accounting Batch{/ts}</span></a>
 </div>
 <div class="crm-form-block crm-search-form-block">
   <div class="crm-accordion-wrapper crm-activity_search-accordion">
@@ -55,7 +55,7 @@
     <tr>
       <th class="crm-batch-checkbox">{$form.toggleSelect.html}</th>
       <th class="crm-batch-name">{ts}Batch Name{/ts}</th>
-      <th class="crm-batch-payment_instrument">{ts}Payment Instrument{/ts}</th>
+      <th class="crm-batch-payment_instrument">{ts}Payment Method{/ts}</th>
       <th class="crm-batch-item_count">{ts}Item Count{/ts}</th>
       <th class="crm-batch-total">{ts}Total Amount{/ts}</th>
       <th class="crm-batch-status">{ts}Status{/ts}</th>
@@ -149,8 +149,7 @@ CRM.$(function($) {
         return nRow;
       },
       "fnDrawCallback": function(oSettings) {
-        // FIXME: trigger crmLoad and crmEditable would happen automatically
-        $('.crm-editable', '#crm-batch-selector-{/literal}{$batchStatus}{literal}').crmEditable();
+        $(this).trigger('crmLoad');
         $("#toggleSelect").prop('checked', false);
         if (checkedRows.length) {
           $(checkedRows.join(',')).prop('checked', true).change();
@@ -240,8 +239,9 @@ CRM.$(function($) {
       function(response) {
         //this is custom status set when record update success.
         if (response.status == 'record-updated-success') {
+	  //Redirect CRM-18169
+          window.location.href = CRM.url('civicrm/financial/financialbatches', 'reset=1&batchStatus=' + response.status_id);
           CRM.alert(listRecords(records), op == 'delete' ? {/literal}'{ts escape="js"}Deleted{/ts}' : '{ts escape="js"}Updated{/ts}'{literal}, 'success');
-          batchSelector.fnDraw();
         }
         else {
           CRM.alert({/literal}'{ts escape="js"}An error occurred while processing your request.{/ts}', $("#batch_update option[value=" + op + "]").text() + ' {ts escape="js"}Error{/ts}'{literal}, 'error');

@@ -11,7 +11,7 @@
  */
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function civicrm_member_roles_menu() {
   if (!civicrm_initialize()) {
@@ -19,8 +19,8 @@ function civicrm_member_roles_menu() {
   }
   $items = array();
   $items['admin/config/civicrm/civicrm_member_roles'] = array(
-    'title' => t('CiviMember Roles Sync'),
-    'description' => t('Add/remove association rules and configure settings. Also perform manual synchronization.'),
+    'title' => 'CiviMember Roles Sync',
+    'description' => 'Add/remove association rules and configure settings. Also perform manual synchronization.',
     'page callback' => 'civicrm_member_roles_show_rules',
     'access callback' => 'user_access',
     'access arguments' => array('access civicrm member role setting'),
@@ -28,7 +28,7 @@ function civicrm_member_roles_menu() {
   );
 
   $items['admin/config/civicrm/civicrm_member_roles/show_rules'] = array(
-    'title' => t('List Association Rule(s)'),
+    'title' => 'List Association Rule(s)',
     'access callback' => 'user_access',
     'access arguments' => array('access civicrm member role setting'),
     'weight' => -5,
@@ -36,7 +36,7 @@ function civicrm_member_roles_menu() {
   );
 
   $items['admin/config/civicrm/civicrm_member_roles/add_rule'] = array(
-    'title' => t('Add Association Rule'),
+    'title' => 'Add Association Rule',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('civicrm_member_roles_add_rule_form'),
     'access callback' => 'user_access',
@@ -45,7 +45,7 @@ function civicrm_member_roles_menu() {
   );
 
   $items['admin/config/civicrm/civicrm_member_roles/add_rule/%rule_id'] = array(
-    'title' => t('Add Association Rule'),
+    'title' => 'Add Association Rule',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('civicrm_member_roles_add_rule_form', 1),
     'access callback' => 'user_access',
@@ -54,7 +54,7 @@ function civicrm_member_roles_menu() {
   );
 
   $items['admin/config/civicrm/civicrm_member_roles/configure'] = array(
-    'title' => t('Configure'),
+    'title' => 'Configure',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('civicrm_member_roles_configure'),
     'access callback' => 'user_access',
@@ -63,7 +63,7 @@ function civicrm_member_roles_menu() {
   );
 
   $items['admin/config/civicrm/civicrm_member_roles/manual_sync'] = array(
-    'title' => t('Manually Synchronize'),
+    'title' => 'Manually Synchronize',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('civicrm_member_roles_manual_sync'),
     'access callback' => 'user_access',
@@ -75,26 +75,26 @@ function civicrm_member_roles_menu() {
 }
 
 /**
- * Implementation of hook_permission().
+ * Implements hook_permission().
  */
 function civicrm_member_roles_permission() {
   return array(
-    'access civicrm member role setting' =>
-    array('title' => t('Access CiviCRM member role setting'),
+    'access civicrm member role setting' => array(
+      'title' => t('Access CiviCRM member role setting'),
       'description' => t('Access Civicrm member roles synchronization.'),
     ),
   );
 }
 
 /**
- * Implementation of hook_user_login().
+ * Implements hook_user_login().
  */
 function civicrm_member_roles_user_login(&$edit, $account) {
   civicrm_member_roles_sync_user($account);
 }
 
 /**
- * Implementation of hook_user_logout().
+ * Implements hook_user_logout().
  */
 function civicrm_member_roles_user_logout($account) {
   civicrm_member_roles_sync_user($account);
@@ -104,20 +104,20 @@ function civicrm_member_roles_sync_user($account) {
   if (!civicrm_initialize()) {
     return;
   }
-  if (variable_get('civicrm_member_roles_sync_method', 0) == 0) {
+  if (in_array('login', variable_get('civicrm_member_roles_sync_method', array('login')), TRUE)) {
     _civicrm_member_roles_sync($account->uid);
   }
 }
 
 /**
- * Implementation of hook_cron().
+ * Implements hook_cron().
  */
 function civicrm_member_roles_cron() {
   if (!civicrm_initialize(TRUE)) {
     return;
   }
-  if (variable_get('civicrm_member_roles_sync_method', 0) == 1) {
-    _civicrm_member_roles_sync();
+  if (in_array('cron', variable_get('civicrm_member_roles_sync_method', array('login')), TRUE)) {
+    _civicrm_member_roles_sync(NULL, NULL, 'cron');
   }
 }
 
@@ -146,7 +146,8 @@ function civicrm_member_roles_show_rules($action = NULL, $id = NULL) {
   $roles  = user_roles(TRUE);
 
   //Begin building main output table.
-  $header = array('rid' => t('Rule ID'),
+  $header = array(
+    'rid' => t('Rule ID'),
     'rule_name' => t('Rule Name ("CiviMember Membership Type" --> "Drupal Role")'),
     'current_code' => t('Add When Status Is'),
     'expired_code' => t('Remove When Status Is'),
@@ -212,7 +213,9 @@ function civicrm_member_roles_manual_sync() {
 }
 
 /**
- * Implementation of hook_submit() for the manual sync form.
+ * Implements hook_submit().
+ *
+ * For the manual sync form.
  */
 function civicrm_member_roles_manual_sync_submit($form, &$form_state) {
   if (!civicrm_initialize()) {
@@ -238,23 +241,33 @@ function civicrm_member_roles_configure() {
     '#title' => t('Settings'),
   );
   $form['settings']['civicrm_member_roles_sync_method'] = array(
-    '#type' => 'radios',
+    '#type' => 'checkboxes',
     '#title' => t('Automatic Synchronization Method'),
-    '#description' => t('Select which method CiviMember Roles Sync will use to automatically synchronize Memberships and Roles. If you choose user login/logout, you will have to run an initial "Manual Synchronization" after you create a new rule for it to be applied to all users and contacts. Leave the default setting if you are unsure which method to use.'),
-    '#default_value' => variable_get('civicrm_member_roles_sync_method', 0),
+    '#description' => t('Select which method CiviMember Roles Sync will use to automatically synchronize Memberships and Roles. If you choose user login/logout, you will have to run an initial "Manual Synchronization" after you create a new rule for it to be applied to all users and contacts. If you do not select an option, automatic synchronization will be disabled. You will have to use the "Manually Synchronize" form to synchronize memberships and roles yourself. Leave the default setting if you are unsure which method to use.'),
+    '#default_value' => variable_get('civicrm_member_roles_sync_method', array('login')),
     '#options' => array(
-      0 => t('Synchronize whenever a user logs in or logs out. This action is performed only on the user logging in or out.'),
-      1 => t('Synchronize when Drupal cron is ran. This action will be performed on all users and contacts.'),
-      3 => t('Synchronize when membership is updated.'),
-      2 => t('Disable automatic synchronization. You will have to use the "Manually Synchronize" form to synchronize memberships and roles yourself.'),
+      'login' => t('Synchronize whenever a user logs in or logs out. This action is performed only on the user logging in or out.'),
+      'cron' => t('Synchronize when Drupal cron is ran. This action will be performed on all users and contacts.'),
+      'update' => t('Synchronize when membership is updated.'),
     ),
+  );
+  $form['settings']['civicrm_member_roles_cron_limit'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Memberships Synchronized on Cron'),
+    '#description' => t('Enter how many Memberships and Roles you would like to synchronize per cron run. Synchronization will be performed randomly. This prevents the operation from timing out when too many items are processed at once. If this is empty, all Memberships and Roles will be processed.'),
+    '#default_value' => variable_get('civicrm_member_roles_cron_limit', 150),
+    '#element_validate' => array('element_validate_integer_positive'),
+    '#size' => 15,
+    '#maxlength' => 4,
   );
 
   return system_settings_form($form);
 }
 
 /**
- * Implementation of hook_form(). Add/edit association rules.
+ * Implements hook_form().
+ *
+ * Add/edit association rules.
  *
  * @ingroup forms
  * @see civicrm_member_roles_add_rule_validate()
@@ -302,14 +315,14 @@ function civicrm_member_roles_add_rule_form($form = NULL, $form_state = NULL, $i
   $form['status_code']['current'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Add Statuses'),
-    '#description' => t('Select all CiviMember Status Rule(s) that represent an \'add\' status.'),
+    '#description' => t("Select all CiviMember Status Rule(s) that represent an 'add' status."),
     '#options' => $status_options,
     '#required' => TRUE,
   );
   $form['status_code']['expired'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Removal Statuses'),
-    '#description' => t('Select all CiviMember Status Rule(s) that represent a \'removal\' status.'),
+    '#description' => t("Select all CiviMember Status Rule(s) that represent a 'removal' status."),
     '#options' => $status_options,
     '#required' => TRUE,
   );
@@ -348,7 +361,9 @@ function civicrm_member_roles_add_rule_form($form = NULL, $form_state = NULL, $i
 }
 
 /**
- * Implementation of hook_validate() for the add/edit rule form.
+ * Implements hook_validate().
+ *
+ * For the add/edit rule form.
  */
 function civicrm_member_roles_add_rule_form_validate($form, &$form_state) {
   //Make sure there is a CiviMember Membership Type and a Drupal Role selected.
@@ -398,7 +413,9 @@ function civicrm_member_roles_add_rule_form_validate($form, &$form_state) {
 }
 
 /**
- * Implementation of hook_submit() for the add/edit rule form.
+ * Implements hook_submit().
+ *
+ * For the add/edit rule form.
  */
 function civicrm_member_roles_add_rule_form_submit($form, &$form_state) {
   if (!civicrm_initialize()) {
@@ -424,7 +441,7 @@ function civicrm_member_roles_add_rule_form_submit($form, &$form_state) {
         'rid' => (int) $form_state['values']['add_rule']['select_role'],
         'type_id' => (int) $form_state['values']['add_rule']['select_membership'],
         'status_codes' => serialize($codes),
-      ))->condition('rule_id', (int)$form_state['values']['edit_flag'])->execute();
+      ))->condition('rule_id', (int) $form_state['values']['edit_flag'])->execute();
 
     if ($edit_rule) {
       drupal_set_message(t('Your association rule has been edited.'));
@@ -448,10 +465,15 @@ function civicrm_member_roles_add_rule_form_submit($form, &$form_state) {
 /**
  * Finds members and applies roles based on the rules defined in the settings page. If the ext_uid param is defined then
  * this function will only sync one user.
+ *
+ * @param string $sync_type
+ *   Whether we are syncing on cron, login, etc. Only cron is handled at this time.
+ *
+ * @return bool
  */
-function _civicrm_member_roles_sync($ext_uid = NULL, $cid = NULL) {
+function _civicrm_member_roles_sync($ext_uid = NULL, $cid = NULL, $sync_type = NULL) {
   if (!civicrm_initialize()) {
-    return;
+    return FALSE;
   }
 
   $rules = db_query('SELECT * FROM {civicrm_member_roles_rules}')->fetchAll();
@@ -461,19 +483,29 @@ function _civicrm_member_roles_sync($ext_uid = NULL, $cid = NULL) {
   $memberroles = $rid = array();
   foreach ($rules as $ruleValues) {
     $memberroles[$ruleValues->type_id][] = array(
-        'rid' => $ruleValues->rid,
-        'codes' => unserialize($ruleValues->status_codes),
+      'rid' => $ruleValues->rid,
+      'codes' => unserialize($ruleValues->status_codes),
     );
     $rid[] = $ruleValues->rid;
   }
   //Find all contacts that have membership rules (or just use $ext_uid)
   if (empty($ext_uid) && empty($cid)) {
-    $sql = "SELECT DISTINCT uf.contact_id FROM civicrm_uf_match uf
+    // Get the number of contacts to sync at once, if we're syncing on cron.
+    $cron_limit = variable_get('civicrm_member_roles_cron_limit', 150);
+    if ($sync_type == 'cron' && is_numeric($cron_limit) && $cron_limit > 0) {
+      $sql = "SELECT DISTINCT uf.contact_id FROM civicrm_uf_match uf
+      LEFT JOIN civicrm_membership m ON uf.contact_id = m.contact_id
+      WHERE m.id IS NOT NULL AND m.membership_type_id IN (" . implode(',', array_keys($memberroles)) . ")
+      ORDER BY RAND() LIMIT " . $cron_limit;
+    }
+    else {
+      $sql = "SELECT DISTINCT uf.contact_id FROM civicrm_uf_match uf
       LEFT JOIN civicrm_membership m ON uf.contact_id = m.contact_id
       WHERE m.id IS NOT NULL AND m.membership_type_id IN (" . implode(',', array_keys($memberroles)) . ")
       ORDER BY m.end_date DESC";
-    //let's prioritise those ending last as then we are more likely to get relevant ones if it doesn't complete
-    //obviously a better fix would be for it to chunk & save where it is up to
+      //let's prioritise those ending last as then we are more likely to get relevant ones if it doesn't complete
+      //obviously a better fix would be for it to chunk & save where it is up to
+    }
     $params = CRM_Core_DAO::$_nullArray;
     $errorMsg = 'unknown error';
     $errorParams = array();
@@ -516,32 +548,34 @@ function _civicrm_member_roles_sync($ext_uid = NULL, $cid = NULL) {
     //Get all memberships of contact
     $memParams = array(
       'contact_id' => $cid,
-      'version' => 3,
+      'options' => array('limit' => 0),
     );
     //CRM-16000 added try/catch to api call
     try {
-      $memberships = civicrm_api('membership', 'get', $memParams);
-    } catch (CiviCRM_API3_Exception $e) {
+      $memberships = civicrm_api3('membership', 'get', $memParams);
+    }
+    catch (CiviCRM_API3_Exception $e) {
       $error = $e->getMessage();
       return $error;
     }
     //CRM-16000 remove inactive memberships if member has both active and inactive memberships
-    if ($memberships['count'] > 1){
+    if ($memberships['count'] > 1) {
       $params = array(
         'sequential' => 1,
         'name' => array('IN' => array("Deceased", "Cancelled", "Pending", "Expired")),
       );
       try {
         $result = civicrm_api3('MembershipStatus', 'get', $params);
-      } catch (CiviCRM_API3_Exception $e){
+      }
+      catch (CiviCRM_API3_Exception $e) {
         $error = $e->getMessage();
         return $error;
       }
-      foreach ($result['values'] as $value){
+      foreach ($result['values'] as $value) {
         $inactive[] = $value['id'];
       }
       foreach ($memberships['values'] as $key => $membership) {
-        if (in_array($membership['status_id'], $inactive)){
+        if (in_array($membership['status_id'], $inactive)) {
           unset($membership['values'][$key]);
         }
       }
@@ -639,7 +673,7 @@ function _civicrm_member_roles_get_data($type) {
 
 function civicrm_member_roles_civicrm_post($op, $objname, $objid, &$objref) {
   if ($objname == "Membership") {
-    if (variable_get('civicrm_member_roles_sync_method', 0) == 3) {
+    if (in_array('update', variable_get('civicrm_member_roles_sync_method', array('login')), TRUE)) {
       _civicrm_member_roles_sync(NULL, $objref->contact_id);
     }
   }

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Contact_Page_DedupeRules extends CRM_Core_Page_Basic {
 
@@ -99,16 +97,9 @@ class CRM_Contact_Page_DedupeRules extends CRM_Core_Page_Basic {
    * This method is called after the page is created. It checks for the type
    * of action and executes that action. Finally it calls the parent's run
    * method.
-   *
-   * @return void
    */
   public function run() {
-    // get the requested action, default to 'browse'
-    $action = CRM_Utils_Request::retrieve('action', 'String', $this, FALSE, 'browse');
-
-    // assign vars to templates
-    $this->assign('action', $action);
-    $id = CRM_Utils_Request::retrieve('id', 'Positive', $this, FALSE, 0);
+    $id = $this->getIdAndAction();
 
     $context = CRM_Utils_Request::retrieve('context', 'String', $this, FALSE);
     if ($context == 'nonDupe') {
@@ -120,24 +111,22 @@ class CRM_Contact_Page_DedupeRules extends CRM_Core_Page_Basic {
     $this->assign('hasperm_merge_duplicate_contacts', CRM_Core_Permission::check('merge duplicate contacts'));
 
     // which action to take?
-    if ($action & (CRM_Core_Action::UPDATE | CRM_Core_Action::ADD)) {
-      $this->edit($action, $id);
+    if ($this->_action & (CRM_Core_Action::UPDATE | CRM_Core_Action::ADD)) {
+      $this->edit($this->_action, $id);
     }
-    if ($action & CRM_Core_Action::DELETE) {
+    if ($this->_action & CRM_Core_Action::DELETE) {
       $this->delete($id);
     }
 
     // browse the rules
     $this->browse();
 
-    // parent run
-    return parent::run();
+    // This replaces parent run, but do parent's parent run
+    return CRM_Core_Page::run();
   }
 
   /**
    * Browse all rule groups.
-   *
-   * @return void
    */
   public function browse() {
     // get all rule groups
@@ -221,7 +210,11 @@ class CRM_Contact_Page_DedupeRules extends CRM_Core_Page_Basic {
 
     $rgDao = new CRM_Dedupe_DAO_RuleGroup();
     $rgDao->id = $id;
-    $rgDao->delete();
+    if ($rgDao->find(TRUE)) {
+      $rgDao->delete();
+      CRM_Core_Session::setStatus(ts("The rule '%1' has been deleted.", array(1 => $rgDao->title)), ts('Rule Deleted'), 'success');
+      CRM_Utils_System::redirect(CRM_Utils_System::url($this->userContext(), 'reset=1'));
+    }
   }
 
 }

@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -37,7 +37,7 @@
 
 {if $showLinks}
     <div class="action-link">
-      {crmButton accesskey="N"  p=$newMassUrl q='reset=1' icon="mail-closed"}{ts}{$linkTitle}{/ts}{/crmButton}<br/><br/>
+      {crmButton accesskey="N"  p=$newMassUrl q='reset=1' icon="envelope"}{ts}{$linkTitle}{/ts}{/crmButton}<br/><br/>
     </div>
 {/if}
 {include file="CRM/Mailing/Form/Search.tpl"}
@@ -65,10 +65,21 @@
       {foreach from=$rows item=row}
       <tr id="crm-mailing_{$row.id}" class="{cycle values="odd-row,even-row"} crm-mailing crm-mailing_status-{$row.status}">
         <td class="crm-mailing-name">{$row.name}</td>
+        {if $multilingual}
+          <td class="crm-mailing-language">{$row.language}</td>
+        {/if}
         <td class="crm-mailing-status crm-mailing_status-{$row.status}">{$row.status}</td>
-        <td class="crm-mailing-created_by"><a href ={crmURL p='civicrm/contact/view' q="reset=1&cid="}{$row.created_id}>{$row.created_by}</a></td>
+        <td class="crm-mailing-created_by">
+          <a href ={crmURL p='civicrm/contact/view' q="reset=1&cid="}{$row.created_id} title="{$row.created_by|escape}">
+            {$row.created_by|mb_truncate:20:"..."}
+          </a>
+        </td>
         <td class="crm-mailing-created_date">{$row.created_date}</td>
-        <td class="crm-mailing-scheduled_by"><a href ={crmURL p='civicrm/contact/view' q="reset=1&cid="}{$row.scheduled_id}>{$row.scheduled_by}</a></td>
+        <td class="crm-mailing-scheduled_by">
+          <a href ={crmURL p='civicrm/contact/view' q="reset=1&cid="}{$row.scheduled_id} title="{$row.scheduled_by|escape}">
+            {$row.scheduled_by|mb_truncate:20:"..."}
+          </a>
+        </td>
         <td class="crm-mailing-scheduled">{$row.scheduled}</td>
         <td class="crm-mailing-start">{$row.start}</td>
         <td class="crm-mailing-end">{$row.end}</td>
@@ -84,7 +95,7 @@
     {include file="CRM/common/pager.tpl" location="bottom"}
     {if $showLinks}
       <div class="action-link">
-            {crmButton accesskey="N"  p=$newMassUrl q='reset=1' icon="mail-closed"}{ts}{$linkTitle}{/ts}{/crmButton}<br/>
+            {crmButton accesskey="N"  p=$newMassUrl q='reset=1' icon="envelope"}{ts}{$linkTitle}{/ts}{/crmButton}<br/>
       </div>
     {/if}
 

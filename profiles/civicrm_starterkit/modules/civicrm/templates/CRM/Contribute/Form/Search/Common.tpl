@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -24,7 +24,7 @@
  +--------------------------------------------------------------------+
 *}
 
-<tr><td><label>{ts}Contribution Dates{/ts}</label></td></tr>
+<tr><td><label>{ts}Date Received{/ts}</label></td></tr>
 <tr>
 {include file="CRM/Core/DateRange.tpl" fieldName="contribution_date" from='_low' to='_high'}
 </tr>
@@ -47,6 +47,14 @@
       {$form.contribution_check_number.label} <br />
       {$form.contribution_check_number.html}
     </div>
+    <div class="float-left" id="financial_trxn_card_type_id_wrapper">
+      {$form.financial_trxn_card_type_id.label} <br />
+      {$form.financial_trxn_card_type_id.html}
+    </div>
+    <div class="float-left" id="pan_truncation_wrapper">
+      {$form.financial_trxn_pan_truncation.label} <br />
+      {$form.financial_trxn_pan_truncation.html}
+    </div>
   </td>
   <td>
     {$form.contribution_trxn_id.label} <br />
@@ -63,8 +71,8 @@
     </div>
   </td>
   <td>
-    {$form.invoice_id.label} <br />
-    {$form.invoice_id.html}
+    {$form.invoice_number.label} <br />
+    {$form.invoice_number.html}
   </td>
 </tr>
 <tr>
@@ -126,6 +134,10 @@
     {$form.contribution_source.label} <br />
     {$form.contribution_source.html|crmAddClass:twenty}
   </td>
+  <td>
+    {$form.contribution_product_id.label} <br />
+    {$form.contribution_product_id.html|crmAddClass:twenty}
+  </td>
 </tr>
 <tr>
   <td>
@@ -156,17 +168,20 @@
 {include file="CRM/Campaign/Form/addCampaignToComponent.tpl" campaignContext="componentSearch"
 campaignTrClass='' campaignTdClass=''}
 
+{* contribution recurring search *}
 <tr>
   <td colspan="2">
-{include file="CRM/Contribute/Form/Search/ContributionRecur.tpl"}
+    {include file="CRM/Contribute/Form/Search/ContributionRecur.tpl"}
+  </td>
 </tr>
 
-{if $contributeGroupTree}
+{if $contributionGroupTree}
 <tr>
   <td colspan="2">
-  {include file="CRM/Custom/Form/Search.tpl" groupTree=$contributeGroupTree showHideLinks=false}</td>
+  {include file="CRM/Custom/Form/Search.tpl" groupTree=$contributionGroupTree showHideLinks=false}</td>
 </tr>
 {/if}
+
 {literal}
 <script type="text/javascript">
   cj('#contribution_payment_instrument_id').change(function() {

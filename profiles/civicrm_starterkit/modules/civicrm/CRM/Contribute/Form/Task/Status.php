@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class provides the functionality to email a group of
- * contacts.
+ * This class provides the functionality to email a group of contacts.
  */
 class CRM_Contribute_Form_Task_Status extends CRM_Contribute_Form_Task {
 
@@ -50,8 +48,6 @@ class CRM_Contribute_Form_Task_Status extends CRM_Contribute_Form_Task {
 
   /**
    * Build all the data structures needed to build the form.
-   *
-   * @return void
    */
   public function preProcess() {
     $id = CRM_Utils_Request::retrieve('id', 'Positive',
@@ -88,9 +84,6 @@ AND    {$this->_componentClause}";
 
   /**
    * Build the form object.
-   *
-   *
-   * @return void
    */
   public function buildQuickForm() {
     $status = CRM_Contribute_PseudoConstant::contributionStatus();
@@ -147,7 +140,7 @@ AND    co.id IN ( $contribIDs )";
       $this->addRule("fee_amount_{$row['contribution_id']}", ts('Please enter a valid amount.'), 'money');
       $defaults["fee_amount_{$row['contribution_id']}"] = 0.0;
 
-      $row['trxn_date'] = &$this->addDate("trxn_date_{$row['contribution_id']}", FALSE,
+      $row['trxn_date'] = $this->addDate("trxn_date_{$row['contribution_id']}", FALSE,
         ts('Receipt Date'), array('formatType' => 'activityDate')
       );
       $defaults["trxn_date_{$row['contribution_id']}"] = $now;
@@ -155,7 +148,7 @@ AND    co.id IN ( $contribIDs )";
       $this->add("text", "check_number_{$row['contribution_id']}", ts('Check Number'));
       $defaults["check_number_{$row['contribution_id']}"] = $dao->check_no;
 
-      $this->add("select", "payment_instrument_id_{$row['contribution_id']}", ts('Paid By'), $paidByOptions);
+      $this->add("select", "payment_instrument_id_{$row['contribution_id']}", ts('Payment Method'), $paidByOptions);
       $defaults["payment_instrument_id_{$row['contribution_id']}"] = $dao->paid_by;
 
       $this->_rows[] = $row;
@@ -204,7 +197,7 @@ AND    co.id IN ( $contribIDs )";
         $contribID = substr($name, 13);
 
         if ($fields["payment_instrument_id_{$contribID}"] != CRM_Core_OptionGroup::getValue('payment_instrument', 'Check', 'name')) {
-          $errors["payment_instrument_id_{$contribID}"] = ts("Paid By should be Check when a check number is entered for a contribution.");
+          $errors["payment_instrument_id_{$contribID}"] = ts("Payment Method should be Check when a check number is entered for a contribution.");
         }
       }
     }
@@ -213,25 +206,39 @@ AND    co.id IN ( $contribIDs )";
 
   /**
    * Process the form after the input has been submitted and validated.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     $params = $this->controller->exportValues($this->_name);
-    $statusID = CRM_Utils_Array::value('contribution_status_id', $params);
 
+    // submit the form with values.
+    self::processForm($this, $params);
+
+    CRM_Core_Session::setStatus(ts('Contribution status has been updated for selected record(s).'), ts('Status Updated'), 'success');
+  }
+
+  /**
+   * Process the form with submitted params.
+   *
+   * Also supports unit test.
+   *
+   * @param CRM_Core_Form $form
+   * @param array $params
+   *
+   * @throws \Exception
+   */
+  public static function processForm($form, $params) {
+    $statusID = CRM_Utils_Array::value('contribution_status_id', $params);
     $baseIPN = new CRM_Core_Payment_BaseIPN();
 
     $transaction = new CRM_Core_Transaction();
 
     // get the missing pieces for each contribution
-    $contribIDs = implode(',', $this->_contributionIds);
+    $contribIDs = implode(',', $form->_contributionIds);
     $details = self::getDetails($contribIDs);
     $template = CRM_Core_Smarty::singleton();
 
     // for each contribution id, we just call the baseIPN stuff
-    foreach ($this->_rows as $row) {
+    foreach ($form->_rows as $row) {
       $input = $ids = $objects = array();
       $input['component'] = $details[$row['contribution_id']]['component'];
 
@@ -287,15 +294,14 @@ AND    co.id IN ( $contribIDs )";
       else {
         $input['trxn_id'] = $contribution->invoice_id;
       }
-      $input['trxn_date'] = CRM_Utils_Date::processDate($params["trxn_date_{$row['contribution_id']}"]);
+      $input['trxn_date'] = CRM_Utils_Date::processDate($params["trxn_date_{$row['contribution_id']}"], date('H:i:s'));
 
+      // @todo calling baseIPN like this is a pattern in it's last gasps. Call contribute.completetransaction api.
       $baseIPN->completeTransaction($input, $ids, $objects, $transaction, FALSE);
 
       // reset template values before processing next transactions
       $template->clearTemplateVars();
     }
-
-    CRM_Core_Session::setStatus(ts('Contribution status has been updated for selected record(s).'), ts('Status Updated'), 'success');
   }
 
   /**

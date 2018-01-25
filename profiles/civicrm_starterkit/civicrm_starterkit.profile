@@ -25,20 +25,19 @@ function civicrm_starterkit_install_tasks_alter(&$tasks, $install_state) {
     'display' => 1,
     'function' => 'civicrm_starterkit_install_finished',
   );
-    
-} 
+
+}
 
 function civicrm_starterkit_install_finished(&$install_state) {
-  //admin/reports/communitymedia-checklist
   drupal_set_title(st('@drupal installation complete', array('@drupal' => drupal_install_profile_distribution_name())), PASS_THROUGH);
   $messages = drupal_set_message();
   $output = '<p>' . st('Congratulations, you installed @drupal!', array('@drupal' => drupal_install_profile_distribution_name())) . '</p>';
-  $output .= '<p>' . (isset($messages['error']) ? st('Review the messages above before <a href="@url">using the CiviCRM Checklist to begin configuring your new site</a>.', array('@url' => url('civicrm/admin/configtask'))) : st('<a href="@url">Use the CiviCRM Checklist to begin configuring your new site</a>.', array('@url' => url('civicrm/admin/configtask')))) . '</p>';   
-  
-   //move CiviCRM menu to Admin Toolbar 
-  // @TODO:  Is it safe to assume admin will be plid 2? 
+  $output .= '<p>' . (isset($messages['error']) ? st('Review the messages above before <a href="@url">using the CiviCRM Checklist to begin configuring your new site</a>.', array('@url' => url('civicrm/admin/configtask'))) : st('<a href="@url">Use the CiviCRM Checklist to begin configuring your new site</a>.', array('@url' => url('civicrm/admin/configtask')))) . '</p>';
+
+   //move CiviCRM menu to Admin Toolbar
+  // @TODO:  Is it safe to assume admin will be plid 2?
   $mlid = db_query("SELECT mlid FROM {menu_links} WHERE link_path = 'civicrm/dashboard'")->fetchField();
-  
+
   if ($mlid) {
     db_update('menu_links')
     ->fields(array('menu_name' => 'management', 'plid' => 2, 'weight' => '99', 'depth' => 2, 'p1' => 2, 'p2' => $mlid))
@@ -46,12 +45,12 @@ function civicrm_starterkit_install_finished(&$install_state) {
     ->condition('router_path', 'civicrm')
     ->execute();
   }
-  
+
   variable_set('civicrmtheme_theme_admin', 'seven');
-  
+
   // Update the menu router information.
-  menu_rebuild(); 
-  
+  menu_rebuild();
+
   // Flush all caches to ensure that any full bootstraps during the installer
   // do not leave stale cached data, and that any content types or other items
   // registered by the install profile are registered correctly.
@@ -77,9 +76,9 @@ function civicrm_starterkit_install_finished(&$install_state) {
 
   return $output;
 
-} 
+}
 
-// Functions Borrowed from Commerce Kickstarter 
+// Functions Borrowed from Commerce Kickstarter
 
 /**
  * Implements hook_update_projects_alter().
@@ -110,7 +109,7 @@ function civicrm_starterkit_update_status_alter(&$projects) {
     UPDATE_NOT_SUPPORTED,
   );
 
-  $make_filepath = drupal_get_path('module', 'civicrm_starterkit') . '/drupal-org.make';
+  $make_filepath = drupal_get_path('module', 'civicrm_starterkit') . '/civicrm_starterkit.make';
   if (!file_exists($make_filepath)) {
     return;
   }
@@ -130,7 +129,7 @@ function civicrm_starterkit_update_status_alter(&$projects) {
     // than 7 days (giving distribution time to prepare an update).
     if (isset($project_info['status']) && in_array($project_info['status'], $bad_statuses)) {
       $days_ago = strtotime('7 days ago');
-      if ($project_info['releases'][$project_info['recommended']]['date'] < $days_ago) {
+      if (isset($project_info['releases']) && isset($project_info['recommended']) && $project_info['releases'][$project_info['recommended']]['date'] < $days_ago) {
         unset($projects[$project_name]);
       }
     }

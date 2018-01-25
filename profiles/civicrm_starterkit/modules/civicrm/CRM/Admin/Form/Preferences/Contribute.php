@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,21 +28,25 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class generates form components for the display preferences
- *
+ * This class generates form components for the display preferences.
  */
 class CRM_Admin_Form_Preferences_Contribute extends CRM_Admin_Form_Preferences {
+  protected $_settings = array(
+    'cvv_backoffice_required' => CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME,
+    'update_contribution_on_membership_type_change' => CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME,
+    'acl_financial_type' => CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME,
+    'always_post_to_accounts_receivable' => CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME,
+    'deferred_revenue_enabled' => CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME,
+    'default_invoice_page' => CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME,
+    'invoicing' => CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME,
+  );
+
   /**
    * Process the form submission.
-   *
-   *
-   * @return void
    */
   public function preProcess() {
     $config = CRM_Core_Config::singleton();
@@ -118,38 +122,84 @@ class CRM_Admin_Form_Preferences_Contribute extends CRM_Admin_Form_Preferences {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
-    $this->add('checkbox', 'invoicing', ts('Enable Tax and Invoicing'));
+    $htmlFields = array();
+    foreach ($this->_settings as $setting => $group) {
+      $settingMetaData = civicrm_api3('setting', 'getfields', array('name' => $setting));
+      $props = $settingMetaData['values'][$setting];
+      if (isset($props['quick_form_type'])) {
+        $add = 'add' . $props['quick_form_type'];
+        if ($add == 'addElement') {
+          if (in_array($props['html_type'], array('checkbox', 'textarea'))) {
+            $this->add($props['html_type'],
+              $setting,
+              $props['title']
+            );
+          }
+          else {
+            if ($props['html_type'] == 'select') {
+              $functionName = CRM_Utils_Array::value('name', CRM_Utils_Array::value('pseudoconstant', $props));
+              if ($functionName) {
+                $props['option_values'] = array('' => ts('- select -')) + CRM_Contribute_PseudoConstant::$functionName();
+              }
+            }
+            $this->$add(
+              $props['html_type'],
+              $setting,
+              ts($props['title']),
+              CRM_Utils_Array::value($props['html_type'] == 'select' ? 'option_values' : 'html_attributes', $props, array()),
+              $props['html_type'] == 'select' ? CRM_Utils_Array::value('html_attributes', $props) : NULL
+            );
+          }
+        }
+        elseif ($add == 'addMonthDay') {
+          $this->add('date', $setting, ts($props['title']), CRM_Core_SelectValues::date(NULL, 'M d'));
+        }
+        elseif ($add == 'addDate') {
+          $this->addDate($setting, ts($props['title']), FALSE, array('formatType' => $props['type']));
+        }
+        else {
+          $this->$add($setting, ts($props['title']));
+        }
+      }
+      $htmlFields[$setting] = ts($props['description']);
+    }
+    $this->assign('htmlFields', $htmlFields);
     parent::buildQuickForm();
   }
 
   /**
    * Set default values for the form.
+   *
    * default values are retrieved from the database
-   *
-   *
-   * @return void
    */
   public function setDefaultValues() {
-    $defaults = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME, 'contribution_invoice_settings');
+    $defaults = Civi::settings()->get('contribution_invoice_settings');
+    //CRM-16691: Changes made related to settings of 'CVV'.
+    foreach (array('cvv_backoffice_required') as $setting) {
+      $defaults[$setting] = civicrm_api3('setting', 'getvalue',
+        array(
+          'name' => $setting,
+          'group' => CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME,
+        )
+      );
+    }
     return $defaults;
   }
 
   /**
    * Process the form after the input has been submitted and validated.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
     // store the submitted values in an array
     $params = $this->controller->exportValues($this->_name);
     unset($params['qfKey']);
     unset($params['entryURL']);
-    $setInvoiceSettings = CRM_Core_BAO_Setting::setItem($params, CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME, 'contribution_invoice_settings');
+    Civi::settings()->set('contribution_invoice_settings', $params);
+    Civi::settings()->set('update_contribution_on_membership_type_change',
+      CRM_Utils_Array::value('update_contribution_on_membership_type_change', $params)
+    );
 
     // to set default value for 'Invoices / Credit Notes' checkbox on display preferences
     $values = CRM_Core_BAO_Setting::getItem("CiviCRM Preferences");
@@ -161,18 +211,23 @@ class CRM_Admin_Form_Preferences_Contribute extends CRM_Admin_Form_Preferences {
       $setInvoice = CRM_Core_DAO::VALUE_SEPARATOR .
         implode(CRM_Core_DAO::VALUE_SEPARATOR, array_keys($value)) .
         CRM_Core_DAO::VALUE_SEPARATOR;
-      CRM_Core_BAO_Setting::setItem($values['user_dashboard_options'] .
-        $setInvoice, 'CiviCRM Preferences', 'user_dashboard_options');
+      Civi::settings()->set('user_dashboard_options', $values['user_dashboard_options'] . $setInvoice);
     }
     else {
       $setting = explode(CRM_Core_DAO::VALUE_SEPARATOR, substr($values['user_dashboard_options'], 1, -1));
       $invoiceKey = array_search($setKey, $setting);
-      unset($setting[$invoiceKey]);
+      if ($invoiceKey !== FALSE) {
+        unset($setting[$invoiceKey]);
+      }
       $settingName = CRM_Core_DAO::VALUE_SEPARATOR .
         implode(CRM_Core_DAO::VALUE_SEPARATOR, array_values($setting)) .
         CRM_Core_DAO::VALUE_SEPARATOR;
-      CRM_Core_BAO_Setting::setItem($settingName, 'CiviCRM Preferences', 'user_dashboard_options');
+      Civi::settings()->set('user_dashboard_options', $settingName);
     }
+    //CRM-16691: Changes made related to settings of 'CVV'.
+    $settings = array_intersect_key($params, array('cvv_backoffice_required' => 1));
+    $result = civicrm_api3('setting', 'create', $settings);
+    CRM_Core_Session::setStatus(ts('Your changes have been saved.'), ts('Changes Saved'), "success");
   }
 
 }

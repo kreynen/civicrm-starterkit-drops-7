@@ -18,6 +18,17 @@ form .web-civi-checkbox-set .auto-width .form-item {
   width:auto;
 }
 
+#wf-crm-configure-form .float-item {
+  padding: 0;
+  margin-right: 2em;
+  float: left;
+}
+
+#wf-crm-configure-form .float-item .form-item {
+  margin-top: 0;
+  padding-top: 0;
+}
+
 .web-civi-checkbox-set + div,
 .civicrm-ajax-wrapper {
   clear:both;
@@ -34,10 +45,26 @@ form .hidden,
   display:inline;
 }
 
+#wf-crm-configure-form .number-of .form-item select,
+#wf-crm-configure-form select[name=participant_reg_type] {
+  max-width: none;
+}
+
 th div.form-type-radio {
   display:inline;
   margin:0;
   padding:0;
+}
+
+#wf-crm-configure-form .dynamic-custom-checkbox > div {
+  float: none;
+  width: auto;
+  padding: .1em .5em;
+  position: absolute;
+  right: 0;
+  top: 0;
+  border-left: 1px solid #CCC;
+  border-bottom: 1px solid #CCC;
 }
 
 .web-civi-js-select {
@@ -49,6 +76,10 @@ th div.form-type-radio {
   top:-10px;
   border:1px solid #CCCCCC;
   display:none;
+}
+
+.dynamic-custom-checkbox + .web-civi-js-select {
+  right: 15em;
 }
 
 .js fieldset:hover > div > .web-civi-js-select,
@@ -92,11 +123,11 @@ form .civi-icon {
 form .wf-crm-change-select {
   margin: 3px 0 0 6px;
   vertical-align: top;
-  background-position: -188px -0px;
+  background-position: -220px -0px;
 }
 
 form .wf-crm-change-select.select-multiple {
-  background-position: -203px -0px;
+  background-position: -235px -0px;
 }
 
 form .civi-icon.individual {
@@ -137,4 +168,10 @@ form .civi-icon.contribution {
 
 form .civi-icon.membership {
   background-position:-171px 0;
+}
+form .civi-icon.grant {
+  background-position:-187px 0;
+}
+form .civi-icon.case {
+  background-position:-203px 0;
 }

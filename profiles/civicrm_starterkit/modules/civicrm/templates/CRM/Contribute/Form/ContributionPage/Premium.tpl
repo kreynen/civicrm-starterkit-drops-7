@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -23,7 +23,8 @@
  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
  +--------------------------------------------------------------------+
 *}
-<div id="help">
+{crmRegion name="contribute-form-contributionpage-premium-main"}
+<div class="help">
   {ts}Edit <strong>Premiums Settings</strong> to customize the title and introductory message (e.g ...in appreciation of your support, you will be able to select from a number of exciting thank-you gifts...). You can optionally provide a contact email address and/or phone number for inquiries.{/ts}
   {ts}Then select and review the premiums that you want to offer on this contribution page.{/ts}
 </div>
@@ -67,7 +68,7 @@
             </td>
             <td class="html-adjust">{$form.premiums_intro_text.html}<br/>
             <span class="description">
-              {ts}Enter content for the introductory message. This will be displayed below the Premiums section title. You may include HTML formatting tags. You can also include images, as long as they are already uploaded to a server - reference them using complete URLs.{/ts}
+              {ts}Enter content for the introductory message. This will be displayed below the Premiums section title. You may include HTML formatting tags. You can also include images, as long as they are already uploaded to a server&mdash;reference them using complete URLs.{/ts}
             </span>
             </td>
           </tr>
@@ -103,7 +104,7 @@
           </tr>
           <tr class="crm-contribution-contributionpage-premium-form-block-premiums_nothankyou_label">
             <td class="label">
-              {$form.premiums_nothankyou_label.label}<span class="marker"> *</span>
+              {$form.premiums_nothankyou_label.label}<span class="crm-marker"> *</span>
             </td>
             <td class="html-adjust">{$form.premiums_nothankyou_label.html}<br/>
               <span class="description">{ts}You can change the text for the 'No thank-you' radio button.{/ts}</span>
@@ -160,3 +161,6 @@
 
   {/literal}
 </script>
+{/crmRegion}
+{crmRegion name="contribute-form-contributionpage-premium-post}
+{/crmRegion}

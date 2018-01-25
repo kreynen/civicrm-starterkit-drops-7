@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  * @param $filesDirectory
  */
@@ -84,16 +84,25 @@ function civicrm_main(&$config) {
 
   if ($installType == 'drupal') {
     $siteDir = isset($config['site_dir']) ? $config['site_dir'] : getSiteDir($cmsPath, $_SERVER['SCRIPT_FILENAME']);
-    civicrm_setup($cmsPath . DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR .
-      $siteDir . DIRECTORY_SEPARATOR . 'files'
+    civicrm_setup($cmsPath . DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . $siteDir . DIRECTORY_SEPARATOR . 'files'
     );
   }
+  elseif ($installType == 'backdrop') {
+    civicrm_setup($cmsPath . DIRECTORY_SEPARATOR . 'files');
+  }
   elseif ($installType == 'wordpress') {
-    civicrm_setup(WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . 'files');
+    $upload_dir = wp_upload_dir();
+    $files_dirname = $upload_dir['basedir'];
+    civicrm_setup($files_dirname);
   }
 
-  $dsn = "mysql://{$config['mysql']['username']}:{$config['mysql']['password']}@{$config['mysql']['server']}/{$config['mysql']['database']}?new_link=true";
+  $parts = explode(':', $config['mysql']['server']);
+  if (empty($parts[1])) {
+    $parts[1] = 3306;
+  }
+  $config['mysql']['server'] = implode(':', $parts);
 
+  $dsn = "mysql://{$config['mysql']['username']}:{$config['mysql']['password']}@{$config['mysql']['server']}/{$config['mysql']['database']}?new_link=true";
   civicrm_source($dsn, $sqlPath . DIRECTORY_SEPARATOR . 'civicrm.mysql');
 
   if (!empty($config['loadGenerated'])) {
@@ -118,15 +127,17 @@ function civicrm_main(&$config) {
   if ($installType == 'drupal') {
     $configFile = $cmsPath . DIRECTORY_SEPARATOR . 'sites' . DIRECTORY_SEPARATOR . $siteDir . DIRECTORY_SEPARATOR . 'civicrm.settings.php';
   }
-  elseif ($installType == 'wordpress') {
+  elseif ($installType == 'backdrop') {
     $configFile = $cmsPath . DIRECTORY_SEPARATOR . 'civicrm.settings.php';
+  }
+  elseif ($installType == 'wordpress') {
+    $configFile = $files_dirname . DIRECTORY_SEPARATOR . 'civicrm' . DIRECTORY_SEPARATOR . 'civicrm.settings.php';
   }
 
   $string = civicrm_config($config);
   civicrm_write_file($configFile,
     $string
   );
-
 }
 
 /**
@@ -138,6 +149,13 @@ function civicrm_source($dsn, $fileName, $lineMode = FALSE) {
   global $crmPath;
 
   require_once "$crmPath/packages/DB.php";
+
+  // CRM-19699 See also CRM_Core_DAO for PHP7 mysqli compatiblity.
+  // Duplicated here because this is not using CRM_Core_DAO directly
+  // and this function may be called directly from Drush.
+  if (!defined('DB_DSN_MODE')) {
+    define('DB_DSN_MODE', 'auto');
+  }
 
   $db = DB::connect($dsn);
   if (PEAR::isError($db)) {
@@ -197,6 +215,9 @@ function civicrm_config(&$config) {
   global $compileDir;
   global $tplPath, $installType;
 
+  // Ex: $extraSettings[] = '$civicrm_settings["domain"]["foo"] = "bar";';
+  $extraSettings = array();
+
   $params = array(
     'crmRoot' => $crmPath,
     'templateCompileDir' => $compileDir,
@@ -220,8 +241,15 @@ function civicrm_config(&$config) {
   }
 
   $params['baseURL'] = isset($config['base_url']) ? $config['base_url'] : civicrm_cms_base();
-  if ($installType == 'drupal') {
-    if (version_compare(VERSION, '7.0-rc1') >= 0) {
+  if ($installType == 'drupal' && defined('VERSION')) {
+    if (version_compare(VERSION, '8.0') >= 0) {
+      $params['cms'] = 'Drupal';
+      $params['CMSdbUser'] = addslashes($config['drupal']['username']);
+      $params['CMSdbPass'] = addslashes($config['drupal']['password']);
+      $params['CMSdbHost'] = $config['drupal']['host'] . ":" . !empty($config['drupal']['port']) ? $config['drupal']['port'] : "3306";
+      $params['CMSdbName'] = addslashes($config['drupal']['database']);
+    }
+    elseif (version_compare(VERSION, '7.0-rc1') >= 0) {
       $params['cms'] = 'Drupal';
       $params['CMSdbUser'] = addslashes($config['drupal']['username']);
       $params['CMSdbPass'] = addslashes($config['drupal']['password']);
@@ -236,6 +264,20 @@ function civicrm_config(&$config) {
       $params['CMSdbName'] = addslashes($config['drupal']['database']);
     }
   }
+  elseif ($installType == 'drupal') {
+    $params['cms'] = $config['cms'];
+    $params['CMSdbUser'] = addslashes($config['cmsdb']['username']);
+    $params['CMSdbPass'] = addslashes($config['cmsdb']['password']);
+    $params['CMSdbHost'] = $config['cmsdb']['server'];
+    $params['CMSdbName'] = addslashes($config['cmsdb']['database']);
+  }
+  elseif ($installType == 'backdrop') {
+    $params['cms'] = 'Backdrop';
+    $params['CMSdbUser'] = addslashes($config['backdrop']['username']);
+    $params['CMSdbPass'] = addslashes($config['backdrop']['password']);
+    $params['CMSdbHost'] = $config['backdrop']['server'];
+    $params['CMSdbName'] = addslashes($config['backdrop']['database']);
+  }
   else {
     $params['cms'] = 'WordPress';
     $params['CMSdbUser'] = addslashes(DB_USER);
@@ -245,6 +287,18 @@ function civicrm_config(&$config) {
 
     // CRM-12386
     $params['crmRoot'] = addslashes($params['crmRoot']);
+    //CRM-16421
+
+    $extraSettings[] = sprintf('$civicrm_paths[\'wp.frontend.base\'][\'url\'] = %s;', var_export(home_url() . '/', 1));
+    $extraSettings[] = sprintf('$civicrm_paths[\'wp.backend.base\'][\'url\'] = %s;', var_export(admin_url(), 1));
+    $extraSettings[] = sprintf('$civicrm_setting[\'URL Preferences\'][\'userFrameworkResourceURL\'] = %s;', var_export(plugin_dir_url(CIVICRM_PLUGIN_FILE) . 'civicrm', 1));
+  }
+
+  if ($extraSettings) {
+    $params['extraSettings'] = "Additional settings generated by installer:\n" . implode("\n", $extraSettings);
+  }
+  else {
+    $params['extraSettings'] = "";
   }
 
   $params['siteKey'] = md5(rand() . mt_rand() . rand() . uniqid('', TRUE) . $params['baseURL']);
@@ -276,14 +330,17 @@ function civicrm_cms_base() {
     $url = 'http://' . $_SERVER['HTTP_HOST'];
   }
 
-  $baseURL = $_SERVER['SCRIPT_NAME'];
+  $baseURL = str_replace('//', '/', $_SERVER['SCRIPT_NAME']);
 
-  if ($installType == 'drupal') {
+  if ($installType == 'drupal' || $installType == 'backdrop') {
     //don't assume 6 dir levels, as civicrm
     //may or may not be in sites/all/modules/
     //lets allow to install in custom dir. CRM-6840
     global $cmsPath;
-    $crmDirLevels = str_replace($cmsPath, '', str_replace('\\', '/', $_SERVER['SCRIPT_FILENAME']));
+
+    // Clean up the filepath.
+    $script_filename = str_replace('//', '/', $_SERVER['SCRIPT_FILENAME']);
+    $crmDirLevels = str_replace($cmsPath, '', str_replace('\\', '/', $script_filename));
     $baseURL = str_replace($crmDirLevels, '', str_replace('\\', '/', $baseURL));
   }
   elseif ($installType == 'wordpress') {

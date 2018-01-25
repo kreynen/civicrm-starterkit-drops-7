@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -71,7 +69,6 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
     $breadCrumbPath = CRM_Utils_System::url('civicrm/event/info',
       "id={$this->_id}&reset=1"
     );
-    $additionalBreadCrumb = "<a href=\"$breadCrumbPath\">" . ts('Events') . '</a>';
 
     //retrieve event information
     $params = array('id' => $this->_id);
@@ -146,7 +143,7 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
               $labelClass = 'price_set_field-label';
             }
             // show tax rate with amount
-            $invoiceSettings = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME, 'contribution_invoice_settings');
+            $invoiceSettings = Civi::settings()->get('contribution_invoice_settings');
             $taxTerm = CRM_Utils_Array::value('tax_term', $invoiceSettings);
             $displayOpt = CRM_Utils_Array::value('tax_display_settings', $invoiceSettings);
             $invoicing = CRM_Utils_Array::value('invoicing', $invoiceSettings);
@@ -185,8 +182,8 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
     }
 
     //retrieve custom field information
-    $groupTree = CRM_Core_BAO_CustomGroup::getTree('Event', $this, $this->_id, 0, $values['event']['event_type_id']);
-    CRM_Core_BAO_CustomGroup::buildCustomDataView($this, $groupTree);
+    $groupTree = CRM_Core_BAO_CustomGroup::getTree('Event', NULL, $this->_id, 0, $values['event']['event_type_id'], NULL, TRUE, NULL, FALSE, TRUE, NULL, TRUE);
+    CRM_Core_BAO_CustomGroup::buildCustomDataView($this, $groupTree, FALSE, NULL, NULL, NULL, $this->_id);
     $this->assign('action', CRM_Core_Action::VIEW);
     //To show the event location on maps directly on event info page
     $locations = CRM_Event_BAO_Event::getMapInfo($this->_id);
@@ -229,14 +226,14 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
       if ($action == CRM_Core_Action::PREVIEW) {
         $mapURL = CRM_Utils_System::url('civicrm/contact/map/event',
           "eid={$this->_id}&reset=1&action=preview",
-          TRUE, NULL, TRUE,
+          FALSE, NULL, TRUE,
           TRUE
         );
       }
       else {
         $mapURL = CRM_Utils_System::url('civicrm/contact/map/event',
           "eid={$this->_id}&reset=1",
-          TRUE, NULL, TRUE,
+          FALSE, NULL, TRUE,
           TRUE
         );
       }
@@ -245,9 +242,7 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
       $this->assign('mapURL', $mapURL);
     }
 
-    if (CRM_Core_Permission::check('view event participants') &&
-      CRM_Core_Permission::check('view all contacts')
-    ) {
+    if (CRM_Core_Permission::check('view event participants')) {
       $statusTypes = CRM_Event_PseudoConstant::participantStatus(NULL, 'is_counted = 1', 'label');
       $statusTypesPending = CRM_Event_PseudoConstant::participantStatus(NULL, 'is_counted = 0', 'label');
       $findParticipants['statusCounted'] = implode(', ', array_values($statusTypes));
@@ -259,7 +254,7 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
     if ($participantListingID) {
       $participantListingURL = CRM_Utils_System::url('civicrm/event/participant',
         "reset=1&id={$this->_id}",
-        TRUE, NULL, TRUE, TRUE
+        FALSE, NULL, TRUE, TRUE
       );
       $this->assign('participantListingURL', $participantListingURL);
     }
@@ -277,7 +272,7 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
         $action_query = $action === CRM_Core_Action::PREVIEW ? "&action=$action" : '';
         $url = CRM_Utils_System::url('civicrm/event/register',
           "id={$this->_id}&reset=1{$action_query}",
-          TRUE, NULL, TRUE,
+          FALSE, NULL, TRUE,
           TRUE
         );
         if (!$eventFullMessage || $hasWaitingList) {
@@ -287,15 +282,12 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
           }
 
           // check if we're in shopping cart mode for events
-          $enable_cart = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::EVENT_PREFERENCES_NAME,
-            'enable_cart'
-          );
-
+          $enable_cart = Civi::settings()->get('enable_cart');
           if ($enable_cart) {
             $link = CRM_Event_Cart_BAO_EventInCart::get_registration_link($this->_id);
             $registerText = $link['label'];
 
-            $url = CRM_Utils_System::url($link['path'], $link['query'] . $action_query, TRUE, NULL, TRUE, TRUE);
+            $url = CRM_Utils_System::url($link['path'], $link['query'] . $action_query, FALSE, NULL, TRUE, TRUE);
           }
 
           //Fixed for CRM-4855
@@ -357,7 +349,7 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
     $this->assign('location', $values['location']);
 
     if (CRM_Core_Permission::check('access CiviEvent')) {
-      $enableCart = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::EVENT_PREFERENCES_NAME, 'enable_cart');
+      $enableCart = Civi::settings()->get('enable_cart');
       $this->assign('manageEventLinks', CRM_Event_Page_ManageEvent::tabs($enableCart));
     }
 

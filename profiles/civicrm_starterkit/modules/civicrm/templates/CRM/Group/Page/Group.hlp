@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -37,7 +37,7 @@
   {ts}Group Type{/ts}
 {/htxt}
 {htxt id="id-group-type"}
-{capture assign=docLinkAccess}{docURL page="user/current/initial-set-up/permissions-and-access-control/"}{/capture}
+{capture assign=docLinkAccess}{docURL page="user/initial-set-up/permissions-and-access-control/"}{/capture}
 {capture assign=docLinkMail}{docURL page="user/email/what-is-civimail" text="CiviMail component"}{/capture}
 <p>{if $config->userFramework neq 'Joomla'}{ts 1=$docLinkAccess}Check 'Access Control' if you want to use this group to assign access permissions to a set of contacts. %1{/ts}{/if} {ts 1=$docLinkMail}Check 'Mailing List' if you are using this group as a mailing list in the %1.{/ts}</p>
 {/htxt} 

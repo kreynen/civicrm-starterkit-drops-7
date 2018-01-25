@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -48,7 +48,8 @@
       <th>{ts}Max Participant{/ts} {help id="id-participant-max"}</th>
   {/if}
         <th>{ts}Order{/ts}</th>
-      <th>{ts}Active?{/ts}</th>
+        <th>{ts}Visibility{/ts} {help id="id-visibility-options"}</th>
+        <th>{ts}Active?{/ts}</th>
     </tr>
 
   {section name=rowLoop start=1 loop=16}
@@ -56,7 +57,7 @@
   <tr id="optionField_{$index}" class="form-item {cycle values="odd-row,even-row"}">
         <td>
         {if $index GT 1}
-            <a onclick="showHideRow({$index}); return false;" name="optionField_{$index}" href="#" class="form-link"><img src="{$config->resourceBase}i/TreeMinus.gif" class="action-icon" alt="{ts}hide field or section{/ts}"/></a>
+            <a onclick="showHideRow({$index}); return false;" name="optionField_{$index}" href="#" class="form-link"><i class="crm-i fa-trash" title="{ts}hide field or section{/ts}"></i></a>
         {/if}
         </td>
       <td>
@@ -80,12 +81,13 @@
           <td>{$form.option_max_value.$index.html}</td>
       {/if}
       <td> {$form.option_weight.$index.html}</td>
-       <td> {$form.option_status.$index.html}</td>
+      <td> {$form.option_visibility_id.$index.html}</td>
+      <td> {$form.option_status.$index.html}</td>
   </tr>
     {/section}
     </table>
   <div id="optionFieldLink" class="add-remove-link">
-        <a onclick="showHideRow(); return false;" name="optionFieldLink" href="#" class="form-link"><img src="{$config->resourceBase}i/TreePlus.gif" class="action-icon" alt="{ts}show field or section{/ts}"/>{ts}another choice{/ts}</a>
+        <a onclick="showHideRow(); return false;" name="optionFieldLink" href="#" class="form-link"><i class="crm-i fa-plus-circle"></i> {ts}add another choice{/ts}</a>
     </div>
   <div id="additionalOption" class="description">
     {ts}If you need additional options - you can add them after you Save your current entries.{/ts}

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * Page for displaying list of jobs
+ * Page for displaying list of jobs.
  */
 class CRM_Admin_Page_Job extends CRM_Core_Page_Basic {
 
@@ -109,8 +107,6 @@ class CRM_Admin_Page_Job extends CRM_Core_Page_Basic {
    * This method is called after the page is created. It checks for the
    * type of action and executes that action.
    * Finally it calls the parent's run method.
-   *
-   * @return void
    */
   public function run() {
     // set title and breadcrumb
@@ -144,10 +140,12 @@ class CRM_Admin_Page_Job extends CRM_Core_Page_Basic {
    * Browse all jobs.
    *
    * @param null $action
-   *
-   * @return void
    */
   public function browse($action = NULL) {
+    // check if non-prod mode is enabled.
+    if (CRM_Core_Config::environment() != 'Production') {
+      CRM_Core_Session::setStatus(ts('Execution of scheduled jobs has been turned off by default since this is a non-production environment. You can override this for particular jobs by adding runInNonProductionEnvironment=TRUE as a parameter.'), ts("Non-production Environment"), "warning", array('expires' => 0));
+    }
 
     // using Export action for Execute. Doh.
     if ($this->_action & CRM_Core_Action::EXPORT) {

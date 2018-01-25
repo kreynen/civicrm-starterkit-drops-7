@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class generates form components for adding a petition
- *
+ * This class generates form components for adding a petition.
  */
 class CRM_Campaign_Form_Petition extends CRM_Core_Form {
 
@@ -67,17 +64,13 @@ class CRM_Campaign_Form_Petition extends CRM_Core_Form {
       }
     }
 
-    $this->_cdType = CRM_Utils_Array::value('type', $_GET);
-    $this->assign('cdType', FALSE);
-    if ($this->_cdType) {
-      $this->assign('cdType', TRUE);
-      return CRM_Custom_Form_CustomData::preProcess($this);
-    }
-
     // when custom data is included in this page
     if (!empty($_POST['hidden_custom'])) {
-      CRM_Custom_Form_CustomData::preProcess($this);
+      $this->set('type', 'Event');
+      $this->set('entityId', $this->_surveyId);
+      CRM_Custom_Form_CustomData::preProcess($this, NULL, NULL, 1, 'Survey', $this->_surveyId);
       CRM_Custom_Form_CustomData::buildQuickForm($this);
+      CRM_Custom_Form_CustomData::setDefaultValues($this);
     }
 
     $session = CRM_Core_Session::singleton();
@@ -126,10 +119,6 @@ class CRM_Campaign_Form_Petition extends CRM_Core_Form {
    *   array of default values
    */
   public function setDefaultValues() {
-    if ($this->_cdType) {
-      return CRM_Custom_Form_CustomData::setDefaultValues($this);
-    }
-
     $defaults = $this->_values;
 
     $ufContactJoinParams = array(
@@ -165,9 +154,6 @@ class CRM_Campaign_Form_Petition extends CRM_Core_Form {
 
 
   public function buildQuickForm() {
-    if ($this->_cdType) {
-      return CRM_Custom_Form_CustomData::buildQuickForm($this);
-    }
 
     if ($this->_action & CRM_Core_Action::DELETE) {
       $this->addButtons(
@@ -190,11 +176,11 @@ class CRM_Campaign_Form_Petition extends CRM_Core_Form {
 
     $attributes = CRM_Core_DAO::getAttribute('CRM_Campaign_DAO_Survey');
 
-    $petitionTypeID = CRM_Core_OptionGroup::getValue('activity_type', 'petition', 'name');
+    $petitionTypeID = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', 'Petition');
     $this->addElement('hidden', 'activity_type_id', $petitionTypeID);
 
     // script / instructions / description of petition purpose
-    $this->addWysiwyg('instructions', ts('Introduction'), $attributes['instructions']);
+    $this->add('wysiwyg', 'instructions', ts('Introduction'), $attributes['instructions']);
 
     // Campaign id
     $campaigns = CRM_Campaign_BAO_Campaign::getCampaigns(CRM_Utils_Array::value('campaign_id', $this->_values));
@@ -218,7 +204,7 @@ class CRM_Campaign_Form_Petition extends CRM_Core_Form {
 
     // thank you title and text (html allowed in text)
     $this->add('text', 'thankyou_title', ts('Thank-you Page Title'), CRM_Core_DAO::getAttribute('CRM_Campaign_DAO_Survey', 'thankyou_title'));
-    $this->addWysiwyg('thankyou_text', ts('Thank-you Message'), CRM_Core_DAO::getAttribute('CRM_Campaign_DAO_Survey', 'thankyou_text'));
+    $this->add('wysiwyg', 'thankyou_text', ts('Thank-you Message'), CRM_Core_DAO::getAttribute('CRM_Campaign_DAO_Survey', 'thankyou_text'));
 
     // bypass email confirmation?
     $this->add('checkbox', 'bypass_confirm', ts('Bypass email confirmation'));
@@ -335,8 +321,8 @@ WHERE  $whereClause
     $params['is_active'] = CRM_Utils_Array::value('is_active', $params, 0);
     $params['is_default'] = CRM_Utils_Array::value('is_default', $params, 0);
 
+    $customFields = CRM_Core_BAO_CustomField::getFields('Survey');
     $params['custom'] = CRM_Core_BAO_CustomField::postProcess($params,
-      $customFields,
       $this->_surveyId,
       'Survey'
     );

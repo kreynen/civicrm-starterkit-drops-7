@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -79,7 +79,7 @@ class CRM_Price_Page_Option extends CRM_Core_Page {
    * @return array
    *   array of action links that we need to display for the browse screen
    */
-  public function &actionLinks() {
+  public static function &actionLinks() {
     if (!isset(self::$_actionLinks)) {
       self::$_actionLinks = array(
         CRM_Core_Action::UPDATE => array(
@@ -121,21 +121,40 @@ class CRM_Price_Page_Option extends CRM_Core_Page {
    * @return void
    */
   public function browse() {
-    $customOption = array();
-    CRM_Price_BAO_PriceFieldValue::getValues($this->_fid, $customOption);
+    $priceOptions = civicrm_api3('PriceFieldValue', 'get', array(
+        'price_field_id' => $this->_fid,
+         // Explicitly do not check permissions so we are not
+         // restricted by financial type, so we can change them.
+        'check_permissions' => FALSE,
+        'options' => array(
+          'limit' => 0,
+          'sort' => array('weight', 'label'),
+        ),
+    ));
+    $customOption = $priceOptions['values'];
+
+    // CRM-15378 - check if these price options are in an Event price set
+    $isEvent = FALSE;
+    $extendComponentId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', $this->_sid, 'extends', 'id');
+    $allComponents = explode(CRM_Core_DAO::VALUE_SEPARATOR, $extendComponentId);
+    $eventComponentId = CRM_Core_Component::getComponentID('CiviEvent');
+    if (in_array($eventComponentId, $allComponents)) {
+      $isEvent = TRUE;
+    }
+
     $config = CRM_Core_Config::singleton();
-    $financialType = CRM_Contribute_PseudoConstant::financialType();
     $taxRate = CRM_Core_PseudoConstant::getTaxRates();
     // display taxTerm for priceFields
-    $invoiceSettings = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME, 'contribution_invoice_settings');
+    $invoiceSettings = Civi::settings()->get('contribution_invoice_settings');
     $taxTerm = CRM_Utils_Array::value('tax_term', $invoiceSettings);
     $invoicing = CRM_Utils_Array::value('invoicing', $invoiceSettings);
     $getTaxDetails = FALSE;
     foreach ($customOption as $id => $values) {
-      $action = array_sum(array_keys($this->actionLinks()));
+      $action = array_sum(array_keys(self::actionLinks()));
       // Adding the required fields in the array
       if (isset($taxRate[$values['financial_type_id']])) {
-        $customOption[$id]['tax_rate'] = $taxRate[$values['financial_type_id']];
+        // Cast to float so trailing zero decimals are removed
+        $customOption[$id]['tax_rate'] = (float) $taxRate[$values['financial_type_id']];
         if ($invoicing && isset($customOption[$id]['tax_rate'])) {
           $getTaxDetails = TRUE;
         }
@@ -143,7 +162,7 @@ class CRM_Price_Page_Option extends CRM_Core_Page {
         $customOption[$id]['tax_amount'] = $taxAmount['tax_amount'];
       }
       if (!empty($values['financial_type_id'])) {
-        $customOption[$id]['financial_type_id'] = $financialType[$values['financial_type_id']];
+        $customOption[$id]['financial_type_id'] = CRM_Contribute_PseudoConstant::financialType($values['financial_type_id']);
       }
       // update enable/disable links depending on price_field properties.
       if ($this->_isSetReserved) {
@@ -188,6 +207,7 @@ class CRM_Price_Page_Option extends CRM_Core_Page {
     $this->assign('getTaxDetails', $getTaxDetails);
     $this->assign('customOption', $customOption);
     $this->assign('sid', $this->_sid);
+    $this->assign('isEvent', $isEvent);
   }
 
   /**

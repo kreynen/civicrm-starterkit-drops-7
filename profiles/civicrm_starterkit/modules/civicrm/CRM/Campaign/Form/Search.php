@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * Files required
+ * Files required.
  */
 class CRM_Campaign_Form_Search extends CRM_Core_Form_Search {
 
@@ -59,8 +57,6 @@ class CRM_Campaign_Form_Search extends CRM_Core_Form_Search {
    */
   protected $_limit = NULL;
 
-  protected $_defaults;
-
   /**
    * Prefix for the controller.
    */
@@ -71,8 +67,6 @@ class CRM_Campaign_Form_Search extends CRM_Core_Form_Search {
 
   /**
    * Processing needed for buildForm and later.
-   *
-   * @return void
    */
   public function preProcess() {
     $this->_done = FALSE;
@@ -88,7 +82,7 @@ class CRM_Campaign_Form_Search extends CRM_Core_Form_Search {
     $this->_limit = CRM_Utils_Request::retrieve('limit', 'Positive', $this);
     $this->_force = CRM_Utils_Request::retrieve('force', 'Boolean', $this, FALSE);
     $this->_context = CRM_Utils_Request::retrieve('context', 'String', $this, FALSE, 'search');
-    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean', CRM_Core_DAO::$_nullObject);
+    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean');
 
     //operation for state machine.
     $this->_operation = CRM_Utils_Request::retrieve('op', 'String', $this, FALSE, 'reserve');
@@ -181,8 +175,12 @@ class CRM_Campaign_Form_Search extends CRM_Core_Form_Search {
     CRM_Utils_System::setTitle(ts('Find Respondents To %1', array(1 => ucfirst($this->_operation))));
   }
 
+  /**
+   * Load the default survey for all actions.
+   *
+   * @return array
+   */
   public function setDefaultValues() {
-    //load the default survey for all actions.
     if (empty($this->_defaults)) {
       $defaultSurveyId = key(CRM_Campaign_BAO_Survey::getSurveys(TRUE, TRUE));
       if ($defaultSurveyId) {
@@ -195,9 +193,6 @@ class CRM_Campaign_Form_Search extends CRM_Core_Form_Search {
 
   /**
    * Build the form object.
-   *
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
@@ -252,10 +247,6 @@ class CRM_Campaign_Form_Search extends CRM_Core_Form_Search {
    *        done.
    * The processing consists of using a Selector / Controller framework for getting the
    * search results.
-   *
-   * @param
-   *
-   * @return void
    */
   public function postProcess() {
     if ($this->_done) {
@@ -406,14 +397,14 @@ class CRM_Campaign_Form_Search extends CRM_Core_Form_Search {
     // note that this means that GET over-rides POST :)
 
     //since we have qfKey, no need to manipulate set defaults.
-    $qfKey = CRM_Utils_Request::retrieve('qfKey', 'String', CRM_Core_DAO::$_nullObject);
+    $qfKey = CRM_Utils_Request::retrieve('qfKey', 'String');
 
     if (!$this->_force || CRM_Utils_Rule::qfKey($qfKey)) {
       return;
     }
 
     // get survey id
-    $surveyId = CRM_Utils_Request::retrieve('sid', 'Positive', CRM_Core_DAO::$_nullObject);
+    $surveyId = CRM_Utils_Request::retrieve('sid', 'Positive');
 
     if ($surveyId) {
       $surveyId = CRM_Utils_Type::escape($surveyId, 'Integer');

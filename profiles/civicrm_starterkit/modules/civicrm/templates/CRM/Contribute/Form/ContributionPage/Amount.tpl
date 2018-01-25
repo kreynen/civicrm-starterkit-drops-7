@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -24,9 +24,10 @@
  +--------------------------------------------------------------------+
 *}
 {capture assign="adminPriceSets"}{crmURL p='civicrm/admin/price' q="reset=1"}{/capture}
+{crmRegion name="contribute-form-contributionpage-amount-main"}
 <div class="crm-block crm-form-block crm-contribution-contributionpage-amount-form-block">
-<div id="help">
-    {ts}Use this form to configure Contribution Amount options. You can give contributors the ability to enter their own contribution amounts - and/or provide a fixed list of amounts. For fixed amounts, you can enter a label for each 'level' of contribution (e.g. Friend, Sustainer, etc.). If you allow people to enter their own dollar amounts, you can also set minimum and maximum values. Depending on your choice of Payment Processor, you may be able to offer a recurring contribution option.{/ts} {docURL page="user/contributions/payment-processors"}
+<div class="help">
+    {ts}Use this form to configure Contribution Amount options. You can give contributors the ability to enter their own contribution amounts and/or provide a fixed list of amounts. For fixed amounts, you can enter a label for each 'level' of contribution (e.g. Friend, Sustainer, etc.). If you allow people to enter their own dollar amounts, you can also set minimum and maximum values. Depending on your choice of Payment Processor, you may be able to offer a recurring contribution option.{/ts} {docURL page="user/contributions/payment-processors"}
 </div>
     <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="top"}</div>
     {if !$paymentProcessor}
@@ -58,10 +59,10 @@
         <tr id="payLaterFields" class="crm-contribution-form-block-payLaterFields"><td>&nbsp;</td>
             <td>
             <table class="form-layout">
-                <tr class="crm-contribution-contributionpage-amount-form-block-pay_later_text"><th scope="row" class="label">{$form.pay_later_text.label} <span class="marker" title="This field is required.">*</span> {if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_contribution_page' field='pay_later_text' id=$contributionPageID}{/if}</th>
+                <tr class="crm-contribution-contributionpage-amount-form-block-pay_later_text"><th scope="row" class="label">{$form.pay_later_text.label} <span class="crm-marker" title="This field is required.">*</span> {if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_contribution_page' field='pay_later_text' id=$contributionPageID}{/if}</th>
                 <td>{$form.pay_later_text.html|crmAddClass:big}<br />
                     <span class="description">{ts}Text displayed next to the checkbox for the 'pay later' option on the contribution form. You may include HTML formatting tags.{/ts}</span></td></tr>
-                <tr class="crm-contribution-contributionpage-amount-form-block-pay_later_receipt"><th scope="row" class="label">{$form.pay_later_receipt.label} <span class="marker" title="This field is required.">*</span> {if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_contribution_page' field='pay_later_receipt' id=$contributionPageID}{/if}</th>
+                <tr class="crm-contribution-contributionpage-amount-form-block-pay_later_receipt"><th scope="row" class="label">{$form.pay_later_receipt.label} <span class="crm-marker" title="This field is required.">*</span> {if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_contribution_page' field='pay_later_receipt' id=$contributionPageID}{/if}</th>
                 <td>{$form.pay_later_receipt.html|crmAddClass:big}<br />
                   <span class="description">{ts}Instructions added to Confirmation and Thank-you pages, as well as the confirmation email, when the user selects the 'pay later' option (e.g. 'Mail your check to ... within 3 business days.').{/ts}</span></td></tr>
 
@@ -75,7 +76,7 @@
         <tr class="crm-contribution-contributionpage-amount-form-block-amount_block_is_active">
           <th scope="row" class="label">{$form.amount_block_is_active.label}</th>
           <td>{$form.amount_block_is_active.html}<br />
-          <span class="description">{ts}Uncheck this box if you are using this contribution page for membership signup and renewal only - and you do NOT want users to select or enter any additional contribution amounts.{/ts}</span></td>
+          <span class="description">{ts}Uncheck this box if you are using this contribution page for membership signup and renewal only &ndash; and you do NOT want users to select or enter any additional contribution amounts.{/ts}</span></td>
         </tr>
         <tr id="priceSet" class="crm-contribution-contributionpage-amount-form-block-priceSet">
           <th scope="row" class="label">{$form.price_set_id.label}</th>
@@ -100,7 +101,7 @@
         <tr id="recurFields" class="crm-contribution-form-block-recurFields"><td>&nbsp;</td>
                <td>
                   <table class="form-layout-compressed">
-            <tr class="crm-contribution-form-block-recur_frequency_unit"><th scope="row" class="label">{$form.recur_frequency_unit.label}<span class="marker" title="This field is required.">*</span></th>
+            <tr class="crm-contribution-form-block-recur_frequency_unit"><th scope="row" class="label">{$form.recur_frequency_unit.label}<span class="crm-marker" title="This field is required.">*</span></th>
                         <td>{$form.recur_frequency_unit.html}<br />
                         <span class="description">{ts}Select recurring units supported for recurring payments.{/ts}</span></td>
                     </tr>
@@ -119,6 +120,10 @@
 
         </table>
     </div>
+{if $futurePaymentProcessor}
+    <span id="pledge_calendar_date_field">&nbsp;&nbsp;{include file="CRM/common/jcalendar.tpl" elementName=pledge_calendar_date}</span>
+    <span id="pledge_calendar_month_field">&nbsp;&nbsp;{$form.pledge_calendar_month.html}<br/><span class="description">{ts}Recurring payment will be processed this day of the month following submission of this contribution page.{/ts}</span></span>
+{/if}
 
 
     <div id="amountFields">
@@ -132,7 +137,7 @@
             </tr>
             <tr id="pledgeFields" class="crm-contribution-form-block-pledgeFields"><td></td><td>
                 <table class="form-layout-compressed">
-                    <tr class="crm-contribution-form-block-pledge_frequency_unit"><th scope="row" class="label">{$form.pledge_frequency_unit.label}<span class="marker"> *</span></th>
+                    <tr class="crm-contribution-form-block-pledge_frequency_unit"><th scope="row" class="label">{$form.pledge_frequency_unit.label}<span class="crm-marker"> *</span></th>
                         <td>{$form.pledge_frequency_unit.html}<br />
                             <span class="description">{ts}Which frequencies can the user pick from (e.g. every 'week', every 'month', every 'year')?{/ts}</span></td>
                     </tr>
@@ -152,13 +157,33 @@
                         <td>{$form.additional_reminder_day.html}
                             <span class="label">{ts}Days after the last one sent, up to the maximum number of reminders.{/ts}</span></td>
                     </tr>
+                {if $futurePaymentProcessor}
+                    <tr id="adjustRecurringFields" class="crm-contribution-form-block-adjust_recur_start_date"><th scope="row" class="label">{$form.adjust_recur_start_date.label}</th>
+                        <td>{$form.adjust_recur_start_date.html}<br/>
+                          <div id="recurDefaults">
+                            <span class="description">{$form.pledge_default_toggle.label}</span>
+                            <table class="form-layout-compressed">
+                              <tr class="crm-contribution-form-block-date_of_recurring_contribution">
+                                <td>{$form.pledge_default_toggle.html}</td>
+                              </tr>
+                              <tr class="crm-contribution-form-block-is_pledge_start_date_visible">
+                                <td>{$form.is_pledge_start_date_visible.html}&nbsp;{$form.is_pledge_start_date_visible.label}</td>
+                              </tr>
+                              <tr class="crm-contribution-form-block-is_pledge_start_date_visible">
+                                <td>{$form.is_pledge_start_date_editable.html}&nbsp;{$form.is_pledge_start_date_editable.label}</td>
+                              </tr>
+                            </table>
+                          </div>
+                        </td>
+                    </tr>
+                {/if}
                 </table>
                 </td>
             </tr>
             {/if}
 
       <tr class="crm-contribution-form-block-amount_label">
-              <th scope="row" class="label" width="20%">{$form.amount_label.label}<span class="marker"> *</span></th>
+              <th scope="row" class="label" width="20%">{$form.amount_label.label}<span class="crm-marker"> *</span></th>
         <td>{$form.amount_label.html}</td>
       </tr>
             <tr class="crm-contribution-form-block-is_allow_other_amount"><th scope="row" class="label" width="20%">{$form.is_allow_other_amount.label}</th>
@@ -191,9 +216,53 @@
       </div>
       <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</div>
 </div>
-
 {literal}
 <script type="text/javascript">
+
+   var futurePaymentProcessorMapper = [];
+   {/literal}{if $futurePaymentProcessor}
+   {foreach from=$futurePaymentProcessor item="futurePaymentProcessor" key="index"}{literal}
+     futurePaymentProcessorMapper[{/literal}{$index}{literal}] = '{/literal}{$futurePaymentProcessor}{literal}';
+   {/literal}{/foreach}
+   {literal}
+   CRM.$(function($) {
+     var defId = $('input[name="pledge_default_toggle"][value="contribution_date"]').attr('id');
+     var calId = $('input[name="pledge_default_toggle"][value="calendar_date"]').attr('id');
+     var monId = $('input[name="pledge_default_toggle"][value="calendar_month"]').attr('id');
+
+     $("label[for='" + calId + "']").append($('#pledge_calendar_date_field'));
+     $("label[for='" + monId + "']").append($('#pledge_calendar_month_field'));
+
+     setDateDefaults();
+
+     $("#" + defId).click( function() {
+       if ($(this).is(':checked')) {
+         $('#pledge_calendar_month').prop('disabled', 'disabled');
+         $('#pledge_calendar_date').prop('disabled', 'disabled');
+         $("#pledge_calendar_date").next('input').prop('disabled', 'disabled');
+       }
+     });
+
+     $("#" + calId).click( function() {
+       if ($(this).is(':checked')) {
+         $('#pledge_calendar_month').prop('disabled', 'disabled');
+         $('#pledge_calendar_date').prop('disabled', false);
+         $("#pledge_calendar_date").next('input').prop('disabled', false);
+       }
+     });
+
+     $("#" + monId).click( function() {
+       if ($(this).is(':checked')) {
+         $('#pledge_calendar_month').prop('disabled', false);
+         $("#pledge_calendar_date").next('input').prop('disabled', 'disabled');
+         $('#pledge_calendar_date').prop('disabled', 'disabled');
+       }
+     });
+
+
+   });
+{/literal}{/if}{literal}
+
    var paymentProcessorMapper = [];
      {/literal}
        {if $recurringPaymentProcessor}
@@ -203,6 +272,8 @@
        {/if}
      {literal}
      CRM.$(function($) {
+       var psid = $('#price_set_id').val();
+       showHideAmountBlock(psid, 'price_set_id');
        function checked_payment_processors() {
          var ids = [];
          $('.crm-contribution-contributionpage-amount-form-block-payment_processor input[type="checkbox"]').each(function(){
@@ -217,8 +288,10 @@
         // show/hide recurring block
         $('.crm-contribution-contributionpage-amount-form-block-payment_processor input[type="checkbox"]').change(function(){
             showRecurring( checked_payment_processors() );
+            showAdjustRecurring( checked_payment_processors() );
         });
         showRecurring( checked_payment_processors() );
+        showAdjustRecurring( checked_payment_processors() );
     });
   var element_other_amount = document.getElementsByName('is_allow_other_amount');
     if (! element_other_amount[0].checked) {
@@ -265,48 +338,47 @@
     }
   }
 
-  function showHideAmountBlock( element, elementName )
-        {
-     // show / hide when amount section is active check/uncheck.
-
-     var priceSetID = {/literal}'{$priceSetID}'{literal};
-
-     switch ( elementName ) {
+  function showHideAmountBlock(element, elementName) {
+    // show / hide when amount section is active check/uncheck.
+    var priceSetID = {/literal}'{$priceSetID}'{literal};
+    switch (elementName) {
       case 'price_set_id':
-           if ( element ) {
-               cj('#amountFields').hide();
-           } else {
-               cj('#amountFields').show();
-           }
-           cj("#amount_block_is_active").prop('checked', true );
-      break;
-
-      case 'is_pledge_active' :
-      case 'is_allow_other_amount' :
-           if ( element.checked ) {
-               if ( priceSetID ) cj( "#price_set_id" ).val( '' );
-             cj('#amountFields').show();
-                 }
-           cj("#amount_block_is_active").prop('checked', true );
-      break;
-
-         case 'amount_block_is_active' :
-           if ( element.checked ) {
-               if ( priceSetID ) {
-           cj('#amountFields').hide();
-           cj( "#price_set_id" ).val( priceSetID );
-        } else {
-           cj('#amountFields').show();
-           cj( "#price_set_id" ).val( '' );
+        if (element) {
+          cj('#amountFields').hide();
         }
-        cj('#priceSet, #recurringFields').show();
-           } else {
-            cj( "#price_set_id" ).val( '' );
-            cj('#amountFields, #priceSet, #recurringFields').hide();
-           }
-      break;
-     }
-   }
+        else {
+          cj('#amountFields').show();
+        }
+        break;
+
+      case 'is_pledge_active':
+      case 'is_allow_other_amount':
+        if (element.checked) {
+          if (priceSetID) cj( "#price_set_id" ).val('');
+          cj('#amountFields').show();
+        }
+        cj("#amount_block_is_active").prop('checked', true );
+        break;
+
+      case 'amount_block_is_active':
+        if (element.checked) {
+          if (priceSetID) {
+            cj('#amountFields').hide();
+            cj( "#price_set_id" ).val(priceSetID);
+          }
+          else {
+            cj('#amountFields').show();
+            cj( "#price_set_id" ).val('');
+          }
+          cj('#priceSet, #recurringFields').show();
+        }
+        else {
+          cj( "#price_set_id" ).val('');
+          cj('#amountFields, #priceSet, #recurringFields').hide();
+        }
+        break;
+      }
+    }
 
     function showRecurring( paymentProcessorIds ) {
         var display = true;
@@ -327,6 +399,38 @@
         }
     }
 
+    function showAdjustRecurring( paymentProcessorIds ) {
+        var display = true;
+        cj.each(paymentProcessorIds, function(k, id){
+            if( cj.inArray(id, futurePaymentProcessorMapper) == -1 ) {
+                display = false;
+            }
+        });
+
+        if(display) {
+            cj( '#adjustRecurringFields' ).show( );
+        } else {
+            if ( cj( '#adjust_recur_start_date' ).prop('checked' ) ) {
+                cj( '#adjust_recur_start_date' ).prop('checked', false);
+                cj( '#recurDefaults' ).hide( );
+            }
+            cj( '#adjustRecurringFields' ).hide( );
+        }
+    }
+
+{/literal}{if $futurePaymentProcessor}{literal}
+    function setDateDefaults() {
+     {/literal}{if !$pledge_calendar_date}{literal}
+       cj('#pledge_calendar_date').prop('disabled', 'disabled');
+       cj("#pledge_calendar_date").next('input').prop('disabled', 'disabled');
+     {/literal}{/if}
+
+     {if !$pledge_calendar_month}{literal}
+       cj('#pledge_calendar_month').prop('disabled', 'disabled');
+     {/literal}{/if}{literal}
+    }
+{/literal}{/if}{literal}
+
 </script>
 {/literal}
 {if $form.is_recur}
@@ -334,6 +438,16 @@
     trigger_field_id    ="is_recur"
     trigger_value       ="true"
     target_element_id   ="recurFields"
+    target_element_type ="table-row"
+    field_type          ="radio"
+    invert              = "false"
+}
+{/if}
+{if $form.adjust_recur_start_date}
+{include file="CRM/common/showHideByFieldValue.tpl"
+    trigger_field_id    ="adjust_recur_start_date"
+    trigger_value       ="true"
+    target_element_id   ="recurDefaults"
     target_element_type ="table-row"
     field_type          ="radio"
     invert              = "false"
@@ -370,3 +484,6 @@
 </script>
 {/literal}
 {/if}
+{/crmRegion}
+{crmRegion name="contribute-form-contributionpage-amount-post"}
+{/crmRegion}

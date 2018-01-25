@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,17 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * Files required
- */
-
-/**
- * This file is for activity search
+ * This file is for activity search.
  */
 class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
 
@@ -68,8 +62,6 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
    */
   protected $_prefix = "activity_";
 
-  protected $_defaults;
-
   /**
    * The saved search ID retrieved from the GET vars.
    *
@@ -79,8 +71,6 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
 
   /**
    * Processing needed for buildForm and later.
-   *
-   * @return void
    */
   public function preProcess() {
     $this->set('searchFormName', 'Search');
@@ -94,7 +84,7 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
 
     // we allow the controller to set force/reset externally, useful when we are being
     // driven by the wizard framework
-    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean', CRM_Core_DAO::$_nullObject);
+    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean');
     $this->_force = CRM_Utils_Request::retrieve('force', 'Boolean', $this, FALSE);
     $this->_limit = CRM_Utils_Request::retrieve('limit', 'Positive', $this);
     $this->_context = CRM_Utils_Request::retrieve('context', 'String', $this, FALSE, 'search');
@@ -108,6 +98,13 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
     }
     else {
       $this->_formValues = $this->get('formValues');
+
+      if ($this->_force) {
+        // If we force the search then merge form values with url values
+        // and set submit values to form values.
+        $this->_formValues = array_merge((array) $this->_formValues, CRM_Utils_Request::exportValues());
+        $this->_submitValues = $this->_formValues;
+      }
     }
 
     if (empty($this->_formValues)) {
@@ -160,9 +157,6 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
 
   /**
    * Build the form object.
-   *
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
@@ -205,20 +199,18 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
 
     if (!empty($_POST)) {
       $this->_formValues = $this->controller->exportValues($this->_name);
-      foreach (array('activity_type_id', 'status_id', 'activity_subject', 'priority_id') as $element) {
-        $value = CRM_Utils_Array::value($element, $this->_formValues);
-        if ($value) {
-          if (is_array($value)) {
-            if ($element == 'status_id' || $element == 'priority_id') {
-              unset($this->_formValues[$element]);
-              $this->_formValues['activity_' . $element] = $value;
-            }
-          }
-          else {
-            $this->_formValues[$element] = array('LIKE' => "%$value%");
-          }
-        }
-      }
+      $specialParams = array(
+        'activity_type_id',
+        'status_id',
+        'priority_id',
+        'activity_text',
+      );
+      $changeNames = array(
+        'status_id' => 'activity_status_id',
+        'priority_id' => 'activity_priority_id',
+      );
+
+      CRM_Contact_BAO_Query::processSpecialFormValue($this->_formValues, $specialParams, $changeNames);
     }
 
     $this->fixFormValues();
@@ -301,7 +293,7 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
       $this->_defaults['activity_status_id'] = $status;
     }
 
-    $survey = CRM_Utils_Request::retrieve('survey', 'Positive', CRM_Core_DAO::$_nullObject);
+    $survey = CRM_Utils_Request::retrieve('survey', 'Positive');
 
     if ($survey) {
       $this->_formValues['activity_survey_id'] = $this->_defaults['activity_survey_id'] = $survey;
@@ -334,12 +326,9 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
 
     // Added for membership search
 
-    $signupType = CRM_Utils_Request::retrieve('signupType', 'Positive',
-      CRM_Core_DAO::$_nullObject
-    );
+    $signupType = CRM_Utils_Request::retrieve('signupType', 'Positive');
 
     if ($signupType) {
-      //$this->_formValues['activity_type_id'] = array();
       $this->_formValues['activity_role'] = 1;
       $this->_defaults['activity_role'] = 1;
       $activityTypes = CRM_Core_PseudoConstant::activityType(TRUE, FALSE, FALSE, 'name');
@@ -363,9 +352,7 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
       }
     }
 
-    $dateLow = CRM_Utils_Request::retrieve('dateLow', 'String',
-      CRM_Core_DAO::$_nullObject
-    );
+    $dateLow = CRM_Utils_Request::retrieve('dateLow', 'String');
 
     if ($dateLow) {
       $dateLow = date('m/d/Y', strtotime($dateLow));
@@ -375,9 +362,7 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
       $this->_defaults['activity_date_low'] = $dateLow;
     }
 
-    $dateHigh = CRM_Utils_Request::retrieve('dateHigh', 'String',
-      CRM_Core_DAO::$_nullObject
-    );
+    $dateHigh = CRM_Utils_Request::retrieve('dateHigh', 'String');
 
     if ($dateHigh) {
       // Activity date time assumes midnight at the beginning of the date
@@ -390,6 +375,22 @@ class CRM_Activity_Form_Search extends CRM_Core_Form_Search {
       $this->_defaults['activity_date_relative'] = 0;
       $this->_formValues['activity_date_high'] = $dateHigh;
       $this->_defaults['activity_date_high'] = $dateHigh;
+    }
+
+    // Enable search activity by custom value
+    $requestParams = CRM_Utils_Request::exportValues();
+    foreach (array_keys($requestParams) as $key) {
+      if (substr($key, 0, 7) != 'custom_') {
+        continue;
+      }
+      elseif (empty($requestParams[$key])) {
+        continue;
+      }
+      $customValue = CRM_Utils_Request::retrieve($key, 'String', $this);
+      if ($customValue) {
+        $this->_formValues[$key] = $customValue;
+        $this->_defaults[$key] = $customValue;
+      }
     }
 
     if (!empty($this->_defaults)) {

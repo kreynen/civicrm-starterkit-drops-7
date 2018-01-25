@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,8 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id: $
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -67,17 +66,16 @@ class CRM_SMS_Form_Provider extends CRM_Core_Form {
     parent::buildQuickForm();
 
     $this->addButtons(array(
-        array(
-          'type' => 'next',
-          'name' => $this->_action & CRM_Core_Action::DELETE ? ts('Delete') : ts('Save'),
-          'isDefault' => TRUE,
-        ),
-        array(
-          'type' => 'cancel',
-          'name' => ts('Cancel'),
-        ),
-      )
-    );
+      array(
+        'type' => 'next',
+        'name' => $this->_action & CRM_Core_Action::DELETE ? ts('Delete') : ts('Save'),
+        'isDefault' => TRUE,
+      ),
+      array(
+        'type' => 'cancel',
+        'name' => ts('Cancel'),
+      ),
+    ));
 
     if ($this->_action & CRM_Core_Action::DELETE) {
       return;
@@ -95,9 +93,9 @@ class CRM_SMS_Form_Provider extends CRM_Core_Form {
     );
 
     $this->addRule('title', ts('This Title already exists in Database.'), 'objectExists', array(
-        'CRM_SMS_DAO_Provider',
-        $this->_id,
-      ));
+      'CRM_SMS_DAO_Provider',
+      $this->_id,
+    ));
 
     $this->add('text', 'username', ts('Username'),
       $attributes['username'], TRUE
@@ -173,11 +171,11 @@ class CRM_SMS_Form_Provider extends CRM_Core_Form {
     $recData['is_active'] = CRM_Utils_Array::value('is_active', $recData, 0);
     $recData['is_default'] = CRM_Utils_Array::value('is_default', $recData, 0);
 
-    if ($this->_action & CRM_Core_Action::UPDATE) {
-      CRM_SMS_BAO_Provider::updateRecord($recData, $this->_id);
-    }
-    elseif ($this->_action & CRM_Core_Action::ADD) {
-      CRM_SMS_BAO_Provider::saveRecord($recData);
+    if ($this->_action && (CRM_Core_Action::UPDATE || CRM_Core_Action::ADD)) {
+      if ($this->_id) {
+        $recData['id'] = $this->_id;
+      }
+      civicrm_api3('SmsProvider', 'create', $recData);
     }
   }
 

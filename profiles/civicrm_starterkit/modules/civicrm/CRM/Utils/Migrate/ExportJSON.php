@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Utils_Migrate_ExportJSON {
   const CHUNK_SIZE = 128;
@@ -61,6 +59,10 @@ class CRM_Utils_Migrate_ExportJSON {
 
   /**
    * Split a large array of contactIDs into more manageable smaller chunks.
+   *
+   * @param array $contactIDs
+   *
+   * @return array
    */
   public function &splitContactIDs(&$contactIDs) {
     // contactIDs could be a real large array, so we split it up into
@@ -90,6 +92,9 @@ class CRM_Utils_Migrate_ExportJSON {
 
   /**
    * Given a set of contact IDs get the values.
+   *
+   * @param array $contactIDs
+   * @param array $additionalContactIDs
    */
   public function getValues(&$contactIDs, &$additionalContactIDs) {
 
@@ -299,8 +304,10 @@ SELECT *
   }
 
   /**
-   * TODO - support group inheritance
+   * @todo support group inheritance
+   *
    * Parent child group ids are encoded in a text string
+   *
    * @param $contactIDs
    */
   public function group(&$contactIDs) {
@@ -330,7 +337,7 @@ WHERE  contact_id IN ( $ids )
   }
 
   /**
-   * TODO - support search builder and custom saved searches
+   * @todo support search builder and custom saved searches
    * @param $groupIDs
    */
   public function savedSearch(&$groupIDs) {
@@ -442,7 +449,7 @@ AND    entity_table = 'civicrm_contact'
    */
   public function activity(&$contactIDs, &$additionalContacts) {
     static $_activitiesHandled = array();
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $assigneeID = CRM_Utils_Array::key('Activity Assignees', $activityContacts);
     $targetID = CRM_Utils_Array::key('Activity Targets', $activityContacts);
     $ids = implode(',', $contactIDs);

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -81,7 +81,7 @@ class CRM_Import_DataSource_SQL extends CRM_Import_DataSource {
   public static function formRule($fields, $files, $form) {
     $errors = array();
 
-    // poor man's query validation (case-insensitive regex matching on word boundaries)
+    // Makeshift query validation (case-insensitive regex matching on word boundaries)
     $forbidden = array('ALTER', 'CREATE', 'DELETE', 'DESCRIBE', 'DROP', 'SHOW', 'UPDATE', 'information_schema');
     foreach ($forbidden as $pattern) {
       if (preg_match("/\\b$pattern\\b/i", $fields['sqlQuery'])) {
@@ -94,6 +94,10 @@ class CRM_Import_DataSource_SQL extends CRM_Import_DataSource {
 
   /**
    * Process the form submission.
+   *
+   * @param array $params
+   * @param string $db
+   * @param \CRM_Core_Form $form
    */
   public function postProcess(&$params, &$db, &$form) {
     $importJob = new CRM_Contact_Import_ImportJob(

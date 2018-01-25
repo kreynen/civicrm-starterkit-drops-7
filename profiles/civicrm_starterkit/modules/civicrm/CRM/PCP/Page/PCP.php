@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -121,25 +121,19 @@ class CRM_PCP_Page_PCP extends CRM_Core_Page_Basic {
    * @return void
    */
   public function run() {
-    // get the requested action
-    $action = CRM_Utils_Request::retrieve('action', 'String',
-      $this, FALSE,
-      'browse'
-    );
-    if ($action & CRM_Core_Action::REVERT) {
-      $id = CRM_Utils_Request::retrieve('id', 'Positive', $this, FALSE);
+    $id = $this->getIdAndAction();
+
+    if ($this->_action & CRM_Core_Action::REVERT) {
       CRM_PCP_BAO_PCP::setIsActive($id, 0);
       $session = CRM_Core_Session::singleton();
       $session->pushUserContext(CRM_Utils_System::url(CRM_Utils_System::currentPath(), 'reset=1'));
     }
-    elseif ($action & CRM_Core_Action::RENEW) {
-      $id = CRM_Utils_Request::retrieve('id', 'Positive', $this, FALSE);
+    elseif ($this->_action & CRM_Core_Action::RENEW) {
       CRM_PCP_BAO_PCP::setIsActive($id, 1);
       $session = CRM_Core_Session::singleton();
       $session->pushUserContext(CRM_Utils_System::url(CRM_Utils_System::currentPath(), 'reset=1'));
     }
-    elseif ($action & CRM_Core_Action::DELETE) {
-      $id = CRM_Utils_Request::retrieve('id', 'Positive', $this, FALSE);
+    elseif ($this->_action & CRM_Core_Action::DELETE) {
       $session = CRM_Core_Session::singleton();
       $session->pushUserContext(CRM_Utils_System::url(CRM_Utils_System::currentPath(), 'reset=1&action=browse'));
       $controller = new CRM_Core_Controller_Simple('CRM_PCP_Form_PCP',
@@ -156,7 +150,7 @@ class CRM_PCP_Page_PCP extends CRM_Core_Page_Basic {
     $this->browse();
 
     // parent run
-    parent::run();
+    CRM_Core_Page::run();
   }
 
   /**
@@ -168,6 +162,8 @@ class CRM_PCP_Page_PCP extends CRM_Core_Page_Basic {
    * @return void
    */
   public function browse($action = NULL) {
+    CRM_Core_Resources::singleton()->addStyleFile('civicrm', 'css/searchForm.css', 1, 'html-header');
+
     $this->_sortByCharacter = CRM_Utils_Request::retrieve('sortByCharacter',
       'String',
       $this
@@ -218,7 +214,7 @@ class CRM_PCP_Page_PCP extends CRM_Core_Page_Basic {
       }
     }
 
-    $approvedId = CRM_Core_OptionGroup::getValue('pcp_status', 'Approved', 'name');
+    $approvedId = CRM_Core_PseudoConstant::getKey('CRM_PCP_BAO_PCP', 'status_id', 'Approved');
 
     //check for delete CRM-4418
     $allowToDelete = CRM_Core_Permission::check('delete in CiviContribute');
@@ -234,7 +230,7 @@ class CRM_PCP_Page_PCP extends CRM_Core_Page_Basic {
     }
 
     // get all event pages. pcp campaign start and end dates for event related pcp's use the online registration start and end dates,
-    // altho if target is contribution page this might not be correct. fixme? dgg
+    // although if target is contribution page this might not be correct. fixme? dgg
     $query = "SELECT id, title, start_date, end_date, registration_start_date, registration_end_date
                   FROM civicrm_event
                   WHERE is_template IS NULL OR is_template != 1";

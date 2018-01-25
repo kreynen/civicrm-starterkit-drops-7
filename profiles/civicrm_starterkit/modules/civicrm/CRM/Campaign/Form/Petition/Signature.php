@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class generates form components for processing a petition signature
- *
+ * This class generates form components for processing a petition signature.
  */
 class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
   const EMAIL_THANK = 1, EMAIL_CONFIRM = 2, MODE_CREATE = 4;
@@ -133,8 +130,6 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
   protected $_sendEmailMode;
 
   protected $_image_URL;
-
-  protected $_defaults = NULL;
 
   /**
    */
@@ -234,9 +229,6 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
 
   /**
    * Set default values for the form.
-   *
-   *
-   * @return void
    */
   public function setDefaultValues() {
     $this->_defaults = array();
@@ -306,7 +298,7 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
     // add buttons
     $this->addButtons(array(
         array(
-          'type' => 'next',
+          'type' => 'upload',
           'name' => ts('Sign the Petition'),
           'isDefault' => TRUE,
         ),
@@ -322,8 +314,8 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
    * @param $files
    * @param $errors
    *
-   * @return void
    * @see valid_date
+   * @return array|bool
    */
   public static function formRule($fields, $files, $errors) {
     $errors = array();
@@ -333,14 +325,9 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
 
   /**
    * Form submission of petition signature.
-   *
-   *
-   * @return void
    */
   public function postProcess() {
-    $tag_name = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::CAMPAIGN_PREFERENCES_NAME,
-      'tag_unconfirmed'
-    );
+    $tag_name = Civi::settings()->get('tag_unconfirmed');
 
     if ($tag_name) {
       // Check if contact 'email confirmed' tag exists, else create one
@@ -384,17 +371,7 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
       $ids[0] = $this->_contactId;
     }
     else {
-      // dupeCheck - check if contact record already exists
-      // code modified from api/v2/Contact.php-function civicrm_contact_check_params()
-      $params['contact_type'] = $this->_ctype;
-      //TODO - current dedupe finds soft deleted contacts - adding param is_deleted not working
-      // ignore soft deleted contacts
-      //$params['is_deleted'] = 0;
-      $dedupeParams = CRM_Dedupe_Finder::formatParams($params, $params['contact_type']);
-      $dedupeParams['check_permission'] = '';
-
-      //dupesByParams($params, $ctype, $level = 'Unsupervised', $except = array())
-      $ids = CRM_Dedupe_Finder::dupesByParams($dedupeParams, $params['contact_type']);
+      $ids = CRM_Contact_BAO_Contact::getDuplicateContacts($params, $this->_ctype, 'Unsupervised', array(), FALSE);
     }
 
     $petition_params['id'] = $this->_surveyId;
@@ -520,7 +497,6 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
     );
 
     $params['custom'] = CRM_Core_BAO_CustomField::postProcess($params,
-      $customActivityFields,
       NULL,
       'Activity'
     );
@@ -585,8 +561,6 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
    * @param int $id
    * @param string $name
    * @param bool $viewOnly
-   *
-   * @return void
    */
   public function buildCustom($id, $name, $viewOnly = FALSE) {
     if ($id) {

@@ -19,8 +19,13 @@
         "php": ">=5.3.3"
     },
     "require-dev": {
+        "symfony/phpunit-bridge": "~2.7",
         "symfony/yaml": "~2.1",
-        "symfony/config": "~2.2"
+        "symfony/config": "~2.2",
+        "symfony/expression-language": "~2.6"
+    },
+    "conflict": {
+        "symfony/expression-language": "<2.6"
     },
     "suggest": {
         "symfony/yaml": "",
@@ -28,16 +33,13 @@
         "symfony/proxy-manager-bridge": "Generate service proxies to lazy load them"
     },
     "autoload": {
-        "psr-0": { "Symfony\\Component\\DependencyInjection\\": "" },
-        "exclude-from-classmap": [
-            "/Tests/"
-        ]
+        "psr-0": { "Symfony\\Component\\DependencyInjection\\": "" }
     },
     "target-dir": "Symfony/Component/DependencyInjection",
     "minimum-stability": "dev",
     "extra": {
         "branch-alias": {
-            "dev-master": "2.3-dev"
+            "dev-master": "2.6-dev"
         }
     }
 }

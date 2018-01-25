@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,9 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
-class CRM_Case_BAO_Query {
+class CRM_Case_BAO_Query extends CRM_Core_BAO_Query {
 
   /**
    * Get fields.
@@ -230,6 +230,15 @@ class CRM_Case_BAO_Query {
           $query->_useDistinct = TRUE;
         }
         self::whereClauseSingle($query->_params[$id], $query);
+      }
+    }
+    // Add acl clause
+    // This is new and so far only for cases - it would be good to find a more abstract
+    // way to auto-apply this for all search components rather than copy-pasting this code to others
+    if (isset($query->_tables['civicrm_case'])) {
+      $aclClauses = array_filter(CRM_Case_BAO_Case::getSelectWhereClause());
+      foreach ($aclClauses as $clause) {
+        $query->_where[0][] = $clause;
       }
     }
   }
@@ -472,11 +481,11 @@ class CRM_Case_BAO_Query {
       case 'case_tags':
         $tags = CRM_Core_PseudoConstant::get('CRM_Core_DAO_EntityTag', 'tag_id', array('onlyActive' => FALSE));
 
-        if (is_array($value)) {
-          foreach ($value as $k => $v) {
+        if (!empty($value)) {
+          $val = explode(',', $value);
+          foreach ($val as $v) {
             if ($v) {
-              $val[$k] = $k;
-              $names[] = $tags[$k];
+              $names[] = $tags[$v];
             }
           }
         }
@@ -508,7 +517,7 @@ class CRM_Case_BAO_Query {
         break;
 
       case 'civicrm_case_reporter':
-        $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+        $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
         $sourceID = CRM_Utils_Array::key('Activity Source', $activityContacts);
         $from .= " $side JOIN civicrm_activity_contact as case_activity_contact ON (case_activity.id = case_activity_contact.activity_id AND  case_activity_contact.record_type_id = {$sourceID} ) ";
         $from .= " $side JOIN civicrm_contact as civicrm_case_reporter ON case_activity_contact.contact_id = civicrm_case_reporter.id ";
@@ -625,6 +634,10 @@ case_relation_type.id = case_relationship.relationship_type_id )";
 
   /**
    * This includes any extra fields that might need for export etc.
+   *
+   * @param string $mode
+   *
+   * @return array|null
    */
   public static function extraReturnProperties($mode) {
     $properties = NULL;
@@ -664,26 +677,18 @@ case_relation_type.id = case_relationship.relationship_type_id )";
    * @param CRM_Core_Form $form
    */
   public static function buildSearchForm(&$form) {
-    $config = CRM_Core_Config::singleton();
-
     //validate case configuration.
     $configured = CRM_Case_BAO_Case::isCaseConfigured();
     $form->assign('notConfigured', !$configured['configured']);
 
-    $form->add('select', 'case_type_id',
-      ts('Case Type'),
-      CRM_Case_PseudoConstant::caseType('title', FALSE),
-      FALSE, array('class' => 'crm-select2', 'multiple' => 'multiple')
-    );
-
-    $form->add('select', 'case_status_id',
-      ts('Case Status'),
-      CRM_Case_PseudoConstant::caseStatus('label', FALSE),
-      FALSE, array('class' => 'crm-select2', 'multiple' => 'multiple')
-    );
+    $form->addField('case_type_id', array('context' => 'search', 'entity' => 'Case'));
+    $form->addField('case_status_id', array('context' => 'search', 'entity' => 'Case'));
 
     CRM_Core_Form_Date::buildDateRange($form, 'case_from', 1, '_start_date_low', '_start_date_high', ts('From'), FALSE);
     CRM_Core_Form_Date::buildDateRange($form, 'case_to', 1, '_end_date_low', '_end_date_high', ts('From'), FALSE);
+    $form->addElement('hidden', 'case_from_start_date_range_error');
+    $form->addElement('hidden', 'case_to_end_date_range_error');
+    $form->addFormRule(array('CRM_Case_BAO_Query', 'formRule'), $form);
 
     $form->assign('validCiviCase', TRUE);
 
@@ -696,46 +701,54 @@ case_relation_type.id = case_relationship.relationship_type_id )";
     }
     $form->assign('accessAllCases', $accessAllCases);
 
-    $caseTags = CRM_Core_BAO_Tag::getTags('civicrm_case');
+    $caseTags = CRM_Core_BAO_Tag::getColorTags('civicrm_case');
 
     if ($caseTags) {
-      foreach ($caseTags as $tagID => $tagName) {
-        $form->_tagElement = &$form->addElement('checkbox', "case_tags[$tagID]", NULL, $tagName);
-      }
+      $form->add('select2', 'case_tags', ts('Case Tag(s)'), $caseTags, FALSE, array('class' => 'big', 'placeholder' => ts('- select -'), 'multiple' => TRUE));
     }
 
     $parentNames = CRM_Core_BAO_Tag::getTagSet('civicrm_case');
     CRM_Core_Form_Tag::buildQuickForm($form, $parentNames, 'civicrm_case', NULL, TRUE, FALSE);
 
-    if (CRM_Core_Permission::check('administer CiviCRM')) {
+    if (CRM_Core_Permission::check('administer CiviCase')) {
       $form->addElement('checkbox', 'case_deleted', ts('Deleted Cases'));
     }
 
-    // add all the custom  searchable fields
-    $extends = array('Case');
-    $groupDetails = CRM_Core_BAO_CustomGroup::getGroupDetail(NULL, TRUE, $extends);
-    if ($groupDetails) {
-      $form->assign('caseGroupTree', $groupDetails);
-      foreach ($groupDetails as $group) {
-        foreach ($group['fields'] as $field) {
-          $fieldId = $field['id'];
-          $elementName = 'custom_' . $fieldId;
-          CRM_Core_BAO_CustomField::addQuickFormElement($form,
-            $elementName,
-            $fieldId,
-            FALSE, FALSE, TRUE
-          );
-        }
-      }
-    }
+    $form->addElement('text',
+      'case_subject',
+      ts('Case Subject'),
+      array('class' => 'huge')
+    );
+    $form->addElement('text',
+      'case_id',
+      ts('Case ID')
+    );
+
+    self::addCustomFormFields($form, array('Case'));
+
     $form->setDefaults(array('case_owner' => 1));
   }
 
   /**
-   * @param $row
-   * @param int $id
+   * Custom form rules.
+   *
+   * @param array $fields
+   * @param array $files
+   * @param CRM_Core_Form $form
+   *
+   * @return bool|array
    */
-  public static function searchAction(&$row, $id) {
+  public static function formRule($fields, $files, $form) {
+    $errors = array();
+
+    if ((empty($fields['case_from_start_date_low']) || empty($fields['case_from_start_date_high'])) && (empty($fields['case_to_end_date_low']) || empty($fields['case_to_end_date_high']))) {
+      return TRUE;
+    }
+
+    CRM_Utils_Rule::validDateRange($fields, 'case_from_start_date', $errors, ts('Case Start Date'));
+    CRM_Utils_Rule::validDateRange($fields, 'case_to_end_date', $errors, ts('Case End Date'));
+
+    return empty($errors) ? TRUE : $errors;
   }
 
 }

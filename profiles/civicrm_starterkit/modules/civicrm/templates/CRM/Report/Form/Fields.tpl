@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -31,7 +31,7 @@
         <ul>
           {foreach from=$tabs item='tab'}
             <li class="ui-corner-all">
-              <a title="{$tab.title}" href="#report-tab-{$tab.div_label}">{$tab.title}</a>
+              <a title="{$tab.title|escape}" href="#report-tab-{$tab.div_label}">{$tab.title}</a>
             </li>
           {/foreach}
           {if $instanceForm OR $instanceFormError}
@@ -56,16 +56,8 @@
         {/if}
       </div> {* end mainTabContainer *}
 
-      {assign var=save value="_qf_"|cat:$form.formName|cat:"_submit_save"}
-      {assign var=next value="_qf_"|cat:$form.formName|cat:"_submit_next"}
       <div class="crm-submit-buttons">
         {$form.buttons.html}
-        {if $instanceForm}
-          {$form.$save.html}
-        {/if}
-        {if $mode neq 'template' && $form.$next}
-          {$form.$next.html}
-        {/if}
       </div>
     </div> {* criteria section ends *}
   {/if}

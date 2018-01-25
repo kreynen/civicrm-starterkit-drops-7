@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -32,10 +32,8 @@
 {if $action eq 1 or $action eq 2 or $action eq 8 or $action eq 16384}
    {include file="CRM/Admin/Form/ScheduleReminders.tpl"}
 {else}
-  {* include wysiwyg related files*}
-  {include file="CRM/common/wysiwyg.tpl" includeWysiwygEditor=true}
   {if !$component}
-    {capture assign=schedRemindersDocLink}{docURL page="user/current/email/scheduled-reminders/"}{/capture}
+    {capture assign=schedRemindersDocLink}{docURL page="user/email/scheduled-reminders/"}{/capture}
     <div class="help">
       {ts}Scheduled reminders allow you to automatically send messages to contacts regarding their memberships, participation in events, or other activities.{/ts} {$schedRemindersDocLink}
     </div>
@@ -57,7 +55,7 @@
     {else}
       {assign var='urlParams' value="action=add&reset=1"}
     {/if}
-    {crmButton p=$link q=$urlParams id="newScheduleReminder"  icon="circle-plus"}{ts}Add Reminder{/ts}{/crmButton}
+    {crmButton p=$link q=$urlParams id="newScheduleReminder"  icon="plus-circle"}{ts}Add Reminder{/ts}{/crmButton}
   </div>
 {/if}
 {/if}

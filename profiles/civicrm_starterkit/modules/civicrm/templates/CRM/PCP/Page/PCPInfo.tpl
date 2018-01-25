@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -41,13 +41,13 @@
     {foreach from = $links key = k item = v}
           <tr>
             <td>
-                <a href="{crmURL p=$v.url q=$v.qs|replace:'%%pcpId%%':$replace.id|replace:'%%pageComponent%%':$replace.pageComponent|replace:'%%pcpBlock%%':$replace.block}" title="{$v.title}" {if $v.extra}{$v.extra}{/if}><strong>&raquo; {$v.name}</strong></a>
+                <a href="{crmURL p=$v.url q=$v.qs|replace:'%%pcpId%%':$replace.id|replace:'%%pageComponent%%':$replace.pageComponent|replace:'%%pcpBlock%%':$replace.block}" title="{$v.title|escape:'html'}" {if $v.extra}{$v.extra}{/if}><strong>&raquo; {$v.name}</strong></a>
        </td>
          <td>&nbsp;<cite>{$hints.$k}</cite></td>
       </tr>
         {/foreach}
        </table>
-     <div class="icon ui-icon-lightbulb"></div>
+     <i class="crm-i fa-lightbulb-o"></i>
      <strong>{ts}Tip{/ts}</strong> - <span class="description">{ts}You must be logged in to your account to access the editing options above. (If you visit this page without logging in, you will be viewing the page in "live" mode - as your visitors and friends see it.){/ts}</span>
 </div>
 {/if}
@@ -82,7 +82,7 @@
       <div class="honor-roll-wrapper">
         <div class="honor-roll-title">{ts}HONOR ROLL{/ts}</div>
           <div class="honor_roll">
-              <marquee behavior="scroll" direction="up" id="pcp_roll"  scrolldelay="200" bgcolor="#fafafa">
+              <marquee behavior="scroll" direction="up" id="pcp_roll"  scrolldelay="200"  height="200" bgcolor="#fafafa">
                 {foreach from = $honor item = v}
                 <div class="pcp_honor_roll_entry">
                     <div class="pcp-honor_roll-nickname">{$v.nickname}</div>

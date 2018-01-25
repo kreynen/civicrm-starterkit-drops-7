@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,7 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
+ * @copyright CiviCRM LLC (c) 2004-2017
  * $Id$
  *
  */
@@ -78,7 +78,7 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
 
     $eventID = implode(',', $eventIDs);
 
-    $participantStatus = CRM_Event_PseudoConstant::participantStatus(NULL, "is_counted = 1");
+    $participantStatus = CRM_Event_PseudoConstant::participantStatus(NULL, "is_counted = 1", "label");
     $participantRole = CRM_Event_PseudoConstant::participantRole();
     $paymentInstruments = CRM_Contribute_PseudoConstant::paymentInstrument();
 
@@ -99,15 +99,19 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
     $activeParticipantStatus = implode(',', $activeParticipantStatusIDArray);
     $activeparticipnatStutusLabel = implode(', ', $activeParticipantStatusLabelArray);
     $activeParticipantClause = " AND civicrm_participant.status_id IN ( $activeParticipantStatus ) ";
+    $select = array(
+      "civicrm_event.id as event_id",
+      "civicrm_event.title as event_title",
+      "civicrm_event.max_participants as max_participants",
+      "civicrm_event.start_date as start_date",
+      "civicrm_event.end_date as end_date",
+      "civicrm_option_value.label as event_type",
+      "civicrm_participant.fee_currency as currency",
+    );
 
+    $groupBy = CRM_Contact_BAO_Query::getGroupByFromSelectColumns($select, 'civicrm_event.id');
     $sql = "
-            SELECT  civicrm_event.id                    as event_id,
-                    civicrm_event.title                 as event_title,
-                    civicrm_event.max_participants      as max_participants,
-                    civicrm_event.start_date            as start_date,
-                    civicrm_event.end_date              as end_date,
-                    civicrm_option_value.label          as event_type,
-                    civicrm_participant.fee_currency    as currency,
+            SELECT  " . implode(', ', $select) . ",
                     SUM(civicrm_participant.fee_amount) as total,
                     COUNT(civicrm_participant.id)       as participant
 
@@ -118,21 +122,18 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
             LEFT JOIN  civicrm_participant ON ( civicrm_event.id = civicrm_participant.event_id
                        {$activeParticipantClause} AND civicrm_participant.is_test  = 0 )
 
-            WHERE      civicrm_event.id IN( {$eventID})
+            WHERE      civicrm_event.id IN( {$eventID}) {$groupBy}";
 
-            GROUP BY   civicrm_event.id
-            ";
-
-    $eventDAO = CRM_Core_DAO::executeQuery($sql);
+    $eventDAO = $this->executeReportQuery($sql);
     $currency = array();
     while ($eventDAO->fetch()) {
-      $eventSummary[$eventDAO->event_id]['Title'] = $eventDAO->event_title;
-      $eventSummary[$eventDAO->event_id]['Max Participants'] = $eventDAO->max_participants;
-      $eventSummary[$eventDAO->event_id]['Start Date'] = CRM_Utils_Date::customFormat($eventDAO->start_date);
-      $eventSummary[$eventDAO->event_id]['End Date'] = CRM_Utils_Date::customFormat($eventDAO->end_date);
-      $eventSummary[$eventDAO->event_id]['Event Type'] = $eventDAO->event_type;
-      $eventSummary[$eventDAO->event_id]['Event Income'] = CRM_Utils_Money::format($eventDAO->total, $eventDAO->currency);
-      $eventSummary[$eventDAO->event_id]['Registered Participant'] = "{$eventDAO->participant} ({$activeparticipnatStutusLabel})";
+      $eventSummary[$eventDAO->event_id][ts('Title')] = $eventDAO->event_title;
+      $eventSummary[$eventDAO->event_id][ts('Max Participants')] = $eventDAO->max_participants;
+      $eventSummary[$eventDAO->event_id][ts('Start Date')] = CRM_Utils_Date::customFormat($eventDAO->start_date);
+      $eventSummary[$eventDAO->event_id][ts('End Date')] = CRM_Utils_Date::customFormat($eventDAO->end_date);
+      $eventSummary[$eventDAO->event_id][ts('Event Type')] = $eventDAO->event_type;
+      $eventSummary[$eventDAO->event_id][ts('Event Income')] = CRM_Utils_Money::format($eventDAO->total, $eventDAO->currency);
+      $eventSummary[$eventDAO->event_id][ts('Registered Participant')] = "{$eventDAO->participant} ({$activeparticipnatStutusLabel})";
       $currency[$eventDAO->event_id] = $eventDAO->currency;
     }
     $this->assign_by_ref('summary', $eventSummary);
@@ -149,7 +150,7 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
             GROUP BY civicrm_participant.event_id
              ";
 
-    $counteDAO = CRM_Core_DAO::executeQuery($pariticipantCount);
+    $counteDAO = $this->executeReportQuery($pariticipantCount);
     while ($counteDAO->fetch()) {
       $count[$counteDAO->event_id] = $counteDAO->count;
     }
@@ -166,10 +167,10 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
             WHERE    civicrm_participant.event_id IN ( {$eventID}) AND
                      civicrm_participant.is_test  = 0
                      {$activeParticipantClause}
-            GROUP BY civicrm_participant.role_id, civicrm_participant.event_id
+            GROUP BY civicrm_participant.role_id, civicrm_participant.event_id, civicrm_participant.fee_currency
             ";
 
-    $roleDAO = CRM_Core_DAO::executeQuery($role);
+    $roleDAO = $this->executeReportQuery($role);
 
     while ($roleDAO->fetch()) {
       // fix for multiple role, CRM-6507
@@ -196,7 +197,7 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
       }
     }
 
-    $rows['Role'] = $roleRows;
+    $rows[ts('Role')] = $roleRows;
 
     // Count the Participant by status ID for Event.
     $status = "
@@ -213,7 +214,7 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
             GROUP BY civicrm_participant.status_id, civicrm_participant.event_id
             ";
 
-    $statusDAO = CRM_Core_DAO::executeQuery($status);
+    $statusDAO = $this->executeReportQuery($status);
 
     while ($statusDAO->fetch()) {
       $statusRows[$statusDAO->event_id][$participantStatus[$statusDAO->STATUSID]]['total'] = $statusDAO->participant;
@@ -221,7 +222,7 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
       $statusRows[$statusDAO->event_id][$participantStatus[$statusDAO->STATUSID]]['amount'] = CRM_Utils_Money::format($statusDAO->amount, $currency[$statusDAO->event_id]);
     }
 
-    $rows['Status'] = $statusRows;
+    $rows[ts('Status')] = $statusRows;
 
     //Count the Participant by payment instrument ID for Event
     //e.g. Credit Card, Check,Cash etc
@@ -243,7 +244,7 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
             GROUP BY  c.payment_instrument_id, civicrm_participant.event_id
             ";
 
-    $instrumentDAO = CRM_Core_DAO::executeQuery($paymentInstrument);
+    $instrumentDAO = $this->executeReportQuery($paymentInstrument);
 
     while ($instrumentDAO->fetch()) {
       //allow only if instrument is present in contribution table
@@ -253,7 +254,7 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
         $instrumentRows[$instrumentDAO->event_id][$paymentInstruments[$instrumentDAO->INSTRUMENT]]['amount'] = CRM_Utils_Money::format($instrumentDAO->amount, $currency[$instrumentDAO->event_id]);
       }
     }
-    $rows['Payment Method'] = $instrumentRows;
+    $rows[ts('Payment Method')] = $instrumentRows;
 
     $this->assign_by_ref('rows', $rows);
     if (!$this->_setVariable) {
@@ -279,7 +280,7 @@ class CRM_Report_Form_Event_Income extends CRM_Report_Form_Event {
   }
 
   /**
-   * @inheritdoc
+   * @inheritDoc
    */
   public function limit($rowCount = self::ROW_COUNT_LIMIT) {
     parent::limit($rowCount);

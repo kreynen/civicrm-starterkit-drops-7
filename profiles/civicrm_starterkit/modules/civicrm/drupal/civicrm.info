@@ -1,6 +1,6 @@
 name = CiviCRM
 description = Constituent relationship management system. Allows sites to manage contacts, relationships and groups, and track contact activities, contributions, memberships and events. See the <a href="https://civicrm.org/">CiviCRM website</a> for more information.
-version = 4.6.28
+version = 7.x-4.7.27
 package = CiviCRM
 core = 7.x
 project = civicrm
@@ -47,6 +47,8 @@ files[] = modules/views/civicrm/civicrm_handler_field_money.inc
 files[] = modules/views/civicrm/civicrm_handler_field_option.inc
 files[] = modules/views/civicrm/civicrm_handler_field_pcp_raised_amount.inc
 files[] = modules/views/civicrm/civicrm_handler_field_phone.inc
+files[] = modules/views/civicrm/civicrm_handler_field_im.inc
+files[] = modules/views/civicrm/civicrm_handler_field_website.inc
 files[] = modules/views/civicrm/civicrm_handler_field_relationship_type.inc
 files[] = modules/views/civicrm/civicrm_handler_field_state.inc
 files[] = modules/views/civicrm/civicrm_handler_field_custom_file.inc
@@ -71,6 +73,7 @@ files[] = modules/views/civicrm/civicrm_handler_field_activity.inc
 ; sort handlers
 files[] = modules/views/civicrm/civicrm_handler_sort_date.inc
 files[] = modules/views/civicrm/civicrm_handler_sort_pcp_raised_amount.inc
+files[] = modules/views/civicrm/civicrm_handler_sort_address_pseudoconstant.inc
 
 ; argument handlers
 files[] = modules/views/civicrm/civicrm_plugin_argument_default.inc
@@ -85,6 +88,13 @@ files[] = modules/views/civicrm/views_handler_argument_civicrm_year_month.inc
 files[] = modules/views/civicrm/civicrm_handler_relationship.inc
 files[] = modules/views/civicrm/civicrm_handler_relationship_relationship.inc
 files[] = modules/views/civicrm/civicrm_handler_relationship_contact2users.inc
+files[] = modules/views/civicrm/civicrm_handler_relationship_memberships_contributions.inc
+files[] = modules/views/civicrm/civicrm_handler_relationship_location.inc
+files[] = modules/views/civicrm/civicrm_handler_relationship_mail.inc
+files[] = modules/views/civicrm/civicrm_handler_relationship_phone.inc
+files[] = modules/views/civicrm/civicrm_handler_relationship_im.inc
+files[] = modules/views/civicrm/civicrm_handler_relationship_website.inc
+files[] = modules/views/civicrm/civicrm_handler_relationship_address.inc
 
 ; views plugins
 files[] = modules/views/plugins/calendar_plugin_row_civicrm.inc

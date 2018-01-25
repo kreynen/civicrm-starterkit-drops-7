@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,13 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
- */
-
-/**
- * Files required
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -93,7 +87,6 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
    */
   public $_group;
   public $_groupElement;
-  public $_groupIterator;
 
   /**
    * The tag elements.
@@ -152,6 +145,13 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
   protected $_modeValue;
 
   /**
+   * Declare entity reference fields as they will need to be converted to using 'IN'.
+   *
+   * @var array
+   */
+  protected $entityReferenceFields = array('event_id', 'membership_type_id');
+
+  /**
    * Name of the selector to use.
    */
   static $_selectorName = 'CRM_Contact_Selector';
@@ -159,6 +159,13 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
   protected $_customSearchClass = NULL;
 
   protected $_openedPanes = array();
+
+  /**
+   * Explicitly declare the entity api name.
+   */
+  public function getDefaultEntity() {
+    return 'Contact';
+  }
 
   /**
    * Define the set of valid contexts that the search form operates on.
@@ -325,9 +332,10 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
         $this->_taskList += CRM_Contact_Task::permissionedTaskTitles($permission,
           CRM_Utils_Array::value('deleted_contacts', $this->_formValues)
         );
-      } else {
+      }
+      else {
         $className = $this->_modeValue['taskClassName'];
-        $this->_taskList += $className::permissionedTaskTitles($permission, false);
+        $this->_taskList += $className::permissionedTaskTitles($permission, FALSE);
       }
 
       // Only offer the "Update Smart Group" task if a smart group/saved search is already in play
@@ -336,13 +344,12 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
       }
     }
 
+    asort($this->_taskList);
     return $this->_taskList;
   }
 
   /**
    * Build the common elements between the search/advanced form.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
@@ -486,15 +493,12 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
 
   /**
    * Processing needed for buildForm and later.
-   *
-   * @return void
    */
   public function preProcess() {
     // set the various class variables
 
     $this->_group = CRM_Core_PseudoConstant::group();
 
-    $this->_groupIterator = CRM_Core_PseudoConstant::groupIterator();
     $this->_tag = CRM_Core_BAO_Tag::getTags();
     $this->_done = FALSE;
 
@@ -503,11 +507,9 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
      * driven by the wizard framework
      */
 
-    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean',
-      CRM_Core_DAO::$_nullObject
-    );
+    $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean');
 
-    $this->_force = CRM_Utils_Request::retrieve('force', 'Boolean', CRM_Core_DAO::$_nullObject);
+    $this->_force = CRM_Utils_Request::retrieve('force', 'Boolean');
     $this->_groupID = CRM_Utils_Request::retrieve('gid', 'Positive', $this);
     $this->_amtgID = CRM_Utils_Request::retrieve('amtgID', 'Positive', $this);
     $this->_ssID = CRM_Utils_Request::retrieve('ssID', 'Positive', $this);
@@ -523,12 +525,6 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
     $this->_actionButtonName = $this->getButtonName('next', 'action');
 
     $this->assign('actionButtonName', $this->_actionButtonName);
-
-    // reset from session, CRM-3526
-    $session = CRM_Core_Session::singleton();
-    if ($this->_force && $session->get('selectedSearchContactIds')) {
-      $session->resetScope('selectedSearchContactIds');
-    }
 
     // if we dont get this from the url, use default if one exsts
     $config = CRM_Core_Config::singleton();
@@ -560,7 +556,7 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
       $this->_formValues = $this->controller->exportValues($this->_name);
 
       $this->normalizeFormValues();
-      $this->_params = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
+      $this->_params = CRM_Contact_BAO_Query::convertFormValues($this->_formValues, 0, FALSE, NULL, $this->entityReferenceFields);
       $this->_returnProperties = &$this->returnProperties();
 
       // also get the uf group id directly from the post value
@@ -578,7 +574,7 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
     }
     else {
       $this->_formValues = $this->get('formValues');
-      $this->_params = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
+      $this->_params = CRM_Contact_BAO_Query::convertFormValues($this->_formValues, 0, FALSE, NULL, $this->entityReferenceFields);
       $this->_returnProperties = &$this->returnProperties();
       if (!empty($this->_ufGroupID)) {
         $this->set('id', $this->_ufGroupID);
@@ -672,7 +668,7 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
     if (!isset($this->_componentMode)) {
       $this->_componentMode = CRM_Contact_BAO_Query::MODE_CONTACTS;
     }
-    $modeValues = self::getModeValue($this->_componentMode);
+    self::setModeValues();
 
     self::$_selectorName = $this->_modeValue['selectorName'];
 
@@ -747,8 +743,6 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
 
   /**
    * Common post processing.
-   *
-   * @return void
    */
   public function postProcess() {
     /*
@@ -762,7 +756,7 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
     $this->_done = TRUE;
 
     //for prev/next pagination
-    $crmPID = CRM_Utils_Request::retrieve('crmPID', 'Integer', CRM_Core_DAO::$_nullObject);
+    $crmPID = CRM_Utils_Request::retrieve('crmPID', 'Integer');
 
     if (array_key_exists($this->_searchButtonName, $_POST) ||
       ($this->_force && !$crmPID)

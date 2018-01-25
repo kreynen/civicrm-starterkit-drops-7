@@ -1,5 +1,5 @@
 name = CiviCRM Starter Kit
-description = "Install Drupal and CiviCRM with commonly used modules included, but not enabled or configured.  
+description = "Install Drupal and CiviCRM with commonly used modules included, but not enabled or configured.
 Use the CiviCRM Checklist to complete the configuration."
 distribution_name = CiviCRM Starter Kit
 
@@ -27,12 +27,3 @@ dependencies[] = file
 dependencies[] = rdf
 dependencies[] = civicrm
 dependencies[] = civicrmtheme
-
-
-
-; Information added by Drupal.org packaging script on 2014-10-15
-version = "7.x-4.4-rc12"
-core = "7.x"
-project = "civicrm_starterkit"
-datestamp = "1413401925"
-

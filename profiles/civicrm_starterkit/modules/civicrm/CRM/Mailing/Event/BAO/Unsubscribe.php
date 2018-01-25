@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 require_once 'Mail/mime.php';
@@ -129,7 +127,7 @@ WHERE  email = %2
    *   $groups    Array of all groups from which the contact was removed, or null if the queue event could not be found.
    */
   public static function &unsub_from_mailing($job_id, $queue_id, $hash, $return = FALSE) {
-    /* First make sure there's a matching queue event */
+    // First make sure there's a matching queue event.
 
     $q = CRM_Mailing_Event_BAO_Queue::verify($job_id, $queue_id, $hash);
     $success = NULL;
@@ -151,6 +149,8 @@ WHERE  email = %2
     $group = $groupObject->getTableName();
     $gcObject = new CRM_Contact_BAO_GroupContact();
     $gc = $gcObject->getTableName();
+    $abObject = new CRM_Mailing_DAO_MailingAB();
+    $ab = $abObject->getTableName();
 
     //We Need the mailing Id for the hook...
     $do->query("SELECT $job.mailing_id as mailing_id
@@ -158,23 +158,45 @@ WHERE  email = %2
                      WHERE $job.id = " . CRM_Utils_Type::escape($job_id, 'Integer'));
     $do->fetch();
     $mailing_id = $do->mailing_id;
+    $mailing_type = CRM_Core_DAO::getFieldValue('CRM_Mailing_DAO_Mailing', $mailing_id, 'mailing_type', 'id');
+    $entity = CRM_Core_DAO::getFieldValue('CRM_Mailing_DAO_MailingGroup', $mailing_id, 'entity_table', 'mailing_id');
+
+    // If $entity is null and $mailing_Type is either winner or experiment then we are deailing with an AB test
+    $abtest_types = array('experiment', 'winner');
+    if (empty($entity) && in_array($mailing_type, $abtest_types)) {
+      $mailing_id_a = CRM_Core_DAO::getFieldValue('CRM_Mailing_DAO_MailingAB', $mailing_id, 'mailing_id_a', 'mailing_id_b');
+      $field = 'mailing_id_b';
+      if (empty($mailing_id_a)) {
+        $mailing_id_a = CRM_Core_DAO::getFieldValue('CRM_Mailing_DAO_MailingAB', $mailing_id, 'mailing_id_a', 'mailing_id_c');
+        $field = 'mailing_id_c';
+      }
+      $jobJoin = "INNER JOIN $ab ON $ab.mailing_id_a = $mg.mailing_id
+        INNER JOIN $job ON $job.mailing_id = $ab.$field";
+      $entity = CRM_Core_DAO::getFieldValue('CRM_Mailing_DAO_MailingGroup', $mailing_id_a, 'entity_table', 'mailing_id');
+    }
+    else {
+      $jobJoin = "INNER JOIN  $job ON      $job.mailing_id = $mg.mailing_id";
+    }
+
+    $groupClause = '';
+    if ($entity == $group) {
+      $groupClause = "AND $group.is_hidden = 0";
+    }
 
     $do->query("
             SELECT      $mg.entity_table as entity_table,
                         $mg.entity_id as entity_id,
                         $mg.group_type as group_type
             FROM        $mg
-            INNER JOIN  $job
-                ON      $job.mailing_id = $mg.mailing_id
-            INNER JOIN  $group
-                ON      $mg.entity_id = $group.id
+            $jobJoin
+            INNER JOIN  $entity
+                ON      $mg.entity_id = $entity.id
             WHERE       $job.id = " . CRM_Utils_Type::escape($job_id, 'Integer') . "
-                AND     $mg.group_type IN ('Include', 'Base')
-                AND     $group.is_hidden = 0"
+                AND     $mg.group_type IN ('Include', 'Base') $groupClause"
     );
 
-    /* Make a list of groups and a list of prior mailings that received
-     * this mailing */
+    // Make a list of groups and a list of prior mailings that received
+    // this mailing.
 
     $groups = array();
     $base_groups = array();
@@ -194,8 +216,8 @@ WHERE  email = %2
       }
     }
 
-    /* As long as we have prior mailings, find their groups and add to the
-     * list */
+    // As long as we have prior mailings, find their groups and add to the
+    // list.
 
     while (!empty($mailings)) {
       $do->query("
@@ -218,21 +240,23 @@ WHERE  email = %2
     }
 
     //Pass the groups to be unsubscribed from through a hook.
-    $group_ids = array_keys($groups);
-    $base_group_ids = array_keys($base_groups);
-    CRM_Utils_Hook::unsubscribeGroups('unsubscribe', $mailing_id, $contact_id, $group_ids, $base_group_ids);
+    $groupIds = array_keys($groups);
+    //include child groups if any
+    $groupIds = array_merge($groupIds, CRM_Contact_BAO_Group::getChildGroupIds($groupIds));
 
-    /* Now we have a complete list of recipient groups.  Filter out all
-     * those except smart groups, those that the contact belongs to and
-     * base groups from search based mailings */
+    $baseGroupIds = array_keys($base_groups);
+    CRM_Utils_Hook::unsubscribeGroups('unsubscribe', $mailing_id, $contact_id, $groupIds, $baseGroupIds);
 
+    // Now we have a complete list of recipient groups.  Filter out all
+    // those except smart groups, those that the contact belongs to and
+    // base groups from search based mailings.
     $baseGroupClause = '';
-    if (!empty($base_group_ids)) {
-      $baseGroupClause = "OR  $group.id IN(" . implode(', ', $base_group_ids) . ")";
+    if (!empty($baseGroupIds)) {
+      $baseGroupClause = "OR  $group.id IN(" . implode(', ', $baseGroupIds) . ")";
     }
     $groupIdClause = '';
-    if ($group_ids || $base_group_ids) {
-      $groupIdClause = "AND $group.id IN (" . implode(', ', array_merge($group_ids, $base_group_ids)) . ")";
+    if ($groupIds || $baseGroupIds) {
+      $groupIdClause = "AND $group.id IN (" . implode(', ', array_merge($groupIds, $baseGroupIds)) . ")";
     }
     $do->query("
             SELECT      $group.id as group_id,
@@ -269,7 +293,7 @@ WHERE  email = %2
     foreach ($groups as $group_id => $group_name) {
       $notremoved = FALSE;
       if ($group_name) {
-        if (in_array($group_id, $base_group_ids)) {
+        if (in_array($group_id, $baseGroupIds)) {
           list($total, $removed, $notremoved) = CRM_Contact_BAO_GroupContact::addContactsToGroup($contacts, $group_id, 'Email', 'Removed');
         }
         else {
@@ -292,7 +316,7 @@ WHERE  email = %2
   }
 
   /**
-   * Send a reponse email informing the contact of the groups from which he.
+   * Send a response email informing the contact of the groups from which he.
    * has been unsubscribed.
    *
    * @param string $queue_id
@@ -303,8 +327,6 @@ WHERE  email = %2
    *   Is this domain-level?.
    * @param int $job
    *   The job ID.
-   *
-   * @return void
    */
   public static function send_unsub_response($queue_id, $groups, $is_domain = FALSE, $job) {
     $config = CRM_Core_Config::singleton();
@@ -406,7 +428,7 @@ WHERE  email = %2
     $b = CRM_Utils_Mail::setMimeParams($message);
     $h = $message->headers($headers);
 
-    $mailer = $config->getMailer();
+    $mailer = \Civi::service('pear_mail');
 
     if (is_object($mailer)) {
       $errorScope = CRM_Core_TemporaryErrorScope::ignoreException();
@@ -425,7 +447,9 @@ WHERE  email = %2
    * @param bool $is_distinct
    *   Group by queue ID?.
    *
-   * @param null $org_unsubscribe
+   * @param string $org_unsubscribe
+   *
+   * @param string $toDate
    *
    * @return int
    *   Number of rows in result set
@@ -551,7 +575,7 @@ WHERE  email = %2
     }
 
     if ($is_distinct) {
-      $query .= " GROUP BY $queue.id ";
+      $query .= " GROUP BY $queue.id, $unsub.time_stamp, $unsub.org_unsubscribe";
     }
 
     $orderBy = "sort_name ASC, {$unsub}.time_stamp DESC";
@@ -608,7 +632,7 @@ SELECT DISTINCT(civicrm_mailing_event_queue.contact_id) as contact_id,
    AND civicrm_mailing_event_queue.email_id = civicrm_email.id
    AND civicrm_mailing_event_queue.id = " . CRM_Utils_Type::escape($queueID, 'Integer');
 
-    $dao = CRM_Core_DAO::executeQuery($query, CRM_Core_DAO::$_nullArray);
+    $dao = CRM_Core_DAO::executeQuery($query);
 
     $displayName = 'Unknown';
     $email = 'Unknown';

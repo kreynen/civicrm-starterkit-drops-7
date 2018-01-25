@@ -13,57 +13,67 @@ projects[drupal][version] = "7.51"
 ; ====== CIVICRM RELATED =========
 
 libraries[civicrm][download][type] = get
-libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-4.6.28-drupal.tar.gz"
+libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-4.7.27-drupal.tar.gz"
 libraries[civicrm][destination] = modules
 libraries[civicrm][directory_name] = civicrm
 
 ;PANTHEON RELATED PATCHES
-; Add Pantheon settings to civicrm.settings.php (http://forum.civicrm.org/index.php?topic=31570.0)
-libraries[civicrm][patch][pantheonsettings] = https://www.drupal.org/files/issues/2082713-pantheon-settings-civicrm-46-3.patch
+; Settings for Pantheon (d.o/node/2082713 originally)
+; Private folders: https://civicrm.org/advisory/civi-sa-2014-001-risk-information-disclosure
+; Define [civicrm.files] and [civicrm.private] paths since there is no htaccess file
+; to set public/private folders.
+libraries[civicrm][patch][pantheonsettings] = ./patches/pantheon-settings-starterkit-47.patch
+libraries[civicrm][patch][publicfiledir] = ./patches/public_files_config.patch
 
-; Add Redis caching
-libraries[civicrm][patch][redis] = https://www.drupal.org/files/issues/2468687-redis-caching-civi46.patch
+; Provide modulepath to populate settings
+; https://www.drupal.org/node/2063371
+libraries[civicrm][patch][2063371] = ./patches/2063371-add-modulePath-var-4-4.patch
 
-; Skip config cache on Pantheon
-libraries[civicrm][patch][config] = https://www.drupal.org/files/issues/2096467-skip-config-cache-civi46.patch
+; Set session for cron.
+; Matches settings in CiviCRM core for extern/*.
+libraries[civicrm][patch][cron] = ./patches/cron.patch
 
-; INSTALL
-; provide modulepath to populate settings
-libraries[civicrm][patch][2063371] = http://drupal.org/files/2063371-add-modulePath-var-4-4.patch
-libraries[civicrm][patch][1978796] = http://drupal.org/files/1978796-session.save-as_file.patch
-
-; Related to https://issues.civicrm.org/jira/browse/CRM-9683
-libraries[civicrm][patch][2130213] = http://drupal.org/files/issues/2130213-ignore-timezone-on-install-2.patch
-
-;IMPROVING PROFILE INSTALL UX WHEN INSTALLING FROM A PROFILE
-libraries[civicrm][patch][1849424-use] = https://www.drupal.org/files/issues/1849424-use-vars-in-link-civi46.patch
-libraries[civicrm][patch][1849424-pass] = http://drupal.org/files/1849424-pass-vars-in-link-2.patch
-
-; Populate with Pantheon environment settings on install
-libraries[civicrm][patch][1978838] = http://drupal.org/files/issues/1978838-pre-populate-db-settings-2.patch
-
-; Required for extern urls to work (e.g. ipn.php, soap.php)
-libraries[civicrm][patch][2177647] = https://drupal.org/files/issues/2177647-sessions-fix.patch
-libraries[civicrm][patch][cron] = https://www.drupal.org/files/issues/2819697-cron-civi46.patch
-
-; Necessary if in profiles/*/modules/civicrm
-; Define the path to the civicrm.settings.php file because CiviCRM is not in the expected location.
-libraries[civicrm][patch][1844558] = https://www.drupal.org/files/issues/1844558-settings_location-for-profiles.patch
-libraries[civicrm][patch][1967972] = http://drupal.org/files/1967972-bootsrap-fixes.patch
+; Patch IPN
+libraries[civicrm][patch][externbootstrap] = ./patches/extern-cms-bootstrap.patch
+libraries[civicrm][patch][ipn] = ./patches/ipn.patch
+libraries[civicrm][patch][ipnstd] = ./patches/ipnStd.patch
 
 ; May be necessary where extension, etc paths are cached but Pantheon changes binding
-libraries[civicrm][patch][2347897] = https://www.drupal.org/files/issues/2347897-binding-fix-for-extension-civi46.patch
+; https://www.drupal.org/node/2347897
+libraries[civicrm][patch][2347897] = ./patches/binding-extension-47-2347897.patch
 
-; [OPTIONAL IF USING REDIS] Use CiviCRM cache functions to use Redis for storing compiled Smarty templates
-; Based on github.com/ojkelly commit 85e04b6
-;libraries[civicrm][patch][smartyredis] = https://www.drupal.org/files/issues/2570335-smarty-redis-civi-cache-civi46.patch
+; Required for install
+; Populate with Pantheon environment settings on install
+; https://www.drupal.org/node/1978838
+libraries[civicrm][patch][1978838] = ./patches/pre-populate-db-settings-47-1978838.patch
 
-; This file is added to create the sites/all/extensions directory
-libraries[cache][download][type] = get
-libraries[cache][download][url] = "https://raw.github.com/PHPIDS/PHPIDS/master/README.md"
-libraries[cache][download][filename] = timestamp.txt
-libraries[cache][destination] = extensions
-libraries[cache][patch][1980088] = https://drupal.org/files/1980088-create-extensions-dir-4.patch
+; Ensure the baseURL is correct in the installer in Pantheon.
+libraries[civicrm][patch][installerbaseurl] = ./patches/installer-baseurl.patch
+
+; Related to https://issues.civicrm.org/jira/browse/CRM-9683
+libraries[civicrm][patch][2130213] = ./patches/ignore-timezone-on-install-47-2130213.patch
+
+; Necessary if CiviCRM in profiles/*/modules/civicrm
+; Define the path to the civicrm.settings.php file because CiviCRM is not in the expected location.
+; https://www.drupal.org/node/1844558
+libraries[civicrm][patch][1844558] = ./patches/settings_location-for-profiles.patch
+
+;Improving profile install UX when installing from a profile
+libraries[civicrm][patch][1849424-use] = ./patches/1849424-use-vars-in-link-2.patch
+libraries[civicrm][patch][1849424-pass] = ./patches/1849424-pass-vars-in-link-2.patch
+
+; Cached Symfony container
+; This is a potential issue but not clear at the moment--like it will just rebuild the php file.
+; If concerned can set it to skip caching the container. In civicrm.settings.php set:
+; define('CIVICRM_CONTAINER_CACHE', 'never');
+
+; [OPTIONAL IF USING REDIS] Use CiviCRM cache functions to use Redis for storing compiled Smarty templates (Based on github.com/ojkelly commit 85e04b6)
+; Unconventional but CiviCRM works faster and fewer errors in trying to load templates
+; libraries[civicrm][patch][smartyredis] = ./patches/smarty-redis-civi-cache-47.patch
+
+; [OPTIONAL] SMTP patch for PHP 5.6+
+; https://civicrm.stackexchange.com/questions/16628/outgoing-mail-settings-civismtp-php-5-6-x-problem
+libraries[civicrm][patch][smtpverify] = ./patches/smtp-disable-peer-verification.patch
 
 ; ====== POPULAR CONTRIB MODULES =========
 
@@ -113,13 +123,13 @@ projects[recaptcha][subdir] = "contrib"
 projects[recaptcha][version] = "2.2"
 
 projects[views][subdir] = "contrib"
-projects[views][version] = "3.16"
+projects[views][version] = "3.17"
 
 projects[webform][subdir] = "contrib"
-projects[webform][version] = "4.1"
+projects[webform][version] = "4.15"
 
 projects[webform_civicrm][subdir] = "contrib"
-projects[webform_civicrm][version] = "4.9"
+projects[webform_civicrm][version] = "4.19"
 
 projects[wysiwyg][subdir] = "contrib"
 projects[wysiwyg][version] = "2.4"

@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -31,9 +31,12 @@
    {include file="CRM/Admin/Form/Options.tpl"}
 {else}
 
-<div id="help">
+{if $gName eq "acl_role"}
+  {include file="CRM/ACL/Header.tpl" step=1}
+{else}
+<div class="help">
   {if $gName eq "gender"}
-    {ts}CiviCRM is pre-configured with standard options for individual gender (Male, Female, Transgender). Modify these options as needed for your installation.{/ts}
+    {ts}CiviCRM is pre-configured with standard options for individual gender (Male, Female, Other). Modify these options as needed for your installation.{/ts}
   {elseif $gName eq "individual_prefix"}
       {ts}CiviCRM is pre-configured with standard options for individual contact prefixes (Ms., Mr., Dr. etc.). Customize these options and add new ones as needed for your installation.{/ts}
   {elseif $gName eq "mobile_provider"}
@@ -49,12 +52,6 @@
   {elseif $gName eq "accept_creditcard"}
     {ts}The following credit card options will be offered to contributors using Online Contribution pages. You will need to verify which cards are accepted by your chosen Payment Processor and update these entries accordingly.{/ts}<br /><br />
     {ts}IMPORTANT: This page does NOT control credit card/payment method choices for sites and/or contributors using the PayPal Express service (e.g. where billing information is collected on the Payment Processor's website).{/ts}
-  {elseif $gName eq "acl_role"}
-    {capture assign=docLink}{docURL page="user/current/initial-set-up/permissions-and-access-control/" text="Access Control Documentation"}{/capture}
-    {capture assign=aclURL}{crmURL p='civicrm/acl' q='reset=1'}{/capture}
-    {capture assign=erURL}{crmURL p='civicrm/acl/entityrole' q='reset=1'}{/capture}
-    {ts 1=$docLink}ACLs allow you control access to CiviCRM data. An ACL consists of an <strong>Operation</strong> (e.g. 'View' or 'Edit'), a <strong>set of data</strong> that the operation can be performed on (e.g. a group of contacts), and a <strong>Role</strong> that has permission to do this operation. Refer to the %1 for more info.{/ts}<br /><br />
-    {ts 1=$aclURL 2=$erURL}You can add or modify your ACL Roles below. You can create ACL&rsquo;s and grant permission to roles <a href='%1'>here</a>... and you can assign role(s) to CiviCRM contacts who are users of your site <a href='%2'>here</a>.{/ts}
   {elseif $gName eq 'event_type'}
     {ts}Use Event Types to categorize your events. Event feeds can be filtered by Event Type and participant searches can use Event Type as a criteria.{/ts}
   {elseif $gName eq 'participant_role'}
@@ -69,14 +66,18 @@
     {ts 1=$gLabel}The existing option choices for %1 group are listed below. You can add, edit or delete them from this screen.{/ts}
   {/if}
 </div>
+{/if}
 
 <div class="crm-content-block crm-block">
 {if $rows}
 {if $isLocked ne 1}
     <div class="action-link">
-        {crmButton p="civicrm/admin/options/$gName" q='action=add&reset=1' class="new-option" icon="circle-plus"}{ts 1=$gLabel}Add %1{/ts}{/crmButton}
+        {crmButton p="civicrm/admin/options/$gName" q='action=add&reset=1' class="new-option" icon="plus-circle"}{ts 1=$gLabel}Add %1{/ts}{/crmButton}
     </div>
 {/if}
+{foreach from=$rows item=row}
+  {if !empty($row.icon)}{assign var='hasIcons' value=TRUE}{/if}
+{/foreach}
 <div id={$gName}>
         {strip}
   {* handle enable/disable actions*}
@@ -84,6 +85,9 @@
         <table id="options" class="row-highlight">
          <thead>
          <tr>
+            {if !empty($hasIcons)}
+              <th></th>
+            {/if}
             {if $showComponent}
                 <th>{ts}Component{/ts}</th>
             {/if}
@@ -122,10 +126,15 @@
           <tbody>
         {foreach from=$rows item=row}
           <tr id="option_value-{$row.id}" class="crm-admin-options crm-admin-options_{$row.id} crm-entity {cycle values="odd-row,even-row"}{if NOT $row.is_active} disabled{/if}">
+            {if !empty($hasIcons)}
+              <td class="crm-admin-options-icon"><i class="crm-i {$row.icon}"></i></td>
+            {/if}
             {if $showComponent}
               <td class="crm-admin-options-component_name">{$row.component_name}</td>
             {/if}
-            <td class="crm-admin-options-label crm-editable" data-field="label">{$row.label}</td>
+            <td class="crm-admin-options-label crm-editable" data-field="label" {if !empty($row.color)}style="background-color: {$row.color}; color: {$row.color|colorContrast};"{/if}>
+              {$row.label}
+            </td>
             {if $gName eq "case_status"}
               <td class="crm-admin-options-grouping">{$row.grouping}</td>
             {/if}
@@ -160,9 +169,9 @@
 {/if}
     <div class="action-link">
       {if $isLocked ne 1}
-        {crmButton p="civicrm/admin/options/$gName" q='action=add&reset=1' class="new-option" icon="circle-plus"}{ts 1=$gLabel}Add %1{/ts}{/crmButton}
+        {crmButton p="civicrm/admin/options/$gName" q='action=add&reset=1' class="new-option" icon="plus-circle"}{ts 1=$gLabel}Add %1{/ts}{/crmButton}
       {/if}
-      {crmButton p="civicrm/admin" q="reset=1" class="cancel" icon="close"}{ts}Done{/ts}{/crmButton}
+      {crmButton p="civicrm/admin" q="reset=1" class="cancel" icon="times"}{ts}Done{/ts}{/crmButton}
     </div>
 </div>
 {/if}

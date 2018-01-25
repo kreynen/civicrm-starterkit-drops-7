@@ -1,7 +1,7 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -57,6 +57,32 @@ function _civicrm_event_data(&$data, $enabled) {
   $data['civicrm_event']['id'] = array(
     'title' => t('Event ID'),
     'help' => t('The numeric ID of the Event'),
+    'field' => array(
+      'handler' => 'views_handler_field_numeric',
+      'click sortable' => TRUE,
+    ),
+    'argument' => array(
+      'handler' => 'views_handler_argument_numeric',
+      'numeric' => TRUE,
+    ),
+    'filter' => array(
+      'handler' => 'views_handler_filter_numeric',
+    ),
+    'sort' => array(
+      'handler' => 'views_handler_sort',
+    ),
+    'relationship' => array(
+      'base' => 'civicrm_participant',
+      'base field' => 'event_id',
+      'handler' => 'views_handler_relationship',
+      'label' => t('Event -> Participant'),
+    ),
+  );
+
+  // Event Max-Partipicants
+  $data['civicrm_event']['max_participants'] = array(
+    'title' => t('Event Max-Participants'),
+    'help' => t('The maximal number of participants of the Event'),
     'field' => array(
       'handler' => 'views_handler_field_numeric',
       'click sortable' => TRUE,
@@ -447,6 +473,7 @@ function _civicrm_event_data(&$data, $enabled) {
       'click sortable' => TRUE,
       'pseudo class' => 'CRM_Event_PseudoConstant',
       'pseudo method' => 'participantStatus',
+      'pseudo args' => array(NULL, NULL, 'label'),
     ),
     'argument' => array(
       'handler' => 'views_handler_argument',
@@ -456,6 +483,7 @@ function _civicrm_event_data(&$data, $enabled) {
       'allow empty' => TRUE,
       'pseudo class' => 'CRM_Event_PseudoConstant',
       'pseudo method' => 'participantStatus',
+      'pseudo args' => array(NULL, NULL, 'label'),
     ),
     'sort' => array(
       'handler' => 'views_handler_sort',
@@ -628,14 +656,46 @@ function _civicrm_event_data(&$data, $enabled) {
       ),
     );
   }
-  // HOP SCOTCHING OUR WAY THROUGH THE CIVICRM_PARTICIPANT_PAYMENT
 
-  // Explain how this table joins to others.
+  // Add the Contribution relevant to the Participant.
+  $data['civicrm_participant_payment']['table']['group'] = t('Participant Payment (Contributions)');
+
+  $data['civicrm_participant_payment']['table']['base'] = array(
+    'field' => 'id',
+    'title' => t('Participant Payment (Contributions)'),
+    'help' => t("View participant's Contributions (for paid events)."),
+  );
+
   $data['civicrm_participant_payment']['table']['join'] = array(
-    // Directly links to event table
     'civicrm_participant' => array(
       'left_field' => 'id',
       'field' => 'participant_id',
+    ),
+  );
+
+  $data['civicrm_participant_payment']['contribution_id'] = array(
+    'title' => t('Participant Contribution Id'),
+    'help' => t('The numeric ID of the Participant\'s Contribution (for event fees).'),
+    'field' => array(
+      'handler' => 'views_handler_field_numeric',
+      'click sortable' => TRUE,
+    ),
+    'argument' => array(
+      'handler' => 'views_handler_argument_numeric',
+      'numeric' => TRUE,
+    ),
+    'filter' => array(
+      'handler' => 'views_handler_filter_numeric',
+    ),
+    'sort' => array(
+      'handler' => 'views_handler_sort',
+    ),
+    'relationship' => array(
+      'base' => 'civicrm_contribution',
+      'left_field' => 'id',
+      'field' => 'contribution_id',
+      'handler' => 'views_handler_relationship',
+      'label' => t('CiviCRM Participant Payment, with custom fields'),
     ),
   );
 

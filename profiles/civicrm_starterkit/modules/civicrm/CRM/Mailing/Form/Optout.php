@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Mailing_Form_Optout extends CRM_Core_Form {
 
@@ -73,7 +71,7 @@ class CRM_Mailing_Form_Optout extends CRM_Core_Form {
     $buttons = array(
       array(
         'type' => 'next',
-        'name' => 'Opt Out',
+        'name' => ts('Opt Out'),
         'isDefault' => TRUE,
       ),
       array(

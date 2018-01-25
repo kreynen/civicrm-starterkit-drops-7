@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Report_Form_Grant_Detail extends CRM_Report_Form {
 
@@ -41,8 +39,7 @@ class CRM_Report_Form_Grant_Detail extends CRM_Report_Form {
   );
 
   /**
-   */
-  /**
+   * Class constructor.
    */
   public function __construct() {
     $this->_columns = array(
@@ -81,11 +78,13 @@ class CRM_Report_Form_Grant_Detail extends CRM_Report_Form {
         'filters' => array(
           'country_id' => array(
             'title' => ts('Country'),
+            'type' => CRM_Utils_Type::T_INT,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => CRM_Core_PseudoConstant::country(),
           ),
           'state_province_id' => array(
             'title' => ts('State/Province'),
+            'type' => CRM_Utils_Type::T_INT,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => CRM_Core_PseudoConstant::stateProvince(),
           ),
@@ -150,6 +149,7 @@ class CRM_Report_Form_Grant_Detail extends CRM_Report_Form {
           'status_id' => array(
             'name' => 'status_id',
             'title' => ts('Grant Status'),
+            'type' => CRM_Utils_Type::T_INT,
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => CRM_Core_PseudoConstant::get('CRM_Grant_DAO_Grant', 'status_id'),
           ),
@@ -281,10 +281,12 @@ class CRM_Report_Form_Grant_Detail extends CRM_Report_Form {
           }
           if (!empty($clause)) {
             $clauses[] = $clause;
-            $this->_where = "WHERE " . implode(' AND ', $clauses);
           }
         }
       }
+    }
+    if (!empty($clauses)) {
+      $this->_where = "WHERE " . implode(' AND ', $clauses);
     }
   }
 

@@ -17,12 +17,15 @@ use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Alias;
 use Symfony\Component\DependencyInjection\Exception\RuntimeException;
+use Symfony\Component\ExpressionLanguage\Expression;
 
 /**
  * XmlDumper dumps a service container as an XML string.
  *
  * @author Fabien Potencier <fabien@symfony.com>
  * @author Martin Hasoň <martin.hason@gmail.com>
+ *
+ * @api
  */
 class XmlDumper extends Dumper
 {
@@ -37,6 +40,8 @@ class XmlDumper extends Dumper
      * @param array $options An array of options
      *
      * @return string An xml string representing of the service container
+     *
+     * @api
      */
     public function dump(array $options = array())
     {
@@ -109,12 +114,8 @@ class XmlDumper extends Dumper
         if (null !== $id) {
             $service->setAttribute('id', $id);
         }
-        if ($class = $definition->getClass()) {
-            if ('\\' === substr($class, 0, 1)) {
-                $class = substr($class, 1);
-            }
-
-            $service->setAttribute('class', $class);
+        if ($definition->getClass()) {
+            $service->setAttribute('class', $definition->getClass());
         }
         if ($definition->getFactoryMethod()) {
             $service->setAttribute('factory-method', $definition->getFactoryMethod());
@@ -139,6 +140,13 @@ class XmlDumper extends Dumper
         }
         if ($definition->isLazy()) {
             $service->setAttribute('lazy', 'true');
+        }
+        if (null !== $decorated = $definition->getDecoratedService()) {
+            list($decorated, $renamedId) = $decorated;
+            $service->setAttribute('decorates', $decorated);
+            if (null !== $renamedId) {
+                $service->setAttribute('decoration-inner-name', $renamedId);
+            }
         }
 
         foreach ($definition->getTags() as $name => $tags) {
@@ -167,6 +175,17 @@ class XmlDumper extends Dumper
         }
 
         $this->addMethodCalls($definition->getMethodCalls(), $service);
+
+        if ($callable = $definition->getFactory()) {
+            $factory = $this->document->createElement('factory');
+            if (is_array($callable)) {
+                $factory->setAttribute($callable[0] instanceof Reference ? 'service' : 'class', $callable[0]);
+                $factory->setAttribute('method', $callable[1]);
+            } else {
+                $factory->setAttribute('function', $callable);
+            }
+            $service->appendChild($factory);
+        }
 
         if ($callable = $definition->getConfigurator()) {
             $configurator = $this->document->createElement('configurator');
@@ -262,6 +281,10 @@ class XmlDumper extends Dumper
             } elseif ($value instanceof Definition) {
                 $element->setAttribute('type', 'service');
                 $this->addService($value, null, $element);
+            } elseif ($value instanceof Expression) {
+                $element->setAttribute('type', 'expression');
+                $text = $this->document->createTextNode(self::phpToXml((string) $value));
+                $element->appendChild($text);
             } else {
                 if (in_array($value, array('null', 'true', 'false'), true)) {
                     $element->setAttribute('type', 'string');

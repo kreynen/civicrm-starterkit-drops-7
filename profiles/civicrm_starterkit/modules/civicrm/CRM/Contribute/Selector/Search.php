@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -26,23 +26,17 @@
  */
 
 /**
- *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class is used to retrieve and display a range of
- * contacts that match the given criteria (specifically for
- * results of advanced search options.
- *
+ * Class to render contribution search results.
  */
 class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements CRM_Core_Selector_API {
 
   /**
-   * This defines two actions- View and Edit.
+   * Array of action links.
    *
    * @var array
    */
@@ -185,17 +179,16 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
 
     // type of selector
     $this->_action = $action;
-
+    $returnProperties = CRM_Contribute_BAO_Query::selectorReturnProperties();
     $this->_includeSoftCredits = CRM_Contribute_BAO_Query::isSoftCreditOptionEnabled($this->_queryParams);
     $this->_query = new CRM_Contact_BAO_Query(
       $this->_queryParams,
-      CRM_Contribute_BAO_Query::defaultReturnProperties(
-        CRM_Contact_BAO_Query::MODE_CONTRIBUTE,
-        FALSE
-      ),
+      $returnProperties,
       NULL, FALSE, FALSE,
       CRM_Contact_BAO_Query::MODE_CONTRIBUTE
     );
+    // @todo the function CRM_Contribute_BAO_Query::isSoftCreditOptionEnabled should handle this
+    // can we remove? if not why not?
     if ($this->_includeSoftCredits) {
       $this->_query->_rowCountClause = " count(civicrm_contribution.id)";
       $this->_query->_groupByComponentClause = " GROUP BY contribution_search_scredit_combined.id, contribution_search_scredit_combined.contact_id, contribution_search_scredit_combined.scredit_id ";
@@ -314,7 +307,7 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
   public function &getRows($action, $offset, $rowCount, $sort, $output = NULL) {
     if ($this->_includeSoftCredits) {
       // especial sort order when rows include soft credits
-      $sort = "civicrm_contribution.receive_date DESC, civicrm_contribution.id, civicrm_contribution_soft.id";
+      $sort = $sort->orderBy() . ", civicrm_contribution.id, civicrm_contribution_soft.id";
     }
     $result = $this->_query->searchQuery($offset, $rowCount, $sort,
       FALSE, FALSE,
@@ -339,10 +332,10 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
     $componentId = $componentContext = NULL;
     if ($this->_context != 'contribute') {
       // @todo explain the significance of context & why we do not get these i that context.
-      $qfKey = CRM_Utils_Request::retrieve('key', 'String', CRM_Core_DAO::$_nullObject);
-      $componentId = CRM_Utils_Request::retrieve('id', 'Positive', CRM_Core_DAO::$_nullObject);
-      $componentAction = CRM_Utils_Request::retrieve('action', 'String', CRM_Core_DAO::$_nullObject);
-      $componentContext = CRM_Utils_Request::retrieve('compContext', 'String', CRM_Core_DAO::$_nullObject);
+      $qfKey = CRM_Utils_Request::retrieve('key', 'String');
+      $componentId = CRM_Utils_Request::retrieve('id', 'Positive');
+      $componentAction = CRM_Utils_Request::retrieve('action', 'String');
+      $componentContext = CRM_Utils_Request::retrieve('compContext', 'String');
 
       if (!$componentContext &&
         $this->_compContext
@@ -369,7 +362,39 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
     $allCampaigns = CRM_Campaign_BAO_Campaign::getCampaigns(NULL, NULL, FALSE, FALSE, FALSE, TRUE);
 
     while ($result->fetch()) {
+      $this->_query->convertToPseudoNames($result);
+      $links = self::links($componentId,
+          $componentAction,
+          $qfKey,
+          $componentContext
+      );
+      $checkLineItem = FALSE;
       $row = array();
+      // Now check for lineItems
+      if (CRM_Financial_BAO_FinancialType::isACLFinancialTypeStatus()) {
+        $lineItems = CRM_Price_BAO_LineItem::getLineItemsByContributionID($result->id);
+        foreach ($lineItems as $items) {
+          if (!CRM_Core_Permission::check('view contributions of type ' . CRM_Contribute_PseudoConstant::financialType($items['financial_type_id']))) {
+            $checkLineItem = TRUE;
+            break;
+          }
+          if (!CRM_Core_Permission::check('edit contributions of type ' . CRM_Contribute_PseudoConstant::financialType($items['financial_type_id']))) {
+            unset($links[CRM_Core_Action::UPDATE]);
+          }
+          if (!CRM_Core_Permission::check('delete contributions of type ' . CRM_Contribute_PseudoConstant::financialType($items['financial_type_id']))) {
+            unset($links[CRM_Core_Action::DELETE]);
+          }
+        }
+        if ($checkLineItem) {
+          continue;
+        }
+        if (!CRM_Core_Permission::check('edit contributions of type ' . CRM_Contribute_PseudoConstant::financialType($result->financial_type_id))) {
+          unset($links[CRM_Core_Action::UPDATE]);
+        }
+        if (!CRM_Core_Permission::check('delete contributions of type ' . CRM_Contribute_PseudoConstant::financialType($result->financial_type_id))) {
+          unset($links[CRM_Core_Action::DELETE]);
+        }
+      }
       // the columns we are interested in
       foreach (self::$_properties as $property) {
         if (property_exists($result, $property)) {
@@ -378,6 +403,8 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
       }
 
       //carry campaign on selectors.
+      // @todo - I can't find any evidence that 'carrying' the campaign on selectors actually
+      // results in it being displayed anywhere so why do we do this???
       $row['campaign'] = CRM_Utils_Array::value($result->contribution_campaign_id, $allCampaigns);
       $row['campaign_id'] = $result->contribution_campaign_id;
 
@@ -386,8 +413,16 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
         $contributionStatuses
       );
 
+      $isPayLater = FALSE;
       if ($result->is_pay_later && CRM_Utils_Array::value('contribution_status_name', $row) == 'Pending') {
+        $isPayLater = TRUE;
         $row['contribution_status'] .= ' (' . ts('Pay Later') . ')';
+        $links[CRM_Core_Action::ADD] = array(
+          'name' => ts('Pay with Credit Card'),
+          'url' => 'civicrm/contact/view/contribution',
+          'qs' => 'reset=1&action=update&id=%%id%%&cid=%%cid%%&context=%%cxt%%&mode=live',
+          'title' => ts('Pay with Credit Card'),
+        );
       }
       elseif (CRM_Utils_Array::value('contribution_status_name', $row) == 'Pending') {
         $row['contribution_status'] .= ' (' . ts('Incomplete Transaction') . ')';
@@ -405,12 +440,29 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
         'cxt' => $this->_context,
       );
 
+      if (in_array($row['contribution_status_name'], array('Partially paid', 'Pending refund')) || $isPayLater) {
+        $buttonName = ts('Record Payment');
+        if ($row['contribution_status_name'] == 'Pending refund') {
+          $buttonName = ts('Record Refund');
+        }
+        elseif (CRM_Core_Config::isEnabledBackOfficeCreditCardPayments()) {
+          $links[CRM_Core_Action::BASIC] = array(
+            'name' => ts('Submit Credit Card payment'),
+            'url' => 'civicrm/payment/add',
+            'qs' => 'reset=1&id=%%id%%&cid=%%cid%%&action=add&component=contribution&mode=live',
+            'title' => ts('Submit Credit Card payment'),
+          );
+        }
+        $links[CRM_Core_Action::ADD] = array(
+          'name' => $buttonName,
+          'url' => 'civicrm/payment',
+          'qs' => 'reset=1&id=%%id%%&cid=%%cid%%&action=add&component=contribution',
+          'title' => $buttonName,
+        );
+      }
+
       $row['action'] = CRM_Core_Action::formLink(
-        self::links($componentId,
-          $componentAction,
-          $qfKey,
-          $componentContext
-        ),
+        $links,
         $mask, $actions,
         ts('more'),
         FALSE,
@@ -452,11 +504,13 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
    *   the column headers that need to be displayed
    */
   public function &getColumnHeaders($action = NULL, $output = NULL) {
+    $pre = array();
     self::$_columnHeaders = array(
       array(
         'name' => $this->_includeSoftCredits ? ts('Contribution Amount') : ts('Amount'),
         'sort' => 'total_amount',
         'direction' => CRM_Utils_Sort::DONTCARE,
+        'field_name' => 'total_amount',
       ),
     );
     if ($this->_includeSoftCredits) {
@@ -467,6 +521,7 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
             array(
               'name' => ts('Soft Credit Amount'),
               'sort' => 'contribution_soft_credit_amount',
+              'field_name' => 'contribution_soft_credit_amount',
               'direction' => CRM_Utils_Sort::DONTCARE,
             ),
           )
@@ -479,46 +534,53 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
           array(
             'name' => ts('Type'),
             'sort' => 'financial_type',
+            'field_name' => 'financial_type',
             'direction' => CRM_Utils_Sort::DONTCARE,
           ),
           array(
             'name' => ts('Source'),
             'sort' => 'contribution_source',
+            'field_name' => 'contribution_source',
             'direction' => CRM_Utils_Sort::DONTCARE,
           ),
           array(
             'name' => ts('Received'),
             'sort' => 'receive_date',
+            'field_name' => 'receive_date',
+            'type' => 'date',
             'direction' => CRM_Utils_Sort::DESCENDING,
           ),
           array(
             'name' => ts('Thank-you Sent'),
             'sort' => 'thankyou_date',
+            'field_name' => 'thankyou_date',
+            'type' => 'date',
             'direction' => CRM_Utils_Sort::DONTCARE,
           ),
           array(
             'name' => ts('Status'),
             'sort' => 'contribution_status',
+            'field_name' => 'contribution_status',
             'direction' => CRM_Utils_Sort::DONTCARE,
           ),
           array(
             'name' => ts('Premium'),
             'sort' => 'product_name',
+            'field_name' => 'product_name',
             'direction' => CRM_Utils_Sort::DONTCARE,
           ),
         )
       );
     if (!$this->_single) {
       $pre = array(
-        array('desc' => ts('Contact Type')),
         array(
           'name' => ts('Name'),
           'sort' => 'sort_name',
           'direction' => CRM_Utils_Sort::DONTCARE,
         ),
       );
-      self::$_columnHeaders = array_merge($pre, self::$_columnHeaders);
     }
+    self::$_columnHeaders = array_merge($pre, self::$_columnHeaders);
     if ($this->_includeSoftCredits) {
       self::$_columnHeaders = array_merge(
         self::$_columnHeaders,
@@ -539,9 +601,14 @@ class CRM_Contribute_Selector_Search extends CRM_Core_Selector_Base implements C
     self::$_columnHeaders
       = array_merge(
         self::$_columnHeaders, array(
-          array('desc' => ts('Actions')),
+          array('desc' => ts('Actions'), 'type' => 'actions'),
         )
       );
+    foreach (array_keys(self::$_columnHeaders) as $index) {
+      // Add weight & space it out a bit to allow headers to be inserted.
+      self::$_columnHeaders[$index]['weight'] = $index * 10;
+    }
+
     CRM_Core_Smarty::singleton()->assign('softCreditColumns', $this->_includeSoftCredits);
     return self::$_columnHeaders;
   }

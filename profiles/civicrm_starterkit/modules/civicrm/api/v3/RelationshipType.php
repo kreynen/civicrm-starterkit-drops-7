@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -77,8 +77,6 @@ function civicrm_api3_relationship_type_create($params) {
  *   Array of parameters determined by getfields.
  */
 function _civicrm_api3_relationship_type_create_spec(&$params) {
-  $params['contact_type_a']['api.required'] = 1;
-  $params['contact_type_b']['api.required'] = 1;
   $params['name_a_b']['api.required'] = 1;
   $params['name_b_a']['api.required'] = 1;
   $params['is_active']['api.default'] = 1;

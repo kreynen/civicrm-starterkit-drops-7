@@ -30,12 +30,16 @@ function _webform_defaults_civicrm_contact() {
       'title_display' => 'before',
       'randomize' => 0,
       'description' => '',
+      'no_autofill' => array(),
       'hide_fields' => array(),
+      'hide_method' => 'hide',
+      'no_hide_blank' => FALSE,
       'attributes' => array(),
       'private' => FALSE,
       'default' => '',
       'default_contact_id' => '',
       'default_relationship' => '',
+      'allow_url_autofill' => TRUE,
       'dupes_allowed' => FALSE,
       'filters' => array(
         'contact_sub_type' => 0,
@@ -93,7 +97,7 @@ function _webform_edit_civicrm_contact($component) {
     '#type' => 'select',
     '#title' => t('Form Widget'),
     '#default_value' => $component['extra']['widget'],
-    '#options' => array('autocomplete' => t('Autocomplete'), 'select' => t('Select List'), 'hidden' => t('Static')),
+    '#options' => array('autocomplete' => t('Autocomplete'), 'select' => t('Select List'), 'hidden' => t('Static'), 'textfield' => t('Enter Contact ID')),
     '#weight' => -9,
     '#parents' => array('extra', 'widget'),
   );
@@ -137,14 +141,42 @@ function _webform_edit_civicrm_contact($component) {
     '#parents' => array('extra', 'show_hidden_contact'),
     '#weight' => -5,
   );
-  $form['display']['hide_fields'] = array(
+  $form['field_handling'] = array(
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+    '#title' => t('Contact Field Handling'),
+    '#description' => t('By default, all contact data will be autopopulated on the form for this existing contact. You can modify that behavior here.'),
+  );
+  $form['field_handling']['no_autofill'] = array(
     '#type' => 'select',
     '#multiple' => TRUE,
-    '#title' => t('Fields to Hide'),
+    '#title' => t('Skip Autofilling of'),
+    '#description' => t('Which fields should <em>not</em> be autofilled for this contact?'),
+    '#default_value' => $component['extra']['no_autofill'],
+    '#options' => array('' => '- ' . t('None') . ' -') + wf_crm_contact_fields($node, $c),
+    '#parents' => array('extra', 'no_autofill'),
+  );
+  $form['field_handling']['hide_fields'] = array(
+    '#type' => 'select',
+    '#multiple' => TRUE,
+    '#title' => t('Fields to Lock'),
+    '#description' => t('Prevent editing by disabling or hiding fields when a contact already exists.'),
     '#default_value' => $component['extra']['hide_fields'],
     '#options' => array('' => '- ' . t('None') . ' -') + wf_crm_contact_fields($node, $c),
-    '#weight' => -4,
     '#parents' => array('extra', 'hide_fields'),
+  );
+  $form['field_handling']['hide_method'] = array(
+    '#type' => 'select',
+    '#title' => t('Locked fields should be'),
+    '#default_value' => $component['extra']['hide_method'],
+    '#options' => array('hide' => t('Hidden'), 'disable' => t('Disabled')),
+    '#parents' => array('extra', 'hide_method'),
+  );
+  $form['field_handling']['no_hide_blank'] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Don't lock fields that are empty"),
+    '#default_value' => $component['extra']['no_hide_blank'],
+    '#parents' => array('extra', 'no_hide_blank'),
   );
   $form['validation']['unique'] = array(
     '#type' => 'checkbox',
@@ -162,7 +194,7 @@ function _webform_edit_civicrm_contact($component) {
   $form['defaults'] = array(
     '#type' => 'fieldset',
     '#title' => t('Default value'),
-    '#description' => t('Should the form be pre-populated with an existing contact?<ul><li>This setting will be overridden if a contact id is passed in the url, i.e. !url</li><li>Any filters you have set will restrict this default.</li><li>If more than one contact meets the criteria, the first match will be picked. If multiple existing contact fields exist on the webform, each will select a different contact.</li></ul>', array('!url' => "cid$c=123")),
+    '#description' => t('Should the form be pre-populated with an existing contact?<ul><li>Any filters set below will restrict this default.</li><li>If more than one contact meets the criteria, the first match will be picked. If multiple existing contact fields exist on the webform, each will select a different contact.</li></ul>'),
     '#collapsible' => TRUE,
   );
   $form['defaults']['default'] = array(
@@ -201,7 +233,8 @@ function _webform_edit_civicrm_contact($component) {
     '#id' => 'default-contact-id',
     '#parents' => array('extra', 'default_contact_id'),
   );
-  if ($cid = $component['extra']['default_contact_id']) {
+  $cid = $component['extra']['default_contact_id'];
+  if ($cid) {
     if ($name = wf_crm_contact_access($component, array('check_permissions' => 1), $cid)) {
       $form['defaults']['default_contact_id']['#default_value'] = $cid;
       $form['defaults']['default_contact_id']['#attributes'] = array(
@@ -210,13 +243,20 @@ function _webform_edit_civicrm_contact($component) {
       );
     }
   }
+  $form['defaults']['allow_url_autofill'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use contact id from URL'),
+    '#default_value' => $component['extra']['allow_url_autofill'],
+    '#parents' => array('extra', 'allow_url_autofill'),
+    '#description' => t('If the url contains e.g. %arg, it will be used to pre-populate this contact (takes precidence over other default values).', array('%arg' => "cid$c=123")),
+  );
   if ($c > 1) {
     $form['defaults']['dupes_allowed'] = array(
       '#type' => 'checkbox',
       '#title' => t('Allow Duplicate Autofill'),
       '#default_value' => $component['extra']['dupes_allowed'],
       '#parents' => array('extra', 'dupes_allowed'),
-      '#description' => t('Check this box to allow a contact to be selected even if they already autofilled a prior field on the form. (For example, if contact 1 was autofilled with Bob Smith, should this field also be allowed to select Bob Smith?)'),
+      '#description' => t('Check this box to allow a contact to be selected even if they already autofilled a prior field on the form. (For example, if contact 1 was autofilled with Bob Smith, should this field also be allowed to select Bob Smith or should it pick a different contact?)'),
     );
   }
   $form['defaults']['randomize'] = array(
@@ -269,8 +309,13 @@ function _webform_edit_civicrm_contact($component) {
   return $form;
 }
 
+/**
+ * Adds help to the form
+ *
+ * @param $form
+ */
 function wf_crm_contact_component_form_help(&$form) {
-  foreach(element_children($form) as $element) {
+  foreach (element_children($form) as $element) {
     if (is_array($form[$element])) {
       wf_crm_contact_component_form_help($form[$element]);
       if (method_exists('wf_crm_admin_help', "contact_component_$element")) {
@@ -288,13 +333,17 @@ function _webform_render_civicrm_contact($component, $value = NULL, $filter = TR
   civicrm_initialize();
   list(, $c, ) = explode('_', $component['form_key'], 3);
   $hide_fields = array_filter($component['extra']['hide_fields']);
+  $hide_method = wf_crm_aval($component['extra'], 'hide_method', 'hide');
+  $no_hide_blank = (int) wf_crm_aval($component['extra'], 'no_hide_blank', 0);
   $js = '';
   $element = array(
     '#type' => $component['extra']['widget'] == 'autocomplete' ? 'textfield' : $component['extra']['widget'],
     '#weight' => $component['weight'],
     '#attributes' => $component['extra']['attributes'],
   );
-  if ($component['extra']['widget'] != 'hidden') {
+  $element['#attributes']['data-hide-method'] = $hide_method;
+  $element['#attributes']['data-no-hide-blank'] = $no_hide_blank;
+  if ($component['extra']['widget'] != 'hidden' || $component['extra']['show_hidden_contact']) {
     $element += array(
       '#title' => $filter ? webform_filter_xss($component['name']) : $component['name'],
       '#title_display' => $component['extra']['title_display'] ? $component['extra']['title_display'] : 'before',
@@ -303,14 +352,19 @@ function _webform_render_civicrm_contact($component, $value = NULL, $filter = TR
       '#translatable' => array('title', 'description'),
       '#theme_wrappers' => array('webform_element'),
     );
-    // See if there are any fields to fetch via ajax
-    $other_fields = wf_crm_contact_fields($node, $c);
+  }
+  // See if there are any fields to fetch via ajax
+  $other_fields = wf_crm_contact_fields($node, $c);
+  if ($hide_method == 'hide') {
     foreach ($hide_fields as $h) {
       unset($other_fields[$h]);
     }
-    $ajax = $other_fields ? 'true' : 'false';
   }
+  $ajax = $other_fields ? 'true' : 'false';
   $callback_path = '"' . url('webform-civicrm/js/' . $node->nid . '-' . $component['cid'], array('alias' => TRUE)) . '"';
+  $onChange = "field.change(function() {
+                  wfCivi.existingSelect($c, {$node->nid}, $callback_path, toHide, '$hide_method', $no_hide_blank, \$(this).val(), $ajax);
+                });";
 
   // Render component based on type
   switch ($component['extra']['widget']) {
@@ -321,16 +375,15 @@ function _webform_render_civicrm_contact($component, $value = NULL, $filter = TR
         $element['#attached']['css'][] = drupal_get_path('module', 'webform_civicrm') . '/css/token-input.css';
         $settings = '{
           queryParam: "str",
-          hintText: "' . $component['extra']['search_prompt'] . '",
-          noResultsText: "' . $component['extra']['none_prompt'] . '",
-          searchingText: "' . t('Searching...') . '",
+          hintText: ' . json_encode(filter_xss($component['extra']['search_prompt'])) . ',
+          noResultsText: ' . json_encode(filter_xss($component['extra']['none_prompt'])) . ',
+          searchingText: ' . json_encode(t('Searching...')) . ',
           tokenLimit: 1,
-          onAdd: function(item) {wfCivi.existingSelect(' . $c . ', ' . $node->nid . ', ' . $callback_path . ', toHide, item.id,' . $ajax . ');},
-          onDelete: function(item) {wfCivi.existingSelect(' . $c . ', ' . $node->nid . ', ' . $callback_path . ', toHide, "", false);},
           prePopulate: prep
         }';
         $js = "var prep = wfCivi.existingInit(field, $c, {$node->nid}, $callback_path, toHide);
-                field.tokenInput($callback_path, $settings);";
+                field.tokenInput($callback_path, $settings);
+                $onChange";
       }
       break;
 
@@ -339,14 +392,11 @@ function _webform_render_civicrm_contact($component, $value = NULL, $filter = TR
       if ($node && isset($node->webform_civicrm)) {
         $filters = wf_crm_search_filters($node, $component);
         $element['#options'] = wf_crm_contact_search($node, $component, $filters);
-        $js = "field.change(function() {
-                  wfCivi.existingSelect($c, {$node->nid}, $callback_path, toHide, \$(this).val(), $ajax);
-                });
-                wfCivi.existingInit(field, $c, {$node->nid}, $callback_path, toHide);";
+        $js = "$onChange wfCivi.existingInit(field, $c, {$node->nid}, $callback_path, toHide);";
       }
       // Display empty option unless there are no results
       if (!$component['extra']['allow_create'] || count($element['#options']) > 1) {
-        $element['#empty_option'] = $component['extra'][$element['#options'] ? 'search_prompt' : 'none_prompt'];
+        $element['#empty_option'] = filter_xss($component['extra'][$element['#options'] ? 'search_prompt' : 'none_prompt']);
       }
       break;
 
@@ -355,14 +405,31 @@ function _webform_render_civicrm_contact($component, $value = NULL, $filter = TR
         $element['#value'] = $value[0];
       }
       if ($node && isset($node->webform_civicrm)) {
+        $js = $onChange;
         if ($component['extra']['show_hidden_contact']) {
           $element['#attached']['css'][] = drupal_get_path('module', 'webform_civicrm') . '/css/token-input.css';
         }
         if ($hide_fields) {
-          $js = "wfCivi.existingInit(field, $c, {$node->nid}, $callback_path, toHide);";
+          $js .= "wfCivi.existingInit(field, $c, {$node->nid}, $callback_path, toHide);";
         }
         $element['#theme_wrappers'] = array('static_contact_element');
+        if ($component['required']) {
+          $element['#element_validate'] = array('wf_crm_contact_component_required');
+        }
       }
+      break;
+
+    case 'textfield':
+      $element['#description'] = t('Lookup by Contact ID.');
+      $element['#size'] = 8;
+      if ($node && isset($node->webform_civicrm)) {
+        $js = "$onChange wfCivi.existingInit(field, $c, {$node->nid}, $callback_path, toHide);";
+      }
+      // Display empty option unless there are no results
+      if (!$component['extra']['allow_create'] || count($element['#options']) > 1) {
+        $element['#empty_option'] = $component['extra'][$element['#options'] ? 'search_prompt' : 'none_prompt'];
+      }
+
   }
   // Add inline javascript
   if ($js) {
@@ -426,7 +493,7 @@ function wf_crm_fill_contact_value($node, $component, &$element) {
     }
   }
   if (empty($cid) && $element['#type'] == 'hidden' && $component['extra']['none_prompt']) {
-    $element['#attributes']['data-civicrm-name'] = $component['extra']['none_prompt'];
+    $element['#attributes']['data-civicrm-name'] = filter_xss($component['extra']['none_prompt']);
   }
 }
 
@@ -513,34 +580,50 @@ function wf_crm_contact_search($node, $component, $params, $str = NULL) {
   }
   $limit = $str ? 12 : 500;
   $ret = array();
-  $display = $component['extra']['results_display'];
+  $display_fields = array_values($component['extra']['results_display']);
+  $search_field = 'display_name';
+  $sort_field = 'sort_name';
+  // Search and sort based on the selected display field
+  if (!in_array('display_name', $display_fields)) {
+    $search_field = $sort_field = $display_fields[0];
+  }
   $params += array(
     'rowCount' => $limit,
-    'sort' => 'sort_name',
+    'sort' => $sort_field,
+    'return' => $display_fields,
   );
   if ($str) {
-    $params['display_name'] = str_replace(' ', '%', CRM_Utils_Type::escape($str, 'String'));
+    $str = str_replace(' ', '%', CRM_Utils_Type::escape($str, 'String'));
+    // The contact api takes a quirky format for display_name and sort_name
+    if (in_array($search_field, array('sort_name', 'display_name'))) {
+      $params[$search_field] = $str;
+    }
+    // Others use the standard convention
+    else {
+      $params[$search_field] = array('LIKE' => "%$str%");
+    }
   }
   $result = wf_civicrm_api('contact', 'get', $params);
   // Autocomplete results
   if ($str) {
     foreach (wf_crm_aval($result, 'values', array()) as $contact) {
-      if ($name = wf_crm_format_contact($contact, $display)) {
+      if ($name = wf_crm_format_contact($contact, $display_fields)) {
         $ret[] = array('id' => $contact['id'], 'name' => $name);
       }
     }
     if (count($ret) < $limit && $component['extra']['allow_create']) {
       // HTML hack to get prompt to show up different than search results
-      $ret[] = array('id' => "-$str", 'name' => '<em><i>' . $component['extra']['none_prompt'] . '</i></em>');
+      $ret[] = array('id' => "-$str", 'name' => '<em><i>' . filter_xss($component['extra']['none_prompt']) . '</i></em>');
     }
   }
   // Select results
   else {
     if ($component['extra']['allow_create']) {
-      $ret['-'] = $component['extra']['none_prompt'];
+      $ret['-'] = filter_xss($component['extra']['none_prompt']);
     }
     foreach (wf_crm_aval($result, 'values', array()) as $contact) {
-      if ($name = wf_crm_format_contact($contact, $display)) {
+      // Select lists will be escaped by FAPI
+      if ($name = wf_crm_format_contact($contact, $display_fields, FALSE)) {
         $ret[$contact['id']] = $name;
       }
     }
@@ -583,7 +666,7 @@ function wf_crm_contact_access($component, $filters, $cid) {
   $cid = "$cid";
   list(, $c, ) = explode('_', $component['form_key'], 3);
   if ($cid && $cid[0] === '-' && !empty($component['extra']['allow_create']) && !empty($component['extra']['none_prompt'])) {
-    return $component['extra']['none_prompt'];
+    return filter_xss($component['extra']['none_prompt']);
   }
   if (!is_numeric($cid)) {
     return FALSE;
@@ -617,16 +700,17 @@ function wf_crm_contact_access($component, $filters, $cid) {
  *
  * @param array $contact
  * @param array $display_fields
+ * @param bool $escape
  * @return bool|string
  */
-function wf_crm_format_contact($contact, $display_fields) {
+function wf_crm_format_contact($contact, $display_fields, $escape = TRUE) {
   if (!$contact) {
     return FALSE;
   }
   $display = array();
   foreach ($display_fields as $field) {
     if ($field && !empty($contact[$field])) {
-      $display[] = $contact[$field];
+      $display[] = $escape ? check_plain($contact[$field]) : $contact[$field];
     }
   }
   return implode(' :: ', $display);
@@ -688,14 +772,14 @@ function wf_crm_update_existing_component(&$component, $enabled, $data) {
 
 /**
  * Get a contact's relations of certain types
- * 
+ *
  * @param cid
  *   Contact id
  * @param types
  *   Array of relationship_type_ids
  * @param $current
  *   Limit to current & enabled relations?
- * 
+ *
  * @return array
  */
 function wf_crm_find_relations($cid, $types, $current = TRUE) {
@@ -751,12 +835,12 @@ function wf_crm_find_relations($cid, $types, $current = TRUE) {
 
 /**
  * Format filters for the contact get api
- * 
+ *
  * @param $node
  *   Webform node object
  * @param $component
  *   Webform component of type 'civicrm_contact'
- * 
+ *
  * @return array
  *   Api params
  */
@@ -794,11 +878,11 @@ function theme_static_contact_element($vars) {
   $parents = str_replace('_', '-', implode('--', array_slice($element['#parents'], $nested_level)));
 
   $wrapper_classes = array(
-   'form-item',
-   'webform-component',
-   'webform-component-' . $type,
-   'static',
-   'webform-component--' . $parents,
+    'form-item',
+    'webform-component',
+    'webform-component-' . $type,
+    'static',
+    'webform-component--' . $parents,
   );
 
   if ($component['extra']['title_display'] === 'inline') {
@@ -811,13 +895,13 @@ function theme_static_contact_element($vars) {
   if ($type == 'civicrm_contact' && !empty($element['#attributes']['data-civicrm-name'])) {
 
     if ($component['extra']['title_display'] != 'none') {
-      $output .= ' <label for="' . $element['#id'] . '">' . check_plain($component['name']) . "</label>\n";
+      $output .= theme('form_element_label', array('element' => $element));
     }
 
     $output .= '<ul class="token-input-list"><li class="token-input-token"><p>' . $element['#attributes']['data-civicrm-name'] . "</p></li></ul>\n";
 
     if (!empty($component['extra']['description'])) {
-      $output .= ' <div class="description">' . filter_xss($component['extra']['description']) . "</div>\n";
+      $output .= ' <div class="description">' . filter_xss($element['#description']) . "</div>\n";
     }
   }
 
@@ -851,6 +935,7 @@ function wf_crm_results_display_options($contact_type) {
     'nick_name' => t("Nick Name"),
     'id' => t("Contact ID"),
     'external_identifier' => t("External ID"),
+    'source' => t("Source"),
     'email' => t("Email"),
     'city' => t("City"),
     'county' => t("District/County"),
@@ -870,7 +955,7 @@ function wf_crm_tokeninput_path() {
   static $ret;
   if (!$ret) {
     // First see if the library is installed in Drupal
-    $path = libraries_get_path('tokeninput');
+    $path = function_exists('libraries_get_path') ? libraries_get_path('tokeninput') : NULL;
     if ($path && is_file(DRUPAL_ROOT . '/' . $path . '/src/jquery.tokeninput.js')) {
       $ret = $path . '/src/jquery.tokeninput.js';
     }
@@ -880,4 +965,16 @@ function wf_crm_tokeninput_path() {
     }
   }
   return $ret;
+}
+
+/**
+ * Validation callback
+ *
+ * @param array $element
+ * @param array $form_state
+ */
+function wf_crm_contact_component_required($element, &$form_state) {
+  if (empty($element['#value'])) {
+    form_error($element, t('!name field is required.', array('!name' => $element['#title'])));
+  }
 }

@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,16 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class is used to retrieve and display a range of
- * contacts that match the given criteria (specifically for
- * results of advanced search options.
- *
+ * This class is used to retrieve and display a range of contacts that match the given criteria.
  */
 class CRM_Case_Selector_Search extends CRM_Core_Selector_Base {
 
@@ -229,12 +224,7 @@ class CRM_Case_Selector_Search extends CRM_Core_Selector_Base {
 
     $actionLinks = array();
     foreach (self::$_links as $key => $value) {
-      if ($value['ref'] == 'reassign') {
-        $actionLinks['moreActions'][$key] = $value;
-      }
-      else {
-        $actionLinks['primaryActions'][$key] = $value;
-      }
+      $actionLinks['primaryActions'][$key] = $value;
     }
 
     return $actionLinks;
@@ -350,18 +340,6 @@ class CRM_Case_Selector_Search extends CRM_Core_Selector_Base {
         ts('more'),
         FALSE,
         'case.selector.actions',
-        'Case',
-        $result->case_id
-      );
-      $row['moreActions'] = CRM_Core_Action::formLink(CRM_Utils_Array::value('moreActions', $links),
-        $mask, array(
-          'id' => $result->case_id,
-          'cid' => $result->contact_id,
-          'cxt' => $this->_context,
-        ),
-        ts('more'),
-        TRUE,
-        'case.selector.moreActions',
         'Case',
         $result->case_id
       );

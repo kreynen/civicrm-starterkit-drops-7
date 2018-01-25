@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -23,9 +23,9 @@
  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
  +--------------------------------------------------------------------+
 *}
-{capture assign='reqMark'}<span class="marker"  title="{ts}This field is required.{/ts}">*</span>{/capture}
+{crmRegion name="contribute-form-contributionpage-thankyou-main"}
 <div class="crm-block crm-form-block crm-contribution-contributionpage-thankyou-form-block">
-<div id="help">
+<div class="help">
     <p>{ts}Use this form to configure the thank-you message and receipting options.{/ts} {help id="id_thank"}</p>
 </div>
     <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="top"}</div>
@@ -57,7 +57,7 @@
   </td>
     </tr>
     <tr class="crm-contribution-contributionpage-thankyou-form-block-receipt_from_email">
-      <td class="label">{$form.receipt_from_email.label}{$reqMark} {help id="id_receipt-from-email"}</td>
+      <td class="label">{$form.receipt_from_email.label} <span class="crm-marker" title="{ts}This field is required.{/ts}">*</span> {help id="id_receipt-from-email"}</td>
       <td class="html-adjust">{$form.receipt_from_email.html}</td>
     </tr>
     <tr class="crm-contribution-contributionpage-thankyou-form-block-receipt_text">
@@ -89,3 +89,6 @@
      }
  {/literal}
 </script>
+{/crmRegion}
+{crmRegion name="contribute-form-contributionpage-thankyou-post}
+{/crmRegion}

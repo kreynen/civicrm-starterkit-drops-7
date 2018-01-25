@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
  * This class generates form components for Accounting Batch
- *
  */
 class CRM_Financial_Form_FinancialBatch extends CRM_Contribute_Form {
 
@@ -48,8 +45,6 @@ class CRM_Financial_Form_FinancialBatch extends CRM_Contribute_Form {
 
   /**
    * Set variables up before form is built.
-   *
-   * @return void
    */
   public function preProcess() {
     $context = CRM_Utils_Request::retrieve('context', 'String', $this);
@@ -84,14 +79,11 @@ class CRM_Financial_Form_FinancialBatch extends CRM_Contribute_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
     parent::buildQuickForm();
     $this->setPageTitle(ts('Financial Batch'));
-
-    if (isset($this->_id)) {
+    if (!empty($this->_id)) {
       $this->_title = CRM_Core_DAO::getFieldValue('CRM_Batch_DAO_Batch', $this->_id, 'title');
       CRM_Utils_System::setTitle($this->_title . ' - ' . ts('Accounting Batch'));
       $this->assign('batchTitle', $this->_title);
@@ -124,7 +116,7 @@ class CRM_Financial_Form_FinancialBatch extends CRM_Contribute_Form {
     if ($this->_action & CRM_Core_Action::UPDATE && $this->_id) {
       $batchStatus = CRM_Core_PseudoConstant::get('CRM_Batch_DAO_Batch', 'status_id');
 
-      //unset exported status
+      // unset exported status
       $exportedStatusId = CRM_Utils_Array::key('Exported', $batchStatus);
       unset($batchStatus[$exportedStatusId]);
       $this->add('select', 'status_id', ts('Batch Status'), array('' => ts('- select -')) + $batchStatus, TRUE);
@@ -137,7 +129,7 @@ class CRM_Financial_Form_FinancialBatch extends CRM_Contribute_Form {
 
     $this->add('textarea', 'description', ts('Description'), $attributes['description']);
 
-    $this->add('select', 'payment_instrument_id', ts('Payment Instrument'),
+    $this->add('select', 'payment_instrument_id', ts('Payment Method'),
       array('' => ts('- select -')) + CRM_Contribute_PseudoConstant::paymentInstrument(),
       FALSE
     );
@@ -150,10 +142,7 @@ class CRM_Financial_Form_FinancialBatch extends CRM_Contribute_Form {
 
   /**
    * Set default values for the form. Note that in edit/view mode
-   * the default values are retrieved from the database
-   *
-   *
-   * @return void
+   * the default values are retrieved from the database.
    */
   public function setDefaultValues() {
     $defaults = parent::setDefaultValues();
@@ -203,16 +192,12 @@ class CRM_Financial_Form_FinancialBatch extends CRM_Contribute_Form {
 
   /**
    * Process the form submission.
-   *
-   * @return void
    */
   public function postProcess() {
     $session = CRM_Core_Session::singleton();
-    $ids = array();
     $params = $this->exportValues();
     $batchStatus = CRM_Core_PseudoConstant::get('CRM_Batch_DAO_Batch', 'status_id');
     if ($this->_id) {
-      $ids['batchID'] = $this->_id;
       $params['id'] = $this->_id;
     }
 
@@ -228,7 +213,9 @@ class CRM_Financial_Form_FinancialBatch extends CRM_Contribute_Form {
       $params['mode_id'] = CRM_Utils_Array::key('Manual Batch', $batchMode);
       $params['status_id'] = CRM_Utils_Array::key('Open', $batchStatus);
       $params['created_date'] = date('YmdHis');
-      $params['created_id'] = $session->get('userID');
+      if (empty($params['created_id'])) {
+        $params['created_id'] = $session->get('userID');
+      }
       $details = "{$params['title']} batch has been created by this contact.";
       $activityTypeName = 'Create Batch';
     }
@@ -240,11 +227,14 @@ class CRM_Financial_Form_FinancialBatch extends CRM_Contribute_Form {
       $activityTypeName = 'Edit Batch';
     }
 
-    $batch = CRM_Batch_BAO_Batch::create($params, $ids, 'financialBatch');
+    $batch = CRM_Batch_BAO_Batch::create($params);
+
+    //set batch id
+    $this->_id = $batch->id;
 
     $activityTypes = CRM_Core_PseudoConstant::activityType(TRUE, FALSE, FALSE, 'name');
 
-    //create activity.
+    // create activity.
     $activityParams = array(
       'activity_type_id' => array_search($activityTypeName, $activityTypes),
       'subject' => $batch->title . "- Batch",

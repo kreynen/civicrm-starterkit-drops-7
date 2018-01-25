@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -122,7 +122,7 @@
           }
 
         if ( showError ) {
-          cj('#validate_pricefield').show().html("<span class='icon red-icon ui-icon-alert'></span>{/literal}{ts escape='js'}This Option is already full for this event.{/ts}{literal}");
+          cj('#validate_pricefield').show().html('<i class="crm-i fa-exclamation-triangle crm-i-red"></i>{/literal} {ts escape='js'}This Option is already full for this event.{/ts}{literal}');
         }
         else {
           cj('#validate_pricefield').hide( ).html('');
@@ -138,13 +138,13 @@
    .focus(
      function() {
        feeAmount = cj(this).val();
-       feeAmount = parseInt(feeAmount);
+       feeAmount = Number(feeAmount.replace(/[^0-9\.]+/g,""));
      }
    )
    .change(
     function() {
       userModifiedAmount = cj(this).val();
-      userModifiedAmount = parseInt(userModifiedAmount);
+      userModifiedAmount = Number(userModifiedAmount.replace(/[^0-9\.]+/g,""));
       if (userModifiedAmount < feeAmount) {
         cj('#status_id').val(partiallyPaidStatusId).change();
       }
@@ -176,10 +176,6 @@
 
   {include file="CRM/Event/Form/EventFees.tpl"}
 
-{* Ajax callback for custom data snippet *}
-{elseif $cdType}
-  {include file="CRM/Custom/Form/CustomData.tpl"}
-
 {* Main event form template *}
 {else}
   {if $participantMode == 'test' }
@@ -190,7 +186,7 @@
   <div class="crm-block crm-form-block crm-participant-form-block">
     <div class="view-content">
       {if $participantMode}
-        <div id="help">
+        <div class="help">
           {ts 1=$displayName 2=$registerMode}Use this form to submit an event registration on behalf of %1. <strong>A %2 transaction will be submitted</strong> using the selected payment processor.{/ts}
         </div>
       {/if}
@@ -198,7 +194,7 @@
 
 
       {if $action eq 1 AND $paid}
-        <div id="help">
+        <div class="help">
           {ts}If you are accepting offline payment from this participant, check <strong>Record Payment</strong>. You will be able to fill in the payment information, and optionally send a receipt.{/ts}
         </div>
       {/if}
@@ -253,12 +249,6 @@
               </tr>
             {/if}
           {/if}
-          {if $participantMode}
-            <tr class="crm-participant-form-block-payment_processor_id">
-              <td class="label nowrap">{$form.payment_processor_id.label}</td>
-              <td>{$form.payment_processor_id.html}</td>
-            </tr>
-          {/if}
           <tr class="crm-participant-form-block-event_id">
             <td class="label">{$form.event_id.label}</td>
             <td class="view-value">
@@ -296,6 +286,12 @@
             <td class="label">{$form.source.label}</td><td>{$form.source.html|crmAddClass:huge}<br />
             <span class="description">{ts}Source for this registration (if applicable).{/ts}</span></td>
           </tr>
+          {if $participantMode}
+            <tr class="crm-participant-form-block-payment_processor_id">
+              <td class="label nowrap">{$form.payment_processor_id.label}</td>
+              <td>{$form.payment_processor_id.html}</td>
+            </tr>
+          {/if}
         </table>
        {if $participantId and $hasPayment}
         <table class='form-layout'>
@@ -334,7 +330,7 @@
   {* JS block for ADD or UPDATE actions only *}
   {if $action eq 1 or $action eq 2}
     {if $participantId and $hasPayment}
-      {include file="CRM/Contribute/Page/PaymentInfo.tpl" show='event-payment'}
+      {include file="CRM/Contribute/Page/PaymentInfo.tpl" show='payments'}
     {/if}
 
     {*include custom data js file*}
@@ -361,8 +357,8 @@
           $('#campaign_id', $form).select2('val', info.campaign_id);
 
           // Event and event-type custom data
-          CRM.buildCustomData('Participant', eventId, {/literal}{$eventNameCustomDataTypeID}{literal});
-          CRM.buildCustomData('Participant', info.event_type_id, {/literal}{$eventTypeCustomDataTypeID}{literal});
+          CRM.buildCustomData('Participant', eventId, {/literal}{$eventNameCustomDataTypeID}{literal}, null, null, null, true);
+          CRM.buildCustomData('Participant', info.event_type_id, {/literal}{$eventTypeCustomDataTypeID}{literal}, null, null, null, true);
 
           buildFeeBlock();
         });
@@ -384,8 +380,8 @@
         });
 
         function buildRoleCustomData() {
-          var roleId = $('select[name^=role_id]', $form).val().join();
-          CRM.buildCustomData('Participant', roleId, {/literal}{$roleCustomDataTypeID}{literal});
+          var roleId = $('select[name^=role_id]', $form).val() || [];
+          CRM.buildCustomData('Participant', roleId.join(), {/literal}{$roleCustomDataTypeID}{literal});
         }
 
         //build fee block
@@ -434,7 +430,7 @@
         }
 
         {/literal}
-        CRM.buildCustomData( '{$customDataType}', 'null', 'null' );
+        CRM.buildCustomData( '{$customDataType}', null, null );
         {if $eventID}
           CRM.buildCustomData( '{$customDataType}', {$eventID}, {$eventNameCustomDataTypeID} );
         {/if}
@@ -471,4 +467,3 @@
 </script>
 
 {/if} {* end of main event block*}
-

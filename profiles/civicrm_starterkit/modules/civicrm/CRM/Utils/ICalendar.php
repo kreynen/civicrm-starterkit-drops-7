@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
@@ -38,27 +36,41 @@
  * API for event export in iCalendar format
  * as outlined in Internet Calendaring and
  * Scheduling Core Object Specification
- *
  */
 class CRM_Utils_ICalendar {
 
   /**
    * Escape text elements for safe ICalendar use.
    *
-   * @param $text
+   * @param string $text
    *   Text to escape.
    *
    * @return string
-   *   Escaped text
    */
   public static function formatText($text) {
     $text = strip_tags($text);
-    $text = str_replace("\"", "DQUOTE", $text);
     $text = str_replace("\\", "\\\\", $text);
-    $text = str_replace(",", "\,", $text);
-    $text = str_replace(";", "\;", $text);
+    $text = str_replace(',', '\,', $text);
+    $text = str_replace(';', '\;', $text);
     $text = str_replace(array("\r\n", "\n", "\r"), "\\n ", $text);
     $text = implode("\n ", str_split($text, 50));
+    return $text;
+  }
+
+  /**
+   * Restore iCal formatted text to normal.
+   *
+   * @param string $text
+   *   Text to unescape.
+   *
+   * @return string
+   */
+  public static function unformatText($text) {
+    $text = str_replace('\n ', "\n", $text);
+    $text = str_replace('\;', ';', $text);
+    $text = str_replace('\,', ',', $text);
+    $text = str_replace("\\\\", "\\", $text);
+    $text = str_replace("DQUOTE", "\"", $text);
     return $text;
   }
 
@@ -103,22 +115,19 @@ class CRM_Utils_ICalendar {
    *   The file name (for downloads).
    * @param string $disposition
    *   How the file should be sent ('attachment' for downloads).
-   *
-   * @return void
    */
   public static function send($calendar, $content_type = 'text/calendar', $charset = 'us-ascii', $fileName = NULL, $disposition = NULL) {
     $config = CRM_Core_Config::singleton();
     $lang = $config->lcMessages;
-    header("Content-Language: $lang");
-    // header( "Content-Type: $content_type; charset=$charset; profile=\"ICalendar\"" );
-    header("Content-Type: $content_type; charset=$charset");
+    CRM_Utils_System::setHttpHeader("Content-Language", $lang);
+    CRM_Utils_System::setHttpHeader("Content-Type", "$content_type; charset=$charset");
 
     if ($content_type == 'text/calendar') {
-      header('Content-Length: ' . strlen($calendar));
-      header("Content-Disposition: $disposition; filename=\"$fileName\"");
-      header("Pragma: no-cache");
-      header("Expires: 0");
-      header("Cache-Control: no-cache, must-revalidate");
+      CRM_Utils_System::setHttpHeader('Content-Length', strlen($calendar));
+      CRM_Utils_System::setHttpHeader("Content-Disposition", "$disposition; filename=\"$fileName\"");
+      CRM_Utils_System::setHttpHeader("Pragma", "no-cache");
+      CRM_Utils_System::setHttpHeader("Expires", "0");
+      CRM_Utils_System::setHttpHeader("Cache-Control", "no-cache, must-revalidate");
     }
 
     echo $calendar;

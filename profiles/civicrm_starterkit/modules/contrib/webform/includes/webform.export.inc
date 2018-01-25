@@ -10,7 +10,7 @@
  *
  * Defines the exporters this module implements.
  *
- * @return
+ * @return array
  *   An "array of arrays", keyed by content-types. The 'handler' slot
  *   should point to the PHP class implementing this flag.
  */
@@ -50,7 +50,7 @@ function webform_webform_exporters() {
     unset($exporters['excel']);
   }
   // By default the legacy Excel exporter is disabled.
-  if (!variable_get('webform_excel_legacy_exporter', 0)) {
+  if (!webform_variable_get('webform_excel_legacy_exporter')) {
     unset($exporters['excel_legacy']);
   }
 

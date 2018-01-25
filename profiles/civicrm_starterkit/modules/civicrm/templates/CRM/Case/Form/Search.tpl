@@ -1,8 +1,8 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -45,7 +45,7 @@
             {include file="CRM/Case/Form/Search/Common.tpl"}
 
             <tr>
-               <td colspan="2" class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</td>
+               <td colspan="3" class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</td>
             </tr>
             </table>
         {/strip}

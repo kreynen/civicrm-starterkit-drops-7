@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,8 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
+ * @copyright CiviCRM LLC (c) 2004-2017
  *
  * The XMLRepository is responsible for loading XML for case-types.
  * It includes any bulk operations that apply across the list of all XML
@@ -64,8 +63,18 @@ class CRM_Case_XMLRepository {
     return self::$singleton;
   }
 
+  public function flush() {
+    $this->xml = array();
+    $this->hookCache = NULL;
+    $this->allCaseTypes = NULL;
+    CRM_Core_DAO::$_dbColumnValueCache = array();
+  }
+
   /**
-   * @param array <String,SimpleXMLElement> $xml
+   * Class constructor.
+   *
+   * @param array $allCaseTypes
+   * @param array $xml
    */
   public function __construct($allCaseTypes = NULL, $xml = array()) {
     $this->allCaseTypes = $allCaseTypes;
@@ -73,8 +82,12 @@ class CRM_Case_XMLRepository {
   }
 
   /**
+   * Retrieve case.
+   *
    * @param string $caseType
-   * @return SimpleXMLElement|FALSE
+   *
+   * @return FALSE|\SimpleXMLElement
+   * @throws \CRM_Core_Exception
    */
   public function retrieve($caseType) {
     // check if xml definition is defined in db
@@ -107,6 +120,8 @@ class CRM_Case_XMLRepository {
   }
 
   /**
+   * Retrieve file.
+   *
    * @param string $caseType
    * @return SimpleXMLElement|FALSE
    */
@@ -128,7 +143,9 @@ class CRM_Case_XMLRepository {
     if ($fileName && file_exists($fileName)) {
       // read xml file
       $dom = new DomDocument();
-      $dom->load($fileName);
+      $xmlString = file_get_contents($fileName);
+      $dom->loadXML($xmlString);
+      $dom->documentURI = $fileName;
       $dom->xinclude();
       $fileXml = simplexml_import_dom($dom);
     }
@@ -137,6 +154,8 @@ class CRM_Case_XMLRepository {
   }
 
   /**
+   * Find xml file.
+   *
    * @param string $caseType
    * @return null|string
    *   file path

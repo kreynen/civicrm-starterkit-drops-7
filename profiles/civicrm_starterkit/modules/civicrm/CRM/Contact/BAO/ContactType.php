@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,9 +28,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 class CRM_Contact_BAO_ContactType extends CRM_Contact_DAO_ContactType {
 
@@ -56,7 +54,9 @@ class CRM_Contact_BAO_ContactType extends CRM_Contact_DAO_ContactType {
   }
 
   /**
-   * @param $contactType
+   * Is this contact type active.
+   *
+   * @param string $contactType
    *
    * @return bool
    */
@@ -269,8 +269,7 @@ WHERE  subtype.name IS NOT NULL AND subtype.parent_id IS NOT NULL {$ctWHERE}
   }
 
   /**
-   *
-   * retrieve info array about all types i.e basic + subtypes.
+   * Retrieve info array about all types i.e basic + subtypes.
    *
    * @param bool $all
    * @param bool $reset
@@ -329,7 +328,7 @@ WHERE  type.name IS NOT NULL
   }
 
   /**
-   * Retrieve basic type pairs with name as 'built-in name' and 'label' as value
+   * Retrieve basic type pairs with name as 'built-in name' and 'label' as value.
    *
    * @param bool $all
    * @param null $typeName
@@ -527,9 +526,7 @@ WHERE  subtype.name IN ('" . implode("','", $subType) . "' )";
    *   true if contact extends, false otherwise.
    */
   public static function isExtendsContactType($subType, $contactType, $ignoreCache = FALSE, $columnName = 'name') {
-    if (!is_array($subType)) {
-      $subType = explode(CRM_Core_DAO::VALUE_SEPARATOR, trim($subType, CRM_Core_DAO::VALUE_SEPARATOR));
-    }
+    $subType = (array) CRM_Utils_Array::explodePadded($subType);
     $subtypeList = self::subTypes($contactType, TRUE, $columnName, $ignoreCache);
     $intersection = array_intersect($subType, $subtypeList);
     return $subType == $intersection;
@@ -845,7 +842,7 @@ LIMIT 1";
     $customSet = $subTypeClause = array();
     foreach ($subtypeSet as $subtype) {
       $subtype = CRM_Utils_Type::escape($subtype, 'String');
-      $subType = CRM_Core_DAO::VALUE_SEPARATOR . $subtype . CRM_Core_DAO::VALUE_SEPARATOR;
+      $subtype = CRM_Core_DAO::VALUE_SEPARATOR . $subtype . CRM_Core_DAO::VALUE_SEPARATOR;
       $subTypeClause[] = "extends_entity_column_value LIKE '%{$subtype}%' ";
     }
     $query = "SELECT table_name
@@ -895,9 +892,9 @@ WHERE extends = %1 AND " . implode(" OR ", $subTypeClause);
    * @param array $subtypes
    *   List of subtypes related to which entry is to be removed.
    *
-   * @return void
+   * @return bool
    */
-  public static function deleteCustomRowsOfSubtype($gID, $subtypes = array()) {
+  public static function deleteCustomRowsOfSubtype($gID, $subtypes = array(), $subtypesToPreserve = array()) {
     if (!$gID or empty($subtypes)) {
       return FALSE;
     }
@@ -907,10 +904,17 @@ WHERE extends = %1 AND " . implode(" OR ", $subTypeClause);
     // drop triggers CRM-13587
     CRM_Core_DAO::dropTriggers($tableName);
 
+    foreach ($subtypesToPreserve as $subtypeToPreserve) {
+      $subtypeToPreserve = CRM_Utils_Type::escape($subtypeToPreserve, 'String');
+      $subtypesToPreserveClause[] = "(civicrm_contact.contact_sub_type NOT LIKE '%" . CRM_Core_DAO::VALUE_SEPARATOR . $subtypeToPreserve . CRM_Core_DAO::VALUE_SEPARATOR . "%')";
+    }
+    $subtypesToPreserveClause = implode(' AND ', $subtypesToPreserveClause);
+
     $subtypeClause = array();
     foreach ($subtypes as $subtype) {
       $subtype = CRM_Utils_Type::escape($subtype, 'String');
-      $subtypeClause[] = "civicrm_contact.contact_sub_type LIKE '%" . CRM_Core_DAO::VALUE_SEPARATOR . $subtype . CRM_Core_DAO::VALUE_SEPARATOR . "%'";
+      $subtypeClause[] = "( civicrm_contact.contact_sub_type LIKE '%" . CRM_Core_DAO::VALUE_SEPARATOR . $subtype . CRM_Core_DAO::VALUE_SEPARATOR . "%'"
+                            . " AND " . $subtypesToPreserveClause . ")";
     }
     $subtypeClause = implode(' OR ', $subtypeClause);
 
@@ -933,7 +937,7 @@ WHERE ($subtypeClause)";
    * @param int $entityID
    *   Entity id.
    *
-   * @return void
+   * @return null|string
    */
   public static function deleteCustomRowsForEntityID($customTable, $entityID) {
     $customTable = CRM_Utils_Type::escape($customTable, 'String');

@@ -1,9 +1,9 @@
 <?php
 /*
   +--------------------------------------------------------------------+
-  | CiviCRM version 4.6                                                |
+  | CiviCRM version 4.7                                                |
   +--------------------------------------------------------------------+
-  | Copyright CiviCRM LLC (c) 2004-2015                                |
+  | Copyright CiviCRM LLC (c) 2004-2017                                |
   +--------------------------------------------------------------------+
   | This file is a part of CiviCRM.                                    |
   |                                                                    |
@@ -28,14 +28,11 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
  * This class generates form components for Financial Type
- *
  */
 class CRM_Financial_Form_BatchTransaction extends CRM_Contribute_Form {
   static $_links = NULL;
@@ -47,16 +44,30 @@ class CRM_Financial_Form_BatchTransaction extends CRM_Contribute_Form {
    */
   protected $_batchStatusId;
 
+  /**
+   * Batch status name.
+   * @string
+   */
+  protected $_batchStatus;
+
   public function preProcess() {
     // This reuses some styles from search forms
     CRM_Core_Resources::singleton()->addStyleFile('civicrm', 'css/searchForm.css', 1, 'html-header');
 
-    self::$_entityID = CRM_Utils_Request::retrieve('bid', 'Positive') ? CRM_Utils_Request::retrieve('bid', 'Positive') : $_POST['batch_id'];
+    self::$_entityID = CRM_Utils_Request::retrieve('bid', 'Positive') ? CRM_Utils_Request::retrieve('bid', 'Positive') : CRM_Utils_Array::value('batch_id', $_POST);
     $this->assign('entityID', self::$_entityID);
     if (isset(self::$_entityID)) {
       $this->_batchStatusId = CRM_Core_DAO::getFieldValue('CRM_Batch_BAO_Batch', self::$_entityID, 'status_id');
+      $batchStatuses = CRM_Core_PseudoConstant::get('CRM_Batch_DAO_Batch', 'status_id', array('labelColumn' => 'name', 'condition' => " v.value={$this->_batchStatusId}"));
+      $this->_batchStatus = $batchStatuses[$this->_batchStatusId];
       $this->assign('statusID', $this->_batchStatusId);
-
+      $this->assign('batchStatus', $this->_batchStatus);
+      $validStatus = FALSE;
+      if (in_array($this->_batchStatus, array('Open', 'Reopened'))) {
+        $validStatus = TRUE;
+      }
+      $this->assign('validStatus', $validStatus);
+      $this->_values = civicrm_api3('Batch', 'getSingle', array('id' => self::$_entityID));
       $batchTitle = CRM_Core_DAO::getFieldValue('CRM_Batch_BAO_Batch', self::$_entityID, 'title');
       CRM_Utils_System::setTitle(ts('Accounting Batch - %1', array(1 => $batchTitle)));
 
@@ -64,11 +75,11 @@ class CRM_Financial_Form_BatchTransaction extends CRM_Contribute_Form {
         'created_by' => ts('Created By'),
         'status' => ts('Status'),
         'description' => ts('Description'),
-        'payment_instrument' => ts('Payment Instrument'),
-        'item_count' => ts('Entered Transactions'),
-        'assigned_item_count' => ts('Assigned Transactions'),
-        'total' => ts('Entered Total'),
-        'assigned_total' => ts('Assigned Total'),
+        'payment_instrument' => ts('Payment Method'),
+        'item_count' => ts('Expected Number of Items'),
+        'assigned_item_count' => ts('Actual Number of Items'),
+        'total' => ts('Expected Total Amount'),
+        'assigned_total' => ts('Actual Total Amount'),
         'opened_date' => ts('Opened'),
       );
       $this->assign('columnHeaders', $columnHeaders);
@@ -77,22 +88,24 @@ class CRM_Financial_Form_BatchTransaction extends CRM_Contribute_Form {
 
   /**
    * Build the form object.
-   *
-   * @return void
    */
   public function buildQuickForm() {
-    if ($this->_batchStatusId == 2) {
+    if ($this->_batchStatus == 'Closed') {
       $this->add('submit', 'export_batch', ts('Export Batch'));
     }
 
-    // do not build rest of form unless it is open batch
-    if ($this->_batchStatusId != 1) {
+    // do not build rest of form unless it is open/reopened batch
+    if (!in_array($this->_batchStatus, array('Open', 'Reopened'))) {
       return;
     }
 
     parent::buildQuickForm();
-    $this->add('submit', 'close_batch', ts('Close Batch'));
-    $this->add('submit', 'export_batch', ts('Close & Export Batch'));
+    if (CRM_Batch_BAO_Batch::checkBatchPermission('close', $this->_values['created_id'])) {
+      $this->add('submit', 'close_batch', ts('Close Batch'));
+      if (CRM_Batch_BAO_Batch::checkBatchPermission('export', $this->_values['created_id'])) {
+        $this->add('submit', 'export_batch', ts('Close & Export Batch'));
+      }
+    }
 
     // text for sort_name
     $this->addElement('text',
@@ -162,9 +175,12 @@ class CRM_Financial_Form_BatchTransaction extends CRM_Contribute_Form {
     $this->add('text', 'name', ts('Batch Name'));
   }
 
+  /**
+   * Set the default values for the form.
+   */
   public function setDefaultValues() {
-    // do not setdefault unless it is open batch
-    if ($this->_batchStatusId != 1) {
+    // do not setdefault unless it is open/reopened batch
+    if (!in_array($this->_batchStatus, array('Open', 'Reopened'))) {
       return;
     }
     if (isset(self::$_entityID)) {

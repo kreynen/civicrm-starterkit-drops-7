@@ -1,9 +1,9 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2015                                |
+ | Copyright CiviCRM LLC (c) 2004-2017                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -28,16 +28,13 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2015
- * $Id$
- *
+ * @copyright CiviCRM LLC (c) 2004-2017
  */
 
 /**
- * This class is used to retrieve and display a range of
- * contacts that match the given criteria (specifically for
- * results of advanced search options.
+ * This class is used to retrieve and display a range of  contacts that match the given criteria.
  *
+ * Specifically for results of advanced search options.
  */
 class CRM_Activity_Selector_Search extends CRM_Core_Selector_Base implements CRM_Core_Selector_API {
 
@@ -173,12 +170,34 @@ class CRM_Activity_Selector_Search extends CRM_Core_Selector_Base implements CRM
 
     $this->_activityClause = $activityClause;
 
+    // CRM-12675
+    $components = CRM_Core_Component::getNames();
+    $componentClause = array();
+    foreach ($components as $componentID => $componentName) {
+      // CRM-19201: Add support for searching CiviCampaign and CiviCase
+      // activities. For CiviCase, "access all cases and activities" is
+      // required here rather than "access my cases and activities" to
+      // prevent those with only the later permission from seeing a list
+      // of all cases which might present a privacy issue.
+      if (!CRM_Core_Permission::access($componentName, TRUE, TRUE)) {
+        $componentClause[] = " (activity_type.component_id IS NULL OR activity_type.component_id <> {$componentID}) ";
+      }
+    }
+
+    if (!empty($componentClause)) {
+      $componentRestriction = implode(' AND ', $componentClause);
+      if (empty($this->_activityClause)) {
+        $this->_activityClause = $componentRestriction;
+      }
+      else {
+        $this->_activityClause .= ' AND ' . $componentRestriction;
+      }
+    }
+
     // type of selector
     $this->_action = $action;
     $this->_query = new CRM_Contact_BAO_Query($this->_queryParams,
-      CRM_Activity_BAO_Query::defaultReturnProperties(CRM_Contact_BAO_Query::MODE_ACTIVITY,
-        FALSE
-      ),
+      CRM_Activity_BAO_Query::selectorReturnProperties(),
       NULL, FALSE, FALSE,
       CRM_Contact_BAO_Query::MODE_ACTIVITY
     );
@@ -246,24 +265,25 @@ class CRM_Activity_Selector_Search extends CRM_Core_Selector_Base implements CRM
     $mailingIDs = CRM_Mailing_BAO_Mailing::mailingACLIDs();
     $accessCiviMail = CRM_Core_Permission::check('access CiviMail');
 
-    //get all campaigns.
+    // Get all campaigns.
     $allCampaigns = CRM_Campaign_BAO_Campaign::getCampaigns(NULL, NULL, FALSE, FALSE, FALSE, TRUE);
 
     $engagementLevels = CRM_Campaign_PseudoConstant::engagementLevel();
-    $activityContacts = CRM_Core_OptionGroup::values('activity_contacts', FALSE, FALSE, FALSE, NULL, 'name');
+    $activityContacts = CRM_Activity_BAO_ActivityContact::buildOptions('record_type_id', 'validate');
     $sourceID = CRM_Utils_Array::key('Activity Source', $activityContacts);
     $assigneeID = CRM_Utils_Array::key('Activity Assignees', $activityContacts);
     $targetID = CRM_Utils_Array::key('Activity Targets', $activityContacts);
-    //get all activity types
+    // Get all activity types
     $activityTypes = CRM_Core_PseudoConstant::activityType(TRUE, TRUE, FALSE, 'name', TRUE);
 
     while ($result->fetch()) {
       $row = array();
 
-      // ignore rows where we dont have an activity id
+      // Ignore rows where we dont have an activity id.
       if (empty($result->activity_id)) {
         continue;
       }
+      $this->_query->convertToPseudoNames($result);
 
       // the columns we are interested in
       foreach (self::$_properties as $property) {
@@ -329,7 +349,7 @@ class CRM_Activity_Selector_Search extends CRM_Core_Selector_Base implements CRM
         $result->activity_id
       );
 
-      //carry campaign to selector.
+      // Carry campaign to selector.
       $row['campaign'] = CRM_Utils_Array::value($result->activity_campaign_id, $allCampaigns);
       $row['campaign_id'] = $result->activity_campaign_id;
 
@@ -339,7 +359,7 @@ class CRM_Activity_Selector_Search extends CRM_Core_Selector_Base implements CRM
         );
       }
 
-      //Check if recurring activity
+      // Check if recurring activity.
       $repeat = CRM_Core_BAO_RecurringEntity::getPositionAndCount($row['activity_id'], 'civicrm_activity');
       $row['repeat'] = '';
       if ($repeat) {

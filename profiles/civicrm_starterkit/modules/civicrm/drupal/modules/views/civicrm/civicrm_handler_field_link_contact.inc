@@ -1,7 +1,7 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 4.6                                                |
+ | CiviCRM version 4.7                                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -21,14 +21,16 @@
  | GNU Affero General Public License or the licensing of CiviCRM,     |
  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
  +--------------------------------------------------------------------+
-*/
+ */
 
-/*
+/**
  * Copyright (C) 2009 James Rakich
  * Licensed to CiviCRM under the Academic Free License version 3.0.
+ */
+
+/**
+ * civicrm_handler_field_link_contact
  *
- *
- * civicrm_handler_field_link_contact.inc
  * Completely customizable text that can be linked to numerous places related to the activity.
  * View, Edit and Delete Pages, as well as a custom Drupal Link with the Contact ID appended,
  * which is great for linking to other views using contact or other base tables.
@@ -43,20 +45,20 @@ class civicrm_handler_field_link_contact extends views_handler_field {
   /**
    * Constructor to provide additional field to add.
    */
-  function construct() {
+  public function construct() {
     parent::construct();
     $this->additional_fields['id'] = 'id';
   }
 
-  function option_definition() {
+  public function option_definition() {
     $options = parent::option_definition();
     $options['link_to_civicrm_contact'] = array('default' => 'view');
     $options['custom_link'] = array('default' => '');
-    $options['link_text'] = array('default' => 'View Contact');
+    $options['link_text'] = array('default' => '');
     return $options;
   }
 
-  function options_form(&$form, &$form_state) {
+  public function options_form(&$form, &$form_state) {
     parent::options_form($form, $form_state);
     $form['link_to_civicrm_contact'] = array(
       '#type' => 'select',
@@ -67,7 +69,8 @@ class civicrm_handler_field_link_contact extends views_handler_field {
         'delete' => t('Link to Delete Contact'),
         'custom' => t('Link to a Custom Node'),
       ),
-      '#default_value' => !empty($this->options['link_to_civicrm_contact']),
+      '#default_value' => $this->options['link_to_civicrm_contact'],
+      '#required' => TRUE,
     );
 
     $form['custom_link'] = array(
@@ -75,24 +78,24 @@ class civicrm_handler_field_link_contact extends views_handler_field {
       '#title' => t('Custom Link to a Drupal Node'),
       '#description' => t('Link to a Drupal Node or View, from the base path. The Contact ID will be appended to the end of the link.'),
       '#default_value' => isset($this->options['custom_link']) ? $this->options['custom_link'] : '',
-      '#dependency' => array('link_to_civicrm_contact' => array('custom')),
+      '#dependency' => array('edit-options-link-to-civicrm-contact' => array('custom')),
     );
 
     $form['link_text'] = array(
       '#type' => 'textfield',
-      '#title' => t('Links Text'),
+      '#title' => t('Link Text'),
       '#description' => t('The text that will display in the field with the link.'),
       '#default_value' => isset($this->options['link_text']) ? $this->options['link_text'] : '',
+      '#required' => TRUE,
     );
   }
 
-  function render_link($data, $values) {
+  public function render_link($data, $values) {
     $link_text = $this->options['link_text'];
     $link_choice = $this->options['link_to_civicrm_contact'];
     if ($link_choice == 'custom') {
       $custom_link = $this->options['custom_link'];
     }
-
 
     switch ($link_choice) {
 
@@ -135,13 +138,13 @@ class civicrm_handler_field_link_contact extends views_handler_field {
     }
   }
 
-  function query() {
+  public function query() {
     $this->ensure_my_table();
     $this->add_additional_fields();
   }
 
-  function render($values) {
+  public function render($values) {
     return $this->render_link(check_plain(property_exists($values, $this->field_alias)), $values);
   }
-}
 
+}
