@@ -351,6 +351,20 @@ class CRM_Utils_System_WordPress extends CRM_Utils_System_Base {
   }
 
   /**
+   * Determine the native ID of the CMS user.
+   *
+   * @param string $username
+   * @return int|NULL
+   */
+  public function getUfId($username) {
+    $userdata = get_user_by('login', $username);
+    if (!$userdata->data->ID) {
+      return NULL;
+    }
+    return $userdata->data->ID;
+  }
+
+  /**
    * @inheritDoc
    */
   public function logout() {
@@ -607,6 +621,23 @@ class CRM_Utils_System_WordPress extends CRM_Utils_System_Base {
     }
 
     return $isloggedIn;
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function isUserRegistrationPermitted() {
+    if (!get_option('users_can_register')) {
+      return FALSE;
+    }
+    return TRUE;
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function isPasswordUserGenerated() {
+    return TRUE;
   }
 
   /**

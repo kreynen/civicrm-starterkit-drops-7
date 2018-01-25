@@ -407,6 +407,48 @@
         "homepage": "http://code.google.com/p/phpquery/"
     },
     {
+        "name": "marcj/topsort",
+        "version": "dev-1.0-php53",
+        "version_normalized": "dev-1.0-php53",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/totten/topsort.php.git",
+            "reference": "2765723d36f0e536d987e42cbc60de52209212bd"
+        },
+        "require": {
+            "php": ">=5.3"
+        },
+        "require-dev": {
+            "codeclimate/php-test-reporter": "dev-master",
+            "phpunit/phpunit": "~4.0",
+            "symfony/console": "~2.5"
+        },
+        "time": "2016-03-25 21:38:05",
+        "type": "library",
+        "installation-source": "source",
+        "autoload": {
+            "psr-4": {
+                "MJS\\TopSort\\": "src/",
+                "MJS\\TopSort\\Tests\\": "tests/Tests/"
+            }
+        },
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "Marc J. Schmidt",
+                "email": "marc@marcjschmidt.de"
+            }
+        ],
+        "description": "High-Performance TopSort/Dependency resolving algorithm",
+        "keywords": [
+            "dependency resolving",
+            "topological sort",
+            "topsort"
+        ]
+    },
+    {
         "name": "pclzip/pclzip",
         "version": "2.8.2",
         "version_normalized": "2.8.2.0",

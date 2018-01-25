@@ -706,10 +706,6 @@ class CRM_Activity_BAO_Activity extends CRM_Activity_DAO_Activity {
       ),
     );
 
-    if ($params['context'] != 'activity') {
-      $activityParams['status_id'] = CRM_Core_PseudoConstant::getKey(__CLASS__, 'status_id', 'Scheduled');
-    }
-
     // activity type ID clause
     if (!empty($params['activity_type_id'])) {
       if (is_array($params['activity_type_id'])) {
@@ -724,6 +720,10 @@ class CRM_Activity_BAO_Activity extends CRM_Activity_DAO_Activity {
     }
     elseif (!empty($activityTypes) && count($activityTypes)) {
       $activityParams['activity_type_id'] = array('IN' => array_keys($activityTypes));
+    }
+
+    if (!empty($params['activity_status_id'])) {
+      $activityParams['activity_status_id'] = array('IN' => explode(',', $params['activity_status_id']));
     }
 
     $excludeActivityIDs = array();
@@ -757,13 +757,7 @@ class CRM_Activity_BAO_Activity extends CRM_Activity_DAO_Activity {
       }
     }
 
-    if (empty($order)) {
-      // context = 'activity' in Activities tab.
-      $activityParams['options']['sort'] = (CRM_Utils_Array::value('context', $params) == 'activity') ? "activity_date_time DESC" : "status_id ASC, activity_date_time ASC";
-    }
-    else {
-      $activityParams['options']['sort'] = str_replace('activity_type ', 'activity_type_id.label ', $order);
-    }
+    $activityParams['options']['sort'] = empty($order) ? "activity_date_time DESC" : str_replace('activity_type ', 'activity_type_id.label ', $order);
 
     //TODO :
     // 1. we should use Activity.Getcount for fetching count only, but  in order to check that
@@ -915,7 +909,7 @@ class CRM_Activity_BAO_Activity extends CRM_Activity_DAO_Activity {
     );
 
     $sql = "CREATE TEMPORARY TABLE {$activityTempTable} ( ";
-    $insertValueSQL = array();
+    $insertValueSQL = $selectColumns = array();
     // The activityTempTable contains the sorted rows
     // so in order to maintain the sort order as-is we add an auto_increment
     // field; we can sort by this later to ensure the sort order stays correct.
@@ -923,6 +917,12 @@ class CRM_Activity_BAO_Activity extends CRM_Activity_DAO_Activity {
     foreach ($tableFields as $name => $desc) {
       $sql .= "$name $desc,\n";
       $insertValueSQL[] = $name;
+      if ($name == 'source_contact_name' && CRM_Utils_SQL::supportsFullGroupBy()) {
+        $selectColumns[] = "ANY_VALUE(tbl.$name)";
+      }
+      else {
+        $selectColumns[] = "tbl.$name";
+      }
     }
 
     // add unique key on activity_id just to be sure
@@ -935,7 +935,7 @@ class CRM_Activity_BAO_Activity extends CRM_Activity_DAO_Activity {
 
     CRM_Core_DAO::executeQuery($sql);
 
-    $insertSQL = "INSERT INTO {$activityTempTable} (" . implode(',', $insertValueSQL) . " ) ";
+    $insertSQL = "INSERT IGNORE INTO {$activityTempTable} (" . implode(',', $insertValueSQL) . " ) ";
 
     $order = $limit = $groupBy = '';
     $groupBy = " GROUP BY tbl.activity_id, tbl.activity_type, tbl.case_id, tbl.case_subject ";
@@ -955,7 +955,7 @@ class CRM_Activity_BAO_Activity extends CRM_Activity_DAO_Activity {
 
     if (empty($order)) {
       // context = 'activity' in Activities tab.
-      $order = (CRM_Utils_Array::value('context', $input) == 'activity') ? " ORDER BY tbl.activity_date_time desc " : " ORDER BY tbl.status_id asc, tbl.activity_date_time asc ";
+      $order = " ORDER BY tbl.activity_date_time desc ";
     }
 
     if (!empty($input['rowCount']) &&
@@ -967,9 +967,7 @@ class CRM_Activity_BAO_Activity extends CRM_Activity_DAO_Activity {
     $input['count'] = FALSE;
     list($sqlClause, $params) = self::deprecatedGetActivitySQLClause($input);
 
-    $query = "{$insertSQL}
-       SELECT DISTINCT tbl.*  from ( {$sqlClause} )
-as tbl ";
+    $query = sprintf("{$insertSQL} \n SELECT DISTINCT %s  from ( %s ) \n as tbl ", implode(', ', $selectColumns), $sqlClause);
 
     // Filter case activities - CRM-5761.
     $components = self::activityComponents();
@@ -1258,9 +1256,6 @@ LEFT JOIN   civicrm_case_activity ON ( civicrm_case_activity.activity_id = tbl.a
 
     if (!empty($input['activity_status_id'])) {
       $commonClauses[] = sprintf("civicrm_activity.status_id IN (%s)", $input['activity_status_id']);
-    }
-    elseif ($input['context'] != 'activity') {
-      $commonClauses[] = "civicrm_activity.status_id = 1";
     }
 
     // Filter on component IDs.

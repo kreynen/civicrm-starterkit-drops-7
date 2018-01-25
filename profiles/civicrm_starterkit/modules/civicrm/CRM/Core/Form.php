@@ -724,20 +724,20 @@ class CRM_Core_Form extends HTML_QuickForm_Page {
    *
    * It would be good to sync it with the back-end function on abstractEditPayment & use one everywhere.
    *
-   * @param bool $is_pay_later_enabled
+   * @param bool $isPayLaterEnabled
    *
    * @throws \CRM_Core_Exception
    */
-  protected function assignPaymentProcessor($is_pay_later_enabled) {
+  protected function assignPaymentProcessor($isPayLaterEnabled) {
     $this->_paymentProcessors = CRM_Financial_BAO_PaymentProcessor::getPaymentProcessors(
       array(ucfirst($this->_mode) . 'Mode'),
       $this->_paymentProcessorIDs
     );
+    if ($isPayLaterEnabled) {
+      $this->_paymentProcessors[0] = CRM_Financial_BAO_PaymentProcessor::getPayment(0);
+    }
 
     if (!empty($this->_paymentProcessors)) {
-      if ($is_pay_later_enabled) {
-        $this->_paymentProcessors[0] = CRM_Financial_BAO_PaymentProcessor::getPayment(0);
-      }
       foreach ($this->_paymentProcessors as $paymentProcessorID => $paymentProcessorDetail) {
         if (empty($this->_paymentProcessor) && $paymentProcessorDetail['is_default'] == 1 || (count($this->_paymentProcessors) == 1)
         ) {
@@ -1865,14 +1865,16 @@ class CRM_Core_Form extends HTML_QuickForm_Page {
     }
     $props['select'] = CRM_Utils_Array::value('select', $props, array()) + $defaults;
 
-    $this->formatReferenceFieldAttributes($props);
+    $this->formatReferenceFieldAttributes($props, get_class($this));
     return $this->add('text', $name, $label, $props, $required);
   }
 
   /**
-   * @param $props
+   * @param array $props
+   * @param string $formName
    */
-  private function formatReferenceFieldAttributes(&$props) {
+  private function formatReferenceFieldAttributes(&$props, $formName) {
+    CRM_Utils_Hook::alterEntityRefParams($props, $formName);
     $props['data-select-params'] = json_encode($props['select']);
     $props['data-api-params'] = $props['api'] ? json_encode($props['api']) : NULL;
     $props['data-api-entity'] = $props['entity'];

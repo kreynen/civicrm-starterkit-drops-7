@@ -458,6 +458,32 @@ class CRM_Upgrade_Incremental_php_FourSeven extends CRM_Upgrade_Incremental_Base
     $this->addTask('Remove broken Contribution_logging reports', 'removeContributionLoggingReports');
   }
 
+  /**
+   * Upgrade function.
+   *
+   * @param string $rev
+   */
+  public function upgrade_4_7_28($rev) {
+    $this->addTask(ts('Upgrade DB to %1: SQL', array(1 => $rev)), 'runSql', $rev);
+    $this->addTask('CRM-20572: Fix date fields in save search criteria of Contrib Sybunt custom search ', 'fixDateFieldsInSmartGroups');
+    // CRM-20868 : Update invoice_numbers (in batch) with value in [invoice prefix][contribution id] format
+    if ($invoicePrefix = CRM_Contribute_BAO_Contribution::checkContributeSettings('invoice_prefix', TRUE)) {
+      list($minId, $maxId) = CRM_Core_DAO::executeQuery("SELECT coalesce(min(id),0), coalesce(max(id),0)
+        FROM civicrm_contribution ")->getDatabaseResult()->fetchRow();
+      for ($startId = $minId; $startId <= $maxId; $startId += self::BATCH_SIZE) {
+        $endId = $startId + self::BATCH_SIZE - 1;
+        $title = ts("Upgrade DB to %1: Update Contribution Invoice number (%2 => %3)", array(
+          1 => $rev,
+          2 => $startId,
+          3 => $endId,
+        ));
+        $this->addTask($title, 'updateContributionInvoiceNumber', $startId, $endId, $invoicePrefix);
+      }
+    }
+
+    $this->addTask('Rebuild Multilingual Schema', 'rebuildMultilingalSchema');
+  }
+
   /*
    * Important! All upgrade functions MUST add a 'runSql' task.
    * Uncomment and use the following template for a new upgrade version
@@ -589,6 +615,27 @@ class CRM_Upgrade_Incremental_php_FourSeven extends CRM_Upgrade_Incremental_Base
     }
 
     return $settings;
+  }
+
+  /**
+   * Update Invoice number for all completed contribution.
+   *
+   * @param \CRM_Queue_TaskContext $ctx
+   *
+   * @return bool
+   */
+  public static function updateContributionInvoiceNumber(CRM_Queue_TaskContext $ctx, $startID, $endID, $invoicePrefix) {
+    CRM_Core_DAO::executeQuery("
+      UPDATE `civicrm_contribution` SET `invoice_number` = CONCAT(%1, `id`)
+       WHERE `id` >= %2 AND `id` <= %3 AND `invoice_number` IS NOT NULL",
+      array(
+        1 => array($invoicePrefix, 'String'),
+        2 => array($startID, 'Integer'),
+        3 => array($endID, 'Integer'),
+      )
+    );
+
+    return TRUE;
   }
 
   /**
@@ -1309,6 +1356,23 @@ FROM `civicrm_dashboard_contact` JOIN `civicrm_contact` WHERE civicrm_dashboard_
     $config = CRM_Core_Config::singleton();
     $check = new CRM_Utils_Check_Component_Security();
     return $config->imageUploadDir && $config->imageUploadURL && $check->isDirAccessible($config->imageUploadDir, $config->imageUploadURL);
+  }
+
+  /**
+   * CRM-20572 - Format date fields in Contrib Sybunt custom search's saved criteria.
+   *
+   * @param \CRM_Queue_TaskContext $ctx
+   *
+   * @return bool
+   */
+  public static function fixDateFieldsInSmartGroups(CRM_Queue_TaskContext $ctx) {
+    $dao = CRM_Core_DAO::executeQuery("SELECT id, form_values FROM civicrm_saved_search WHERE form_values LIKE '%CRM_Contact_Form_Search_Custom_ContribSYBNT%'");
+    while ($dao->fetch()) {
+      $formValues = unserialize($dao->form_values);
+      CRM_Contact_Form_Search_Custom_ContribSYBNT::formatSavedSearchFields($formValues);
+      CRM_Core_DAO::executeQuery("UPDATE civicrm_saved_search SET form_values = %1 WHERE id = {$dao->id}", array(1 => array(serialize($formValues), 'String')));
+    }
+    return TRUE;
   }
 
   /**
