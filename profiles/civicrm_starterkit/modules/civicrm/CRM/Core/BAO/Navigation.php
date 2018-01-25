@@ -528,7 +528,7 @@ FROM civicrm_navigation WHERE domain_id = $domainID {$whereClause} ORDER BY pare
     }
 
     if (!empty($value['attributes']['icon'])) {
-      $menuIcon = sprintf('<span class="%s"></span>&nbsp;', $value['attributes']['icon']);
+      $menuIcon = sprintf('<i class="%s"></i>', $value['attributes']['icon']);
       $name = $menuIcon . $name;
     }
 
@@ -608,7 +608,8 @@ FROM civicrm_navigation WHERE domain_id = $domainID {$whereClause} ORDER BY pare
   public static function resetNavigation($contactID = NULL) {
     $newKey = CRM_Utils_String::createRandom(self::CACHE_KEY_STRLEN, CRM_Utils_String::ALPHANUMERIC);
     if (!$contactID) {
-      $query = "UPDATE civicrm_setting SET value = '$newKey' WHERE name='navigation' AND contact_id IS NOT NULL";
+      $ser = serialize($newKey);
+      $query = "UPDATE civicrm_setting SET value = '$ser' WHERE name='navigation' AND contact_id IS NOT NULL";
       CRM_Core_DAO::executeQuery($query);
       CRM_Core_BAO_Cache::deleteGroup('navigation');
     }

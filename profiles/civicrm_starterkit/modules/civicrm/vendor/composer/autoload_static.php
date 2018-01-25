@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit9ca86e567e4591c65a1efa0f4f9bbea6
+class ComposerStaticInit5cdee2268f29abd76073fe42de4e8d15
 {
     public static $files = array (
         'decc78cc4436b1292c6c0d151b19445c' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/bootstrap.php',
@@ -22,6 +22,11 @@ class ComposerStaticInit9ca86e567e4591c65a1efa0f4f9bbea6
         array (
             'PhpOffice\\PhpWord\\' => 18,
             'PhpOffice\\Common\\' => 17,
+        ),
+        'M' => 
+        array (
+            'MJS\\TopSort\\Tests\\' => 18,
+            'MJS\\TopSort\\' => 12,
         ),
         'F' => 
         array (
@@ -57,6 +62,14 @@ class ComposerStaticInit9ca86e567e4591c65a1efa0f4f9bbea6
         'PhpOffice\\Common\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpoffice/common/src/Common',
+        ),
+        'MJS\\TopSort\\Tests\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/marcj/topsort/tests/Tests',
+        ),
+        'MJS\\TopSort\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/marcj/topsort/src',
         ),
         'FontLib\\' => 
         array (
@@ -331,10 +344,10 @@ class ComposerStaticInit9ca86e567e4591c65a1efa0f4f9bbea6
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit9ca86e567e4591c65a1efa0f4f9bbea6::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit9ca86e567e4591c65a1efa0f4f9bbea6::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit9ca86e567e4591c65a1efa0f4f9bbea6::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInit9ca86e567e4591c65a1efa0f4f9bbea6::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit5cdee2268f29abd76073fe42de4e8d15::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit5cdee2268f29abd76073fe42de4e8d15::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit5cdee2268f29abd76073fe42de4e8d15::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInit5cdee2268f29abd76073fe42de4e8d15::$classMap;
 
         }, null, ClassLoader::class);
     }

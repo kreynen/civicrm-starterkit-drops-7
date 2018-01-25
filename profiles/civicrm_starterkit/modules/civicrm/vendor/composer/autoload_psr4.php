@@ -11,6 +11,8 @@ return array(
     'Zend\\Escaper\\' => array($vendorDir . '/zendframework/zend-escaper/src'),
     'PhpOffice\\PhpWord\\' => array($vendorDir . '/phpoffice/phpword/src/PhpWord'),
     'PhpOffice\\Common\\' => array($vendorDir . '/phpoffice/common/src/Common'),
+    'MJS\\TopSort\\Tests\\' => array($vendorDir . '/marcj/topsort/tests/Tests'),
+    'MJS\\TopSort\\' => array($vendorDir . '/marcj/topsort/src'),
     'FontLib\\' => array($vendorDir . '/phenx/php-font-lib/src/FontLib'),
     'Dompdf\\' => array($vendorDir . '/dompdf/dompdf/src'),
     'Civi\\Cxn\\Rpc\\' => array($vendorDir . '/civicrm/civicrm-cxn-rpc/src'),

@@ -930,7 +930,7 @@ HTACCESS;
         break;
 
       default:
-        $url = sprintf('<a href="%s">%s</a>', $url, basename($path));
+        $url = sprintf('<a href="%s">%s</a>', $url, self::cleanFileName(basename($path)));
         break;
     }
 

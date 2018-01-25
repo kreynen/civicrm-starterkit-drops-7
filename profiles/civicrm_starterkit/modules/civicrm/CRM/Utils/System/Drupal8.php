@@ -215,7 +215,6 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
 
     switch ($region) {
       case 'html-header':
-      case 'page-footer':
         break;
 
       default:
@@ -240,7 +239,6 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
   public function addScript($code, $region) {
     switch ($region) {
       case 'html-header':
-      case 'page-footer':
         break;
 
       default:
@@ -524,6 +522,26 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    */
   public function isUserLoggedIn() {
     return \Drupal::currentUser()->isAuthenticated();
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function isUserRegistrationPermitted() {
+    if (\Drupal::config('user.settings')->get('register') == 'admin_only') {
+      return FALSE;
+    }
+    return TRUE;
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function isPasswordUserGenerated() {
+    if (\Drupal::config('user.settings')->get('verify_mail') == TRUE) {
+      return FALSE;
+    }
+    return TRUE;
   }
 
   /**
