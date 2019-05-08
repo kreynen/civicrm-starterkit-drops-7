@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
+class ComposerStaticInit285dea4ecfc38f35aab901dfc1c31a29
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -13,11 +13,16 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
         'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
         'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         '5636a0a89fc28f9cfa8624493b142015' => __DIR__ . '/..' . '/civicrm/civicrm-setup/civicrm-setup-autoload.php',
+        '2cffec82183ee1cea088009cef9a6fc3' => __DIR__ . '/..' . '/ezyang/htmlpurifier/library/HTMLPurifier.composer.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         'def43f6c87e4f8dfd0c9e1b1bab14fe8' => __DIR__ . '/..' . '/symfony/polyfill-iconv/bootstrap.php',
     );
 
     public static $prefixLengthsPsr4 = array (
+        'c' => 
+        array (
+            'cweagans\\Composer\\' => 18,
+        ),
         'Z' => 
         array (
             'Zend\\Validator\\' => 15,
@@ -38,6 +43,7 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
         'P' => 
         array (
             'Psr\\SimpleCache\\' => 16,
+            'Psr\\Log\\' => 8,
             'Psr\\Http\\Message\\' => 17,
             'PhpOffice\\PhpWord\\' => 18,
             'PhpOffice\\Common\\' => 17,
@@ -68,6 +74,10 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
     );
 
     public static $prefixDirsPsr4 = array (
+        'cweagans\\Composer\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/cweagans/composer-patches/src',
+        ),
         'Zend\\Validator\\' => 
         array (
             0 => __DIR__ . '/..' . '/zendframework/zend-validator/src',
@@ -115,6 +125,10 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
         'Psr\\SimpleCache\\' => 
         array (
             0 => __DIR__ . '/..' . '/psr/simple-cache/src',
+        ),
+        'Psr\\Log\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/psr/log/Psr/Log',
         ),
         'Psr\\Http\\Message\\' => 
         array (
@@ -187,10 +201,6 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
         ),
         'P' => 
         array (
-            'Psr\\Log\\' => 
-            array (
-                0 => __DIR__ . '/..' . '/psr/log',
-            ),
             'PHPUnit_' => 
             array (
                 0 => __DIR__ . '/../..' . '/packages',
@@ -215,6 +225,24 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
             array (
                 0 => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib',
             ),
+            'Mail' => 
+            array (
+                0 => __DIR__ . '/..' . '/pear/mail',
+            ),
+        ),
+        'L' => 
+        array (
+            'Log' => 
+            array (
+                0 => __DIR__ . '/..' . '/pear/log',
+            ),
+        ),
+        'H' => 
+        array (
+            'HTMLPurifier' => 
+            array (
+                0 => __DIR__ . '/..' . '/ezyang/htmlpurifier/library',
+            ),
         ),
         'F' => 
         array (
@@ -228,6 +256,10 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
             'Crypt' => 
             array (
                 0 => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib',
+            ),
+            'Console' => 
+            array (
+                0 => __DIR__ . '/..' . '/pear/console_getopt',
             ),
             'Civi\\' => 
             array (
@@ -250,6 +282,10 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
                 0 => __DIR__ . '/..' . '/pear/auth_sasl',
             ),
         ),
+    );
+
+    public static $fallbackDirsPsr0 = array (
+        0 => __DIR__ . '/..' . '/pear/pear-core-minimal/src',
     );
 
     public static $classMap = array (
@@ -289,6 +325,7 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
         'ezcBaseConfigurationInitializer' => __DIR__ . '/..' . '/zetacomponents/base/src/interfaces/configuration_initializer.php',
         'ezcBaseDoubleClassRepositoryPrefixException' => __DIR__ . '/..' . '/zetacomponents/base/src/exceptions/double_class_repository_prefix.php',
         'ezcBaseException' => __DIR__ . '/..' . '/zetacomponents/base/src/exceptions/exception.php',
+        'ezcBaseExportable' => __DIR__ . '/..' . '/zetacomponents/base/src/interfaces/exportable.php',
         'ezcBaseExtensionNotFoundException' => __DIR__ . '/..' . '/zetacomponents/base/src/exceptions/extension_not_found.php',
         'ezcBaseFeatures' => __DIR__ . '/..' . '/zetacomponents/base/src/features.php',
         'ezcBaseFile' => __DIR__ . '/..' . '/zetacomponents/base/src/file.php',
@@ -352,6 +389,7 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
         'ezcMailMultipartReportParser' => __DIR__ . '/..' . '/zetacomponents/mail/src/parser/parts/multipart_report_parser.php',
         'ezcMailNoSuchMessageException' => __DIR__ . '/..' . '/zetacomponents/mail/src/exceptions/no_such_message.php',
         'ezcMailOffsetOutOfRangeException' => __DIR__ . '/..' . '/zetacomponents/mail/src/exceptions/offset_out_of_range.php',
+        'ezcMailOptions' => __DIR__ . '/..' . '/zetacomponents/mail/src/options/mail_options.php',
         'ezcMailParser' => __DIR__ . '/..' . '/zetacomponents/mail/src/parser/parser.php',
         'ezcMailParserOptions' => __DIR__ . '/..' . '/zetacomponents/mail/src/options/parser_options.php',
         'ezcMailParserSet' => __DIR__ . '/..' . '/zetacomponents/mail/src/parser/interfaces/parser_set.php',
@@ -397,10 +435,11 @@ class ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInitebbfd5c6742662296f73aa7fff5d3c56::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit285dea4ecfc38f35aab901dfc1c31a29::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit285dea4ecfc38f35aab901dfc1c31a29::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit285dea4ecfc38f35aab901dfc1c31a29::$prefixesPsr0;
+            $loader->fallbackDirsPsr0 = ComposerStaticInit285dea4ecfc38f35aab901dfc1c31a29::$fallbackDirsPsr0;
+            $loader->classMap = ComposerStaticInit285dea4ecfc38f35aab901dfc1c31a29::$classMap;
 
         }, null, ClassLoader::class);
     }
