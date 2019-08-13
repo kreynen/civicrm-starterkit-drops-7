@@ -156,18 +156,37 @@ class Container {
       'checks' => 'checks',
       'session' => 'CiviCRM Session',
       'long' => 'long',
+      'groups' => 'contact groups',
     ];
     foreach ($basicCaches as $cacheSvc => $cacheGrp) {
+      $definitionParams = [
+        'name' => $cacheGrp,
+        'type' => ['*memory*', 'SqlGroup', 'ArrayCache'],
+      ];
+      // For Caches that we don't really care about the ttl for and/or maybe accessed
+      // fairly often we use the fastArrayDecorator which improves reads and writes, these
+      // caches should also not have concurrency risk.
+      $fastArrayCaches = ['groups'];
+      if (in_array($cacheSvc, $fastArrayCaches)) {
+        $definitionParams['withArray'] = 'fast';
+      }
       $container->setDefinition("cache.{$cacheSvc}", new Definition(
         'CRM_Utils_Cache_Interface',
-        [
-          [
-            'name' => $cacheGrp,
-            'type' => ['*memory*', 'SqlGroup', 'ArrayCache'],
-          ],
-        ]
+        [$definitionParams]
       ))->setFactory('CRM_Utils_Cache::create');
     }
+
+    // PrevNextCache cannot use memory or array cache at the moment because the
+    // Code in CRM_Core_BAO_PrevNextCache assumes that this cache is sql backed.
+    $container->setDefinition("cache.prevNextCache", new Definition(
+      'CRM_Utils_Cache_Interface',
+      [
+        [
+          'name' => 'CiviCRM Search PrevNextCache',
+          'type' => ['SqlGroup'],
+        ],
+      ]
+    ))->setFactory('CRM_Utils_Cache::create');
 
     $container->setDefinition('sql_triggers', new Definition(
       'Civi\Core\SqlTriggers',
@@ -176,6 +195,11 @@ class Container {
 
     $container->setDefinition('asset_builder', new Definition(
       'Civi\Core\AssetBuilder',
+      []
+    ));
+
+    $container->setDefinition('themes', new Definition(
+      'Civi\Core\Themes',
       []
     ));
 
@@ -321,6 +345,8 @@ class Container {
     $dispatcher->addListener('hook_civicrm_buildAsset', ['\CRM_Utils_VisualBundle', 'buildAssetJs']);
     $dispatcher->addListener('hook_civicrm_buildAsset', ['\CRM_Utils_VisualBundle', 'buildAssetCss']);
     $dispatcher->addListener('hook_civicrm_buildAsset', ['\CRM_Core_Resources', 'renderMenubarStylesheet']);
+    $dispatcher->addListener('hook_civicrm_coreResourceList', ['\CRM_Utils_System', 'appendCoreResources']);
+    $dispatcher->addListener('hook_civicrm_getAssetUrl', ['\CRM_Utils_System', 'alterAssetUrl']);
     $dispatcher->addListener('civi.dao.postInsert', ['\CRM_Core_BAO_RecurringEntity', 'triggerInsert']);
     $dispatcher->addListener('civi.dao.postUpdate', ['\CRM_Core_BAO_RecurringEntity', 'triggerUpdate']);
     $dispatcher->addListener('civi.dao.postDelete', ['\CRM_Core_BAO_RecurringEntity', 'triggerDelete']);

@@ -299,7 +299,7 @@ class CRM_Core_BAO_Mapping extends CRM_Core_DAO_Mapping {
    * @param int $columnNo
    * @param int $blockCount
    *   (no of blocks shown).
-   * @param NULL $exportMode
+   * @param int $exportMode
    */
   public static function buildMappingForm(&$form, $mappingType, $mappingId, $columnNo, $blockCount, $exportMode = NULL) {
 
@@ -661,7 +661,6 @@ class CRM_Core_BAO_Mapping extends CRM_Core_DAO_Mapping {
                   $relatedFields = array_merge($relatedFields, (array) $relationshipCustomFields);
                 }
               }
-              $relationshipType->free();
               asort($relatedFields);
               $sel5[$k][$field] = $relatedFields;
             }

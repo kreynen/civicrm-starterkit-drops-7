@@ -49,7 +49,7 @@ class CRM_Financial_BAO_FinancialAccount extends CRM_Financial_DAO_FinancialAcco
    *
    * @return CRM_Financial_BAO_FinancialAccount
    */
-  public static function retrieve(&$params, &$defaults) {
+  public static function retrieve(&$params, $defaults = []) {
     $financialAccount = new CRM_Financial_DAO_FinancialAccount();
     $financialAccount->copyValues($params);
     if ($financialAccount->find(TRUE)) {
@@ -379,7 +379,7 @@ LIMIT 1";
    *
    */
   public static function checkFinancialTypeHasDeferred($params, $contributionID = NULL, $priceSetFields = NULL) {
-    if (!CRM_Contribute_BAO_Contribution::checkContributeSettings('deferred_revenue_enabled')) {
+    if (!Civi::settings()->get('deferred_revenue_enabled')) {
       return FALSE;
     }
     $recognitionDate = CRM_Utils_Array::value('revenue_recognition_date', $params);

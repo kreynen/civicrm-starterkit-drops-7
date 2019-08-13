@@ -58,7 +58,9 @@ class CRM_Contribute_Form_AbstractEditPayment extends CRM_Contact_Form_Task {
   public $_fields = [];
 
   /**
-   * @var array current payment processor including a copy of the object in 'object' key
+   * Current payment processor including a copy of the object in 'object' key.
+   *
+   * @var array
    */
   public $_paymentProcessor;
 
@@ -151,7 +153,7 @@ class CRM_Contribute_Form_AbstractEditPayment extends CRM_Contact_Form_Task {
    * Is this contribution associated with an online
    * financial transaction
    *
-   * @var boolean
+   * @var bool
    */
   public $_online = FALSE;
 
@@ -336,14 +338,11 @@ SELECT *
 FROM   civicrm_contribution_product
 WHERE  contribution_id = {$id}
 ";
-    $dao = CRM_Core_DAO::executeQuery($sql,
-      CRM_Core_DAO::$_nullArray
-    );
+    $dao = CRM_Core_DAO::executeQuery($sql);
     if ($dao->fetch()) {
       $this->_premiumID = $dao->id;
       $this->_productDAO = $dao;
     }
-    $dao->free();
   }
 
   /**
