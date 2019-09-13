@@ -133,10 +133,25 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
    */
   public function setDefaultValues() {
     $defaults = (array) $this->_formValues;
-    foreach (['Contact', $this->getDefaultEntity()] as $entity) {
+    foreach (array_keys($this->getSearchFieldMetadata()) as $entity) {
       $defaults = array_merge($this->getEntityDefaults($entity), $defaults);
     }
     return $defaults;
+  }
+
+  /**
+   * Set the form values based on input and preliminary processing.
+   *
+   * @throws \Exception
+   */
+  protected function setFormValues() {
+    if (!empty($_POST) && !$this->_force) {
+      $this->_formValues = $this->controller->exportValues($this->_name);
+    }
+    elseif ($this->_force) {
+      $this->_formValues = $this->setDefaultValues();
+    }
+    $this->convertTextStringsToUseLikeOperator();
   }
 
   /**
@@ -172,15 +187,26 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
     $this->_action = CRM_Core_Action::ADVANCED;
     foreach ($this->getSearchFieldMetadata() as $entity => $fields) {
       foreach ($fields as $fieldName => $fieldSpec) {
-        if ($fieldSpec['type'] === CRM_Utils_Type::T_DATE || $fieldSpec['type'] === (CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME)) {
-          $this->addDatePickerRange($fieldName, $fieldSpec['title'], ($fieldSpec['type'] === (CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME)));
+        $fieldType = $fieldSpec['type'] ?? '';
+        if ($fieldType === CRM_Utils_Type::T_DATE || $fieldType === (CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME)) {
+          $title = empty($fieldSpec['unique_title']) ? $fieldSpec['title'] : $fieldSpec['unique_title'];
+          $this->addDatePickerRange($fieldName, $title, ($fieldType === (CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME)));
         }
         else {
-          $props = ['entity' => $entity];
-          if (isset($fields[$fieldName]['title'])) {
+          // Not quite sure about moving to a mix of keying by entity vs permitting entity to
+          // be passed in. The challenge of the former is that it doesn't permit ordering.
+          // Perhaps keying was the wrong starting point & we should do a flat array as all
+          // fields eventually need to be unique.
+          $props = ['entity' => $fieldSpec['entity'] ?? $entity];
+          if (isset($fields[$fieldName]['unique_title'])) {
+            $props['label'] = $fields[$fieldName]['unique_title'];
+          }
+          elseif (isset($fields[$fieldName]['title'])) {
             $props['label'] = $fields[$fieldName]['title'];
           }
-          $this->addField($fieldName, $props);
+          if (empty($fieldSpec['is_pseudofield'])) {
+            $this->addField($fieldName, $props);
+          }
         }
       }
     }
@@ -252,6 +278,8 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
    * @param string $entity
    *
    * @return array
+   *
+   * @throws \CRM_Core_Exception
    */
   protected function getEntityDefaults($entity) {
     $defaults = [];
@@ -269,6 +297,12 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
             $defaults[$fieldName . '_low'] = $low ? date('Y-m-d H:i:s', strtotime($low)) : NULL;
             $defaults[$fieldName . '_high'] = $high ? date('Y-m-d H:i:s', strtotime($high)) : NULL;
           }
+          else {
+            $relative = CRM_Utils_Request::retrieveValue($fieldName . '_relative', 'String', NULL, NULL, 'GET');
+            if (!empty($relative) && isset(CRM_Core_OptionGroup::values('relative_date_filters')[$relative])) {
+              $defaults[$fieldName . '_relative'] = $relative;
+            }
+          }
         }
       }
     }
@@ -283,10 +317,12 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
    * Note this will only pick up fields declared via metadata.
    */
   protected function convertTextStringsToUseLikeOperator() {
-    foreach (CRM_Utils_Array::value($this->getDefaultEntity(), $this->getSearchFieldMetadata(), []) as $fieldName => $field) {
-      if (!empty($this->_formValues[$fieldName]) && empty($field['options']) && empty($field['pseudoconstant'])) {
-        if (in_array($field['type'], [CRM_Utils_Type::T_STRING, CRM_Utils_Type::T_TEXT])) {
-          $this->_formValues[$fieldName] = ['LIKE' => CRM_Contact_BAO_Query::getWildCardedValue(TRUE, 'LIKE', $this->_formValues[$fieldName])];
+    foreach ($this->getSearchFieldMetadata() as $entity => $fields) {
+      foreach ($fields as $fieldName => $field) {
+        if (!empty($this->_formValues[$fieldName]) && empty($field['options']) && empty($field['pseudoconstant'])) {
+          if (in_array($field['type'], [CRM_Utils_Type::T_STRING, CRM_Utils_Type::T_TEXT])) {
+            $this->_formValues[$fieldName] = ['LIKE' => CRM_Contact_BAO_Query::getWildCardedValue(TRUE, 'LIKE', trim($this->_formValues[$fieldName]))];
+          }
         }
       }
     }

@@ -269,44 +269,6 @@ function wf_crm_get_surveys($act = array()) {
 }
 
 /**
- * Get list of activity types
- * @param string $case_type_name
- * @param array $campaign_act_types
- *
- * @return array
- */
-function wf_crm_get_activity_types($case_type_name, &$campaign_act_types) {
-  // Return activities only appropriate to this case
-  if ($case_type_name) {
-    $case_info = new CRM_Case_XMLProcessor_Process();
-    return $case_info->get($case_type_name, 'ActivityTypes');
-  }
-  // Fetch activity types from the api
-  $params = array(
-    'option_group_id' => 'activity_type',
-    'is_active' => 1,
-    'options' => array(
-      'order' => 'label',
-    ),
-  );
-  // Include campaign types if CiviCampaign is enabled
-  $comp = CRM_Core_Component::getEnabledComponents();
-  $campaign_type = wf_crm_aval($comp, 'CiviCampaign:componentID');
-
-  $ret = array();
-  foreach (wf_crm_apivalues('option_value', 'get', $params) as $val) {
-    if (empty($val['component_id'])) {
-      $ret[$val['value']] = $val['label'];
-    }
-    elseif ($val['component_id'] == $campaign_type) {
-      $campaign_act_types[$val['value']] = $ret[$val['value']] = $val['label'];
-    }
-  }
-
-  return $ret;
-}
-
-/**
  * Get activity types related to CiviCampaign
  * @return array
  */
@@ -518,7 +480,7 @@ function wf_crm_get_fields($var = 'fields') {
       'email' => array('entity_type' => 'contact', 'label' => t('Email'), 'max_instances' => 9, 'custom_fields' => 'combined'),
       'website' => array('entity_type' => 'contact', 'label' => t('Website'), 'max_instances' => 9, 'custom_fields' => 'combined'),
       'im' => array('entity_type' => 'contact', 'label' => t('Instant Message'), 'max_instances' => 9, 'custom_fields' => 'combined'),
-      'activity' => array('entity_type' => 'activity', 'label' => t('Activity'), 'max_instances' => 30,  'attachments' => TRUE),
+      'activity' => array('entity_type' => 'activity', 'label' => t('Activity'), 'max_instances' => 40,  'attachments' => TRUE),
       'relationship' => array('entity_type' => 'contact', 'label' => t('Relationship'), 'help_text' => TRUE, 'custom_fields' => 'combined'),
     );
     $conditional_sets = array(
@@ -1654,6 +1616,10 @@ function wf_crm_apivalues($entity, $operation, $params = array(), $value = NULL)
   $params += array('options' => array());
   // Work around the api's default limit of 25
   $params['options'] += array('limit' => 0);
+  // If we only care about one field value
+  if ($value && $operation == 'get') {
+    $params += array('return' => $value);
+  }
   $ret = wf_crm_aval(wf_civicrm_api($entity, $operation, $params), 'values', array());
   if ($value) {
     foreach ($ret as &$values) {

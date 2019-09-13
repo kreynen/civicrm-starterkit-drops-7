@@ -829,7 +829,7 @@ class CRM_Utils_System {
     self::setHttpHeader('Expires', $now);
 
     // lem9 & loic1: IE needs specific headers
-    $isIE = strstr($_SERVER['HTTP_USER_AGENT'], 'MSIE');
+    $isIE = empty($_SERVER['HTTP_USER_AGENT']) ? FALSE : strstr($_SERVER['HTTP_USER_AGENT'], 'MSIE');
     if ($ext) {
       $fileString = "filename=\"{$name}.{$ext}\"";
     }
@@ -1440,6 +1440,8 @@ class CRM_Utils_System {
       Civi::cache('js_strings')->flush();
       Civi::cache('community_messages')->flush();
       Civi::cache('groups')->flush();
+      Civi::cache('navigation')->flush();
+      Civi::cache('customData')->flush();
       CRM_Extension_System::singleton()->getCache()->flush();
       CRM_Cxn_CiviCxnHttp::singleton()->getCache()->flush();
     }
@@ -1447,7 +1449,7 @@ class CRM_Utils_System {
     // also reset the various static memory caches
 
     // reset the memory or array cache
-    CRM_Core_BAO_Cache::deleteGroup('contact fields', NULL, FALSE);
+    Civi::cache('fields')->flush();
 
     // reset ACL cache
     CRM_ACL_BAO_Cache::resetCache();

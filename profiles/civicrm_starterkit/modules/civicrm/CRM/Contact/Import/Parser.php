@@ -107,7 +107,7 @@ abstract class CRM_Contact_Import_Parser extends CRM_Import_Parser {
    */
   public function run(
     $tableName,
-    &$mapper,
+    $mapper = [],
     $mode = self::MODE_PREVIEW,
     $contactType = self::CONTACT_INDIVIDUAL,
     $primaryKeyName = '_id',
@@ -181,11 +181,11 @@ abstract class CRM_Contact_Import_Parser extends CRM_Import_Parser {
     if ($mode == self::MODE_IMPORT) {
       $query .= " WHERE $statusFieldName = 'NEW'";
     }
-    $dao = new CRM_Core_DAO();
-    $db = $dao->getDatabaseConnection();
-    $result = $db->query($query);
 
-    while ($values = $result->fetchRow(DB_FETCHMODE_ORDERED)) {
+    $result = CRM_Core_DAO::executeQuery($query);
+
+    while ($result->fetch()) {
+      $values = array_values($result->toArray());
       $this->_rowCount++;
 
       /* trim whitespace around the values */
@@ -819,10 +819,6 @@ abstract class CRM_Contact_Import_Parser extends CRM_Import_Parser {
       elseif ($key == 'is_deceased' && $val) {
         $params[$key] = CRM_Utils_String::strtoboolstr($val);
       }
-      elseif ($key == 'gender') {
-        //CRM-4360
-        $params[$key] = $this->checkGender($val);
-      }
     }
 
     //now format custom data.
@@ -1004,9 +1000,6 @@ abstract class CRM_Contact_Import_Parser extends CRM_Import_Parser {
     //      Note
     //      Custom
 
-    // Cache the various object fields
-    static $fields = [];
-
     // first add core contact values since for other Civi modules they are not added
     $contactFields = CRM_Contact_DAO_Contact::fields();
     _civicrm_api3_store_values($contactFields, $values, $params);
@@ -1019,6 +1012,10 @@ abstract class CRM_Contact_Import_Parser extends CRM_Import_Parser {
       _civicrm_api3_store_values($fields[$values['contact_type']], $values, $params);
       return TRUE;
     }
+
+    // Cache the various object fields
+    // @todo - remove this after confirming this is just a compilation of other-wise-cached fields.
+    static $fields = [];
 
     if (isset($values['individual_prefix'])) {
       if (!empty($params['prefix_id'])) {
@@ -1168,18 +1165,15 @@ abstract class CRM_Contact_Import_Parser extends CRM_Import_Parser {
     }
 
     // Check for custom field values
-
-    if (empty($fields['custom'])) {
-      $fields['custom'] = &CRM_Core_BAO_CustomField::getFields(CRM_Utils_Array::value('contact_type', $values),
-        FALSE, FALSE, NULL, NULL, FALSE, FALSE, FALSE
-      );
-    }
+    $customFields = CRM_Core_BAO_CustomField::getFields(CRM_Utils_Array::value('contact_type', $values),
+      FALSE, FALSE, NULL, NULL, FALSE, FALSE, FALSE
+    );
 
     foreach ($values as $key => $value) {
       if ($customFieldID = CRM_Core_BAO_CustomField::getKeyID($key)) {
         // check if it's a valid custom field id
 
-        if (!array_key_exists($customFieldID, $fields['custom'])) {
+        if (!array_key_exists($customFieldID, $customFields)) {
           return civicrm_api3_create_error('Invalid custom field ID');
         }
         else {

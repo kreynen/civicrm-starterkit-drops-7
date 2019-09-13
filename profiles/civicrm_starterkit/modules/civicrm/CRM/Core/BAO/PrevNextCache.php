@@ -338,14 +338,46 @@ FROM   civicrm_prevnext_cache pn
   }
 
   /**
-   * @param $values
+   * @param string $sqlValues string of SQLValues to insert
+   * @return array
    */
-  public static function setItem($values) {
-    $insert = "INSERT INTO civicrm_prevnext_cache ( entity_table, entity_id1, entity_id2, cachekey, data ) VALUES \n";
-    $query = $insert . implode(",\n ", $values);
+  public static function convertSetItemValues($sqlValues) {
+    $closingBrace = strpos($sqlValues, ')') - strlen($sqlValues);
+    $valueArray = array_map('trim', explode(', ', substr($sqlValues, strpos($sqlValues, '(') + 1, $closingBrace - 1)));
+    foreach ($valueArray as $key => &$value) {
+      // remove any quotes from values.
+      if (substr($value, 0, 1) == "'") {
+        $valueArray[$key] = substr($value, 1, -1);
+      }
+    }
+    return $valueArray;
+  }
 
-    //dump the dedupe matches in the prevnext_cache table
-    CRM_Core_DAO::executeQuery($query);
+  /**
+   * @param array|string $entity_table
+   * @param int $entity_id1
+   * @param int $entity_id2
+   * @param string $cacheKey
+   * @param string $data
+   */
+  public static function setItem($entity_table = NULL, $entity_id1 = NULL, $entity_id2 = NULL, $cacheKey = NULL, $data = NULL) {
+    // If entity table is an array we are passing in an older format where this function only had 1 param $values. We put a deprecation warning.
+    if (!empty($entity_table) && is_array($entity_table)) {
+      Civi::log()->warning('Deprecated code path. Values should not be set this is going away in the future in favour of specific function params for each column.', array('civi.tag' => 'deprecated'));
+      foreach ($values as $value) {
+        $valueArray = self::convertSetItemValues($value);
+        self::setItem($valueArray[0], $valueArray[1], $valueArray[2], $valueArray[3], $valueArray[4]);
+      }
+    }
+    else {
+      CRM_Core_DAO::executeQuery("INSERT INTO civicrm_prevnext_cache (entity_table, entity_id1, entity_id2, cacheKey, data) VALUES
+        (%1, %2, %3, %4, '{$data}')", [
+          1 => [$entity_table, 'String'],
+          2 => [$entity_id1, 'Integer'],
+          3 => [$entity_id2, 'Integer'],
+          4 => [$cacheKey, 'String'],
+        ]);
+    }
   }
 
   /**
@@ -435,22 +467,7 @@ WHERE (pn.cachekey $op %1 OR pn.cachekey $op %2)
   }
 
   public static function cleanupCache() {
-    // clean up all prev next caches older than $cacheTimeIntervalDays days
-    $cacheTimeIntervalDays = 2;
-
-    // first find all the cacheKeys that match this
-    $sql = "
-DELETE     pn, c
-FROM       civicrm_cache c
-INNER JOIN civicrm_prevnext_cache pn ON c.path = pn.cachekey
-WHERE      c.group_name = %1
-AND        c.created_date < date_sub( NOW( ), INTERVAL %2 day )
-";
-    $params = [
-      1 => [CRM_Core_BAO_Cache::cleanKey('CiviCRM Search PrevNextCache'), 'String'],
-      2 => [$cacheTimeIntervalDays, 'Integer'],
-    ];
-    CRM_Core_DAO::executeQuery($sql, $params);
+    Civi::service('prevnext')->cleanup();
   }
 
   /**

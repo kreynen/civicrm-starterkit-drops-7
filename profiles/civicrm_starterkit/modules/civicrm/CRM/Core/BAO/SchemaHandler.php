@@ -72,7 +72,7 @@ class CRM_Core_BAO_SchemaHandler {
     if (CRM_Core_Config::singleton()->logging) {
       // logging support
       $logging = new CRM_Logging_Schema();
-      $logging->fixSchemaDifferencesFor($params['name'], NULL, FALSE);
+      $logging->fixSchemaDifferencesFor($params['name']);
     }
 
     // always do a trigger rebuild for this table
@@ -288,6 +288,8 @@ ALTER TABLE {$tableName}
   }
 
   /**
+   * @deprecated
+   *
    * @param array $params
    * @param bool $indexExist
    * @param bool $triggerRebuild
@@ -295,7 +297,7 @@ ALTER TABLE {$tableName}
    * @return bool
    */
   public static function alterFieldSQL($params, $indexExist = FALSE, $triggerRebuild = TRUE) {
-
+    CRM_Core_Error::deprecatedFunctionWarning('function no longer in use / supported');
     // lets suppress the required flag, since that can cause sql issue
     $params['required'] = FALSE;
 
@@ -311,7 +313,7 @@ ALTER TABLE {$tableName}
       // Are there any modifies we DON'T was to call this function for (& shouldn't it be clever enough to cope?)
       if ($params['operation'] == 'add' || $params['operation'] == 'modify') {
         $logging = new CRM_Logging_Schema();
-        $logging->fixSchemaDifferencesFor($params['table_name'], [trim(strtoupper($params['operation'])) => [$params['name']]], FALSE);
+        $logging->fixSchemaDifferencesFor($params['table_name'], [trim(strtoupper($params['operation'])) => [$params['name']]]);
       }
     }
 
@@ -759,6 +761,22 @@ MODIFY      {$columnName} varchar( $length )
   public static function buildFieldChangeSql($params, $indexExist) {
     $sql = str_repeat(' ', 8);
     $sql .= "ALTER TABLE {$params['table_name']}";
+    return $sql . self::getFieldAlterSQL($params, $indexExist);
+  }
+
+  /**
+   * Get the sql to alter an individual field.
+   *
+   * This will need to have an ALTER TABLE statement appended but by getting
+   * by individual field we can do one or many.
+   *
+   * @param array $params
+   * @param bool $indexExist
+   *
+   * @return string
+   */
+  public static function getFieldAlterSQL($params, $indexExist) {
+    $sql = '';
     switch ($params['operation']) {
       case 'add':
         $separator = "\n";

@@ -3661,7 +3661,7 @@ CREATE TABLE `civicrm_action_log` (
      `is_error` tinyint   DEFAULT 0 COMMENT 'Was there any error sending the reminder?',
      `message` text    COMMENT 'Description / text in case there was an error encountered.',
      `repetition_number` int unsigned    COMMENT 'Keeps track of the sequence number of this repetition.',
-     `reference_date` date   DEFAULT NULL COMMENT 'Stores the date from the entity which triggered this reminder action (e.g. membership.end_date for most membership renewal reminders)' 
+     `reference_date` datetime   DEFAULT NULL COMMENT 'Stores the date from the entity which triggered this reminder action (e.g. membership.end_date for most membership renewal reminders)' 
 ,
         PRIMARY KEY (`id`)
  

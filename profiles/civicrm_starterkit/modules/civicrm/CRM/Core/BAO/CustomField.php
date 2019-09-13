@@ -152,48 +152,59 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
    * @return CRM_Core_DAO_CustomField
    */
   public static function create($params) {
-    $transaction = new CRM_Core_Transaction();
-    $op = empty($params['id']) ? 'create' : 'edit';
-    $origParams = array_merge([], $params);
-    $params = self::prepareCreate($params, $op);
+    $customField = self::createCustomFieldRecord($params);
+    $op = empty($params['id']) ? 'add' : 'modify';
+    self::createField($customField, $op);
 
-    $customField = new CRM_Core_DAO_CustomField();
-    $customField->copyValues($params);
-    $customField->save();
-
-    // make sure all values are present in the object for further processing
-    $customField->find(TRUE);
-
-    $triggerRebuild = CRM_Utils_Array::value('triggerRebuild', $params, TRUE);
-    //create/drop the index when we toggle the is_searchable flag
-    if ($op == 'edit') {
-      $indexExist = FALSE;
-      //as during create if field is_searchable we had created index.
-      if (!empty($params['id'])) {
-        $indexExist = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_CustomField', $params['id'], 'is_searchable');
-      }
-      self::createField($customField, 'modify', $indexExist, $triggerRebuild);
-    }
-    else {
-      if (!isset($origParams['column_name'])) {
-        $params['column_name'] .= "_{$customField->id}";
-      }
-      $customField->column_name = $params['column_name'];
-      $customField->save();
-      // make sure all values are present in the object
-      $customField->find(TRUE);
-
-      self::createField($customField, 'add', FALSE, $triggerRebuild);
-    }
-
-    // complete transaction
-    $transaction->commit();
-
-    CRM_Utils_Hook::post($op, 'CustomField', $customField->id, $customField);
+    CRM_Utils_Hook::post(($op === 'add' ? 'create' : 'edit'), 'CustomField', $customField->id, $customField);
 
     CRM_Utils_System::flushCache();
 
     return $customField;
+  }
+
+  /**
+   * Create/ update several fields at once in a mysql efficient way.
+   *
+   * https://lab.civicrm.org/dev/core/issues/1093
+   *
+   * The intention is that apiv4 would expose any BAO with bulkSave as a new action.
+   *
+   * @param array $bulkParams
+   *   Array of arrays as would be passed into create
+   * @param array $defaults
+   *  Default parameters to be be merged into each of the params.
+   */
+  public static function bulkSave($bulkParams, $defaults = []) {
+    $sql = $tables = $customFields = [];
+    foreach ($bulkParams as $index => $fieldParams) {
+      $params = array_merge($defaults, $fieldParams);
+      $customField = self::createCustomFieldRecord($params);
+      $fieldSQL = self::getAlterFieldSQL($customField, empty($params['id']) ? 'add' : 'modify');
+      if (!isset($params['custom_group_id'])) {
+        $params['custom_group_id'] = civicrm_api3('CustomField', 'getvalue', ['id' => $customField->id, 'return' => 'custom_group_id']);
+      }
+      if (!isset($params['table_name'])) {
+        if (!isset($tables[$params['custom_group_id']])) {
+          $tables[$params['custom_group_id']] = civicrm_api3('CustomGroup', 'getvalue', [
+            'id' => $params['custom_group_id'],
+            'return' => 'table_name',
+          ]);
+        }
+        $params['table_name'] = $tables[$params['custom_group_id']];
+      }
+      $sql[$params['table_name']][] = $fieldSQL;
+      $customFields[$index] = $customField;
+    }
+    foreach ($sql as $tableName => $statements) {
+      // CRM-7007: do not i18n-rewrite this query
+      CRM_Core_DAO::executeQuery("ALTER TABLE $tableName " . implode(', ', $statements), [], TRUE, NULL, FALSE, FALSE);
+      Civi::service('sql_triggers')->rebuild($params['table_name'], TRUE);
+    }
+    CRM_Utils_System::flushCache();
+    foreach ($customFields as $index => $customField) {
+      CRM_Utils_Hook::post(empty($bulkParams[$index]['id']) ? 'create' : 'edit', 'CustomField', $customField->id, $customField);
+    }
   }
 
   /**
@@ -387,7 +398,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
       }
 
       // check if we can retrieve from database cache
-      $fields = CRM_Core_BAO_Cache::getItem('contact fields', "custom importableFields $cacheKey");
+      $fields = Civi::Cache('fields')->get("custom importableFields $cacheKey");
 
       if ($fields === NULL) {
         $cfTable = self::getTableName();
@@ -530,13 +541,9 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
           // Search table is used by query object searches..
           $fields[$dao->id]['search_table'] = ($fields[$dao->id]['extends_table'] == 'civicrm_contact') ? 'contact_a' : $fields[$dao->id]['extends_table'];
           self::getOptionsForField($fields[$dao->id], $dao->option_group_name);
-
         }
 
-        CRM_Core_BAO_Cache::setItem($fields,
-          'contact fields',
-          "custom importableFields $cacheKey"
-        );
+        Civi::cache('fields')->set("custom importableFields $cacheKey", $fields);
       }
       self::$_importFields[$cacheKey] = $fields;
     }
@@ -1165,7 +1172,16 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
             // In other contexts show a paperclip icon
             if (CRM_Utils_Rule::integer($value)) {
               $icons = CRM_Core_BAO_File::paperIconAttachment('*', $value);
-              $display = $icons[$value] . civicrm_api3('File', 'getvalue', ['return' => "description", 'id' => $value]);
+
+              $file_description = '';
+              try {
+                $file_description = civicrm_api3('File', 'getvalue', ['return' => "description", 'id' => $value]);
+              }
+              catch (CiviCRM_API3_Exception $dontcare) {
+                // don't care
+              }
+
+              $display = "{$icons[$value]}{$file_description}";
             }
             else {
               //CRM-18396, if filename is passed instead
@@ -1678,66 +1694,43 @@ SELECT $columnName
    *
    * @param CRM_Core_DAO_CustomField $field
    * @param string $operation
-   * @param bool $indexExist
-   * @param bool $triggerRebuild
    */
-  public static function createField($field, $operation, $indexExist = FALSE, $triggerRebuild = TRUE) {
-    $tableName = CRM_Core_DAO::getFieldValue(
-      'CRM_Core_DAO_CustomGroup',
-      $field->custom_group_id,
-      'table_name'
-    );
+  public static function createField($field, $operation) {
+    $sql = str_repeat(' ', 8);
+    $tableName = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_CustomGroup', $field->custom_group_id, 'table_name');
+    $sql .= "ALTER TABLE " . $tableName;
+    $sql .= self::getAlterFieldSQL($field, $operation);
 
-    $params = array(
-      'table_name' => $tableName,
-      'operation' => $operation,
-      'name' => $field->column_name,
-      'type' => CRM_Core_BAO_CustomValueTable::fieldToSQLType(
-        $field->data_type,
-        $field->text_length
-      ),
-      'required' => $field->is_required,
-      'searchable' => $field->is_searchable,
-    );
+    // CRM-7007: do not i18n-rewrite this query
+    CRM_Core_DAO::executeQuery($sql, [], TRUE, NULL, FALSE, FALSE);
 
-    if ($operation == 'delete') {
-      $fkName = "{$tableName}_{$field->column_name}";
-      if (strlen($fkName) >= 48) {
-        $fkName = substr($fkName, 0, 32) . '_' . substr(md5($fkName), 0, 16);
+    $config = CRM_Core_Config::singleton();
+    if ($config->logging) {
+      // CRM-16717 not sure why this was originally limited to add.
+      // For example custom tables can have field length changes - which need to flow through to logging.
+      // Are there any modifies we DON'T was to call this function for (& shouldn't it be clever enough to cope?)
+      if ($operation === 'add' || $operation === 'modify') {
+        $logging = new CRM_Logging_Schema();
+        $logging->fixSchemaDifferencesFor($tableName, [trim(strtoupper($operation)) => [$field->column_name]]);
       }
-      $params['fkName'] = $fkName;
-    }
-    if ($field->data_type == 'Country' && $field->html_type == 'Select Country') {
-      $params['fk_table_name'] = 'civicrm_country';
-      $params['fk_field_name'] = 'id';
-      $params['fk_attributes'] = 'ON DELETE SET NULL';
-    }
-    elseif ($field->data_type == 'Country' && $field->html_type == 'Multi-Select Country') {
-      $params['type'] = 'varchar(255)';
-    }
-    elseif ($field->data_type == 'StateProvince' && $field->html_type == 'Select State/Province') {
-      $params['fk_table_name'] = 'civicrm_state_province';
-      $params['fk_field_name'] = 'id';
-      $params['fk_attributes'] = 'ON DELETE SET NULL';
-    }
-    elseif ($field->data_type == 'StateProvince' && $field->html_type == 'Multi-Select State/Province') {
-      $params['type'] = 'varchar(255)';
-    }
-    elseif ($field->data_type == 'File') {
-      $params['fk_table_name'] = 'civicrm_file';
-      $params['fk_field_name'] = 'id';
-      $params['fk_attributes'] = 'ON DELETE SET NULL';
-    }
-    elseif ($field->data_type == 'ContactReference') {
-      $params['fk_table_name'] = 'civicrm_contact';
-      $params['fk_field_name'] = 'id';
-      $params['fk_attributes'] = 'ON DELETE SET NULL';
-    }
-    if (isset($field->default_value)) {
-      $params['default'] = "'{$field->default_value}'";
     }
 
-    CRM_Core_BAO_SchemaHandler::alterFieldSQL($params, $indexExist, $triggerRebuild);
+    Civi::service('sql_triggers')->rebuild($tableName, TRUE);
+  }
+
+  /**
+   * @param CRM_Core_DAO_CustomField $field
+   * @param string $operation
+   *
+   * @return bool
+   */
+  public static function getAlterFieldSQL($field, $operation) {
+    $indexExist = $operation === 'add' ? FALSE : CRM_Core_DAO::getFieldValue('CRM_Core_DAO_CustomField', $field->id, 'is_searchable');
+    $params = self::prepareCreateParams($field, $operation);
+    // Let's suppress the required flag, since that can cause an sql issue... for unknown reasons since we are calling
+    // a function only used by Custom Field creation...
+    $params['required'] = FALSE;
+    return CRM_Core_BAO_SchemaHandler::getFieldAlterSQL($params, $indexExist);
   }
 
   /**
@@ -1915,13 +1908,13 @@ WHERE  id IN ( %1, %2 )
    * This could be called by a single create or a batchCreate.
    *
    * @param array $params
-   * @param string $op
    *
    * @return array
    */
-  protected static function prepareCreate($params, $op) {
-
+  protected static function prepareCreate($params) {
+    $op = empty($params['id']) ? 'create' : 'edit';
     CRM_Utils_Hook::pre($op, 'CustomField', CRM_Utils_Array::value('id', $params), $params);
+    $params['is_append_field_id_to_column_name'] = !isset($params['column_name']);
     if ($op === 'create') {
       CRM_Core_DAO::setCreateDefaults($params, self::getDefaults());
       if (!isset($params['column_name'])) {
@@ -2027,6 +2020,39 @@ WHERE  id IN ( %1, %2 )
       $params['attributes'] = 'rows=4, cols=60';
     }
     return $params;
+  }
+
+  /**
+   * Create database entry for custom field and related option groups.
+   *
+   * @param array $params
+   *
+   * @return CRM_Core_DAO_CustomField
+   */
+  protected static function createCustomFieldRecord($params) {
+    $transaction = new CRM_Core_Transaction();
+    $params = self::prepareCreate($params);
+
+    $customField = new CRM_Core_DAO_CustomField();
+    $customField->copyValues($params);
+    $customField->save();
+
+    //create/drop the index when we toggle the is_searchable flag
+    $op = empty($params['id']) ? 'add' : 'modify';
+    if ($op !== 'modify') {
+      if ($params['is_append_field_id_to_column_name']) {
+        $params['column_name'] .= "_{$customField->id}";
+      }
+      $customField->column_name = $params['column_name'];
+      $customField->save();
+    }
+
+    // complete transaction - note that any table alterations include an implicit commit so this is largely meaningless.
+    $transaction->commit();
+
+    // make sure all values are present in the object for further processing
+    $customField->find(TRUE);
+    return $customField;
   }
 
   /**
@@ -2208,7 +2234,7 @@ INNER JOIN  civicrm_custom_field f ON ( g.id = f.option_group_id )
     );
     // get the updated option group
     // if both are same return
-    if ($currentOptionGroupId == $optionGroupId) {
+    if (!$currentOptionGroupId || $currentOptionGroupId == $optionGroupId) {
       return;
     }
 
@@ -2623,6 +2649,70 @@ WHERE cf.id = %1 AND cg.is_multiple = 1";
         'labelColumn' => 'name',
       );
     }
+  }
+
+  /**
+   * @param CRM_Core_DAO_CustomField $field
+   * @param 'add|modify' $operation
+   *
+   * @return array
+   */
+  protected static function prepareCreateParams($field, $operation) {
+    $tableName = CRM_Core_DAO::getFieldValue(
+      'CRM_Core_DAO_CustomGroup',
+      $field->custom_group_id,
+      'table_name'
+    );
+
+    $params = [
+      'table_name' => $tableName,
+      'operation' => $operation,
+      'name' => $field->column_name,
+      'type' => CRM_Core_BAO_CustomValueTable::fieldToSQLType(
+        $field->data_type,
+        $field->text_length
+      ),
+      'required' => $field->is_required,
+      'searchable' => $field->is_searchable,
+    ];
+
+    if ($operation == 'delete') {
+      $fkName = "{$tableName}_{$field->column_name}";
+      if (strlen($fkName) >= 48) {
+        $fkName = substr($fkName, 0, 32) . '_' . substr(md5($fkName), 0, 16);
+      }
+      $params['fkName'] = $fkName;
+    }
+    if ($field->data_type == 'Country' && $field->html_type == 'Select Country') {
+      $params['fk_table_name'] = 'civicrm_country';
+      $params['fk_field_name'] = 'id';
+      $params['fk_attributes'] = 'ON DELETE SET NULL';
+    }
+    elseif ($field->data_type == 'Country' && $field->html_type == 'Multi-Select Country') {
+      $params['type'] = 'varchar(255)';
+    }
+    elseif ($field->data_type == 'StateProvince' && $field->html_type == 'Select State/Province') {
+      $params['fk_table_name'] = 'civicrm_state_province';
+      $params['fk_field_name'] = 'id';
+      $params['fk_attributes'] = 'ON DELETE SET NULL';
+    }
+    elseif ($field->data_type == 'StateProvince' && $field->html_type == 'Multi-Select State/Province') {
+      $params['type'] = 'varchar(255)';
+    }
+    elseif ($field->data_type == 'File') {
+      $params['fk_table_name'] = 'civicrm_file';
+      $params['fk_field_name'] = 'id';
+      $params['fk_attributes'] = 'ON DELETE SET NULL';
+    }
+    elseif ($field->data_type == 'ContactReference') {
+      $params['fk_table_name'] = 'civicrm_contact';
+      $params['fk_field_name'] = 'id';
+      $params['fk_attributes'] = 'ON DELETE SET NULL';
+    }
+    if (isset($field->default_value)) {
+      $params['default'] = "'{$field->default_value}'";
+    }
+    return $params;
   }
 
 }

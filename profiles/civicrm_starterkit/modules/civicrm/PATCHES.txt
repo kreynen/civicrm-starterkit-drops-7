@@ -1,6 +1,5 @@
 The following patches have been applied to this project:
 - pantheon-settings-starterkit-55.patch
-- public_files_config.patch
 - cron.patch
 - extern-cms-bootstrap.patch
 - ipn.patch

@@ -95,7 +95,7 @@ class CRM_Core_BAO_Cache_Psr16 {
           'path' => $path,
         ]);
     }
-    return self::getGroup($group)->get(CRM_Core_BAO_Cache::cleanKey($path));
+    return self::getGroup($group)->get(CRM_Utils_Cache::cleanKey($path));
   }
 
   /**
@@ -138,7 +138,7 @@ class CRM_Core_BAO_Cache_Psr16 {
         ]);
     }
     self::getGroup($group)
-      ->set(CRM_Core_BAO_Cache::cleanKey($path), $data, self::TTL);
+      ->set(CRM_Utils_Cache::cleanKey($path), $data, self::TTL);
   }
 
   /**
@@ -153,7 +153,7 @@ class CRM_Core_BAO_Cache_Psr16 {
     // FIXME: Generate a general deprecation notice.
 
     if ($path) {
-      self::getGroup($group)->delete(CRM_Core_BAO_Cache::cleanKey($path));
+      self::getGroup($group)->delete(CRM_Utils_Cache::cleanKey($path));
     }
     else {
       self::getGroup($group)->clear();
@@ -181,15 +181,7 @@ class CRM_Core_BAO_Cache_Psr16 {
    */
   public static function getLegacyGroups() {
     $groups = [
-      // Core
-      'contact fields',
-      'navigation',
-      'custom data',
-
       // Universe
-
-      // be.chiro.civi.atomfeeds
-      'dashboard',
 
       // biz.jmaconsulting.lineitemedit
       'lineitem-editor',
@@ -220,6 +212,17 @@ class CRM_Core_BAO_Cache_Psr16 {
           ['civi.tag' => 'deprecated']
         );
         $groups[] = 'CiviCRM setting Spec';
+      }
+    }
+    $atomFeedsSettingExtensionStatus = $extensions->getStatus('be.chiro.civi.atomfeeds');
+    if ($atomFeedsSettingExtensionStatus == $extensions::STATUS_INSTALLED) {
+      $extension_version = civicrm_api3('Extension', 'get', ['key' => 'be.chiro.civi.atomfeeds'])['values'][0]['version'];
+      if (version_compare($extension_version, '0.1-alpha2', '<')) {
+        Civi::log()->warning(
+          'CRM_Core_BAO_Cache_PSR is deprecated for Atomfeeds extension, you should upgrade to the latest version to avoid this warning, this code will be removed at the end of 2019',
+          ['civi.tag' => 'deprecated']
+        );
+        $groups[] = 'dashboard';
       }
     }
     return $groups;

@@ -48,10 +48,15 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
    */
   public static function getFields($checkPermission = TRUE) {
     if (!isset(\Civi::$statics[__CLASS__]) || !isset(\Civi::$statics[__CLASS__]['fields']) || !isset(\Civi::$statics[__CLASS__]['fields']['contribution'])) {
-      // Adding fields with some care as those without unique names could clobber others.
-      // Refer to CRM_Contribute_Form_SearchTest for existing tests ... and to add more!
-      $testedRecurFields = array_fill_keys(['contribution_recur_trxn_id', 'contribution_recur_processor_id', 'contribution_recur_payment_processor_id'], 1);
-      $recurFields = array_intersect_key(CRM_Contribute_DAO_ContributionRecur::fields(), $testedRecurFields);
+      $recurFields = CRM_Contribute_DAO_ContributionRecur::fields();
+      foreach ($recurFields as $fieldKey => $field) {
+        // We can only safely add in those with unique names as those without could clobber others.
+        // The array is keyed by unique names so if it doesn't match the key there is no unique name & we unset
+        // Refer to CRM_Contribute_Form_SearchTest for existing tests ... and to add more!
+        if ($field['name'] === $fieldKey) {
+          unset($recurFields[$fieldKey]);
+        }
+      }
       $fields = array_merge($recurFields, CRM_Contribute_BAO_Contribution::exportableFields($checkPermission));
       CRM_Contribute_BAO_Contribution::appendPseudoConstantsToFields($fields);
       unset($fields['contribution_contact_id']);
@@ -155,13 +160,6 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
       $quoteValue = "\"$value\"";
     }
 
-    $recurrringFields = CRM_Contribute_BAO_ContributionRecur::getRecurringFields();
-    unset($recurrringFields['contribution_recur_payment_made']);
-    foreach ($recurrringFields as $dateField => $dateFieldTitle) {
-      if (self::buildDateWhere($values, $query, $name, $dateField, $dateFieldTitle)) {
-        return;
-      }
-    }
     // These are legacy names.
     // @todo enotices when these are hit so we can start to elimnate them.
     $fieldAliases = [
@@ -179,6 +177,18 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
       $qillName = array_search($name, $fieldAliases);
     }
     $pseudoExtraParam = [];
+    $fieldName = str_replace(['_high', '_low'], '', $name);
+    $fieldSpec = CRM_Utils_Array::value($fieldName, $fields, []);
+    $tableName = CRM_Utils_Array::value('table_name', $fieldSpec, 'civicrm_contribution');
+    $dataType = CRM_Utils_Type::typeToString(CRM_Utils_Array::value('type', $fieldSpec));
+    if ($dataType === 'Timestamp' || $dataType === 'Date') {
+      $title = empty($fieldSpec['unique_title']) ? $fieldSpec['title'] : $fieldSpec['unique_title'];
+      $query->_tables['civicrm_contribution'] = $query->_whereTables['civicrm_contribution'] = 1;
+      $query->dateQueryBuilder($values,
+        $tableName, $fieldName, $fieldSpec['name'], $title
+      );
+      return;
+    }
 
     switch ($name) {
       case 'contribution_date':
@@ -230,17 +240,6 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
         $query->_tables['civicrm_contribution'] = $query->_whereTables['civicrm_contribution'] = 1;
         return;
 
-      case 'contribution_cancel_date':
-      case 'contribution_cancel_date_low':
-      case 'contribution_cancel_date_low_time':
-      case 'contribution_cancel_date_high':
-      case 'contribution_cancel_date_high_time':
-        // process to / from date
-        $query->dateQueryBuilder($values,
-          'civicrm_contribution', 'contribution_cancel_date', 'cancel_date', ts('Cancelled / Refunded Date')
-        );
-        return;
-
       case 'financial_type_id':
       case 'invoice_id':
       case 'invoice_number':
@@ -256,7 +255,6 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
       case 'contribution_check_number':
       case 'contribution_contact_id':
       case (strpos($name, '_amount') !== FALSE):
-      case (strpos($name, '_date') !== FALSE && $name != 'contribution_fulfilled_date'):
       case 'contribution_campaign_id':
 
         $fieldNamesNotToStripContributionFrom = [
@@ -516,7 +514,7 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
         $query->_qill[$grouping][] = "$whereTable[title] $op $quoteValue";
         list($tableName) = explode('.', $whereTable['where'], 2);
         $query->_tables[$tableName] = $query->_whereTables[$tableName] = 1;
-        if ($tableName == 'civicrm_contribution_product') {
+        if ($tableName === 'civicrm_contribution_product') {
           $query->_tables['civicrm_product'] = $query->_whereTables['civicrm_product'] = 1;
           $query->_tables['civicrm_contribution'] = $query->_whereTables['civicrm_contribution'] = 1;
         }
@@ -542,7 +540,7 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
         $from = " $side JOIN civicrm_contribution ON civicrm_contribution.contact_id = contact_a.id ";
         if (in_array(self::$_contribOrSoftCredit, ["only_scredits", "both_related", "both"])) {
           // switch the from table if its only soft credit search
-          $from = " $side JOIN contribution_search_scredit_combined ON contribution_search_scredit_combined.contact_id = contact_a.id ";
+          $from = " $side JOIN " . \Civi::$statics[__CLASS__]['soft_credit_temp_table_name'] . " as contribution_search_scredit_combined ON contribution_search_scredit_combined.contact_id = contact_a.id ";
           $from .= " $side JOIN civicrm_contribution ON civicrm_contribution.id = contribution_search_scredit_combined.id ";
           $from .= " $side JOIN civicrm_contribution_soft ON civicrm_contribution_soft.id = contribution_search_scredit_combined.scredit_id";
         }
@@ -695,7 +693,6 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
    * @return bool
    */
   public static function isSoftCreditOptionEnabled($queryParams = []) {
-    static $tempTableFilled = FALSE;
     if (!empty($queryParams)) {
       foreach (array_keys($queryParams) as $id) {
         if (empty($queryParams[$id][0])) {
@@ -708,20 +705,20 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
     }
     if (in_array(self::$_contribOrSoftCredit,
       ["only_scredits", "both_related", "both"])) {
-      if (!$tempTableFilled) {
+      if (!isset(\Civi::$statics[__CLASS__]['soft_credit_temp_table_name'])) {
         // build a temp table which is union of contributions and soft credits
         // note: group-by in first part ensures uniqueness in counts
-        $tempQuery = "
-            CREATE TEMPORARY TABLE IF NOT EXISTS contribution_search_scredit_combined AS
+        $tempQuery = '
                SELECT con.id as id, con.contact_id, cso.id as filter_id, NULL as scredit_id
                  FROM civicrm_contribution con
             LEFT JOIN civicrm_contribution_soft cso ON con.id = cso.contribution_id
              GROUP BY id, contact_id, scredit_id, cso.id
             UNION ALL
                SELECT scredit.contribution_id as id, scredit.contact_id, scredit.id as filter_id, scredit.id as scredit_id
-                 FROM civicrm_contribution_soft as scredit";
-        CRM_Core_DAO::executeQuery($tempQuery);
-        $tempTableFilled = TRUE;
+                 FROM civicrm_contribution_soft as scredit';
+        \Civi::$statics[__CLASS__]['soft_credit_temp_table_name'] = CRM_Utils_SQL_TempTable::build()->createWithQuery(
+          $tempQuery
+        )->getName();
       }
       return TRUE;
     }
@@ -946,6 +943,7 @@ class CRM_Contribute_BAO_Query extends CRM_Core_BAO_Query {
   public static function buildSearchForm(&$form) {
 
     $form->addSearchFieldMetadata(['Contribution' => self::getSearchFieldMetadata()]);
+    $form->addSearchFieldMetadata(['ContributionRecur' => CRM_Contribute_BAO_ContributionRecur::getContributionRecurSearchFieldMetadata()]);
     $form->addFormFieldsFromMetadata();
 
     $form->add('text', 'contribution_amount_low', ts('From'), ['size' => 8, 'maxlength' => 8]);

@@ -46,7 +46,6 @@ class Container {
    *   - CIVICRM_CONTAINER_CACHE -- 'always' [default], 'never', 'auto'
    *   - CIVICRM_DSN
    *   - CIVICRM_DOMAIN_ID
-   *   - CIVICRM_TEMPLATE_COMPILEDIR
    *
    * @return \Symfony\Component\DependencyInjection\ContainerInterface
    */
@@ -58,14 +57,14 @@ class Container {
     $cacheMode = defined('CIVICRM_CONTAINER_CACHE') ? CIVICRM_CONTAINER_CACHE : 'auto';
 
     // In pre-installation environments, don't bother with caching.
-    if (!defined('CIVICRM_TEMPLATE_COMPILEDIR') || !defined('CIVICRM_DSN') || $cacheMode === 'never' || \CRM_Utils_System::isInUpgradeMode()) {
+    if (!defined('CIVICRM_DSN') || $cacheMode === 'never' || \CRM_Utils_System::isInUpgradeMode()) {
       $containerBuilder = $this->createContainer();
       $containerBuilder->compile();
       return $containerBuilder;
     }
 
     $envId = \CRM_Core_Config_Runtime::getId();
-    $file = CIVICRM_TEMPLATE_COMPILEDIR . "/CachedCiviContainer.{$envId}.php";
+    $file = \Civi::paths()->getPath("[civicrm.compile]/CachedCiviContainer.{$envId}.php");
     $containerConfigCache = new ConfigCache($file, $cacheMode === 'auto');
     if (!$containerConfigCache->isFresh()) {
       $containerBuilder = $this->createContainer();
@@ -157,6 +156,9 @@ class Container {
       'session' => 'CiviCRM Session',
       'long' => 'long',
       'groups' => 'contact groups',
+      'navigation' => 'navigation',
+      'customData' => 'custom data',
+      'fields' => 'contact fields',
     ];
     foreach ($basicCaches as $cacheSvc => $cacheGrp) {
       $definitionParams = [
@@ -166,7 +168,7 @@ class Container {
       // For Caches that we don't really care about the ttl for and/or maybe accessed
       // fairly often we use the fastArrayDecorator which improves reads and writes, these
       // caches should also not have concurrency risk.
-      $fastArrayCaches = ['groups'];
+      $fastArrayCaches = ['groups', 'navigation', 'customData', 'fields'];
       if (in_array($cacheSvc, $fastArrayCaches)) {
         $definitionParams['withArray'] = 'fast';
       }

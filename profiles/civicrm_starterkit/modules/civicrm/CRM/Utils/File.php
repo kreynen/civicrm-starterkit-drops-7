@@ -577,68 +577,39 @@ HTACCESS;
   }
 
   /**
-   * Create the base public file path from which all our internal directories are
-   * offset. This is derived from the template compile directory set if [civicrm.files]
-   * isn't set.
+   * (Deprecated) Create the file-path from which all other internal paths are
+   * computed. This implementation determines it as `dirname(CIVICRM_TEMPLATE_COMPILEDIR)`.
+   *
+   * This approach is problematic - e.g. it prevents one from authentically
+   * splitting the CIVICRM_TEMPLATE_COMPILEDIR away from other dirs. The implementation
+   * is preserved for backwards compatibility (and should only be called by
+   * CMS-adapters and by Civi\Core\Paths).
+   *
+   * Do not use it for new path construction logic. Instead, use Civi::paths().
+   *
+   * @deprecated
+   * @see \Civi::paths()
+   * @see \Civi\Core\Paths
    */
   public static function baseFilePath() {
     static $_path = NULL;
     if (!$_path) {
-      if (!empty($GLOBALS['civicrm_paths']['civicrm.files']['path'])) {
-        $path = $GLOBALS['civicrm_paths']['civicrm.files']['path'];
-      } else {
-        // Note: Don't rely on $config; that creates a dependency loop.
-        if (!defined('CIVICRM_TEMPLATE_COMPILEDIR')) {
-          throw new RuntimeException("Undefined constant: CIVICRM_TEMPLATE_COMPILEDIR");
-        }
-        $templateCompileDir = CIVICRM_TEMPLATE_COMPILEDIR;
+      // Note: Don't rely on $config; that creates a dependency loop.
+      if (!defined('CIVICRM_TEMPLATE_COMPILEDIR')) {
+        throw new RuntimeException("Undefined constant: CIVICRM_TEMPLATE_COMPILEDIR");
+      }
+      $templateCompileDir = CIVICRM_TEMPLATE_COMPILEDIR;
 
-        $path = dirname($templateCompileDir);
+      $path = dirname($templateCompileDir);
 
-        //this fix is to avoid creation of upload dirs inside templates_c directory
-        $checkPath = explode(DIRECTORY_SEPARATOR, $path);
+      //this fix is to avoid creation of upload dirs inside templates_c directory
+      $checkPath = explode(DIRECTORY_SEPARATOR, $path);
 
-        $cnt = count($checkPath) - 1;
-        if ($checkPath[$cnt] == 'templates_c') {
-          unset($checkPath[$cnt]);
-          $path = implode(DIRECTORY_SEPARATOR, $checkPath);
-        }
-       }
-
-       $_path = CRM_Utils_File::addTrailingSlash($path);
-     }
-
-     return $_path;
-   }
-
-  /**
-   * Create the base private file path from which all our internal directories are
-   * offset. This is derived from the template compile directory set if [civicrm.private]
-   * isn't set.
-   */
-  public static function basePrivateFilePath() {
-    static $_path = NULL;
-    if (!$_path) {
-      if (!empty($GLOBALS['civicrm_paths']['civicrm.private']['path'])) {
-        $path = $GLOBALS['civicrm_paths']['civicrm.private']['path'];
-      } else {
-        // Note: Don't rely on $config; that creates a dependency loop.
-        if (!defined('CIVICRM_TEMPLATE_COMPILEDIR')) {
-          throw new RuntimeException("Undefined constant: CIVICRM_TEMPLATE_COMPILEDIR");
-        }
-        $templateCompileDir = CIVICRM_TEMPLATE_COMPILEDIR;
-
-        $path = dirname($templateCompileDir);
-
-        //this fix is to avoid creation of upload dirs inside templates_c directory
-        $checkPath = explode(DIRECTORY_SEPARATOR, $path);
-
-        $cnt = count($checkPath) - 1;
-        if ($checkPath[$cnt] == 'templates_c') {
-          unset($checkPath[$cnt]);
-          $path = implode(DIRECTORY_SEPARATOR, $checkPath);
-        }
-       }
+      $cnt = count($checkPath) - 1;
+      if ($checkPath[$cnt] == 'templates_c') {
+        unset($checkPath[$cnt]);
+        $path = implode(DIRECTORY_SEPARATOR, $checkPath);
+      }
 
       $_path = CRM_Utils_File::addTrailingSlash($path);
     }
@@ -669,6 +640,10 @@ HTACCESS;
    * @param $directory
    *
    * @return string
+   * @deprecated
+   *   Computation of a relative path requires some base.
+   *   This implementation is problematic because it relies on an
+   *   implicit base which was constructed problematically.
    */
   public static function relativeDirectory($directory) {
     // Do nothing on windows
@@ -695,12 +670,12 @@ HTACCESS;
 
   /**
    * @param $directory
-   * @param string|NULL $basePath
+   * @param string $basePath
    *   The base path when evaluating relative paths. Should include trailing slash.
    *
    * @return string
    */
-  public static function absoluteDirectory($directory, $basePath = NULL) {
+  public static function absoluteDirectory($directory, $basePath) {
     // check if directory is already absolute, if so return immediately
     // Note: Windows PHP accepts any mix of "/" or "\", so "C:\htdocs" or "C:/htdocs" would be a valid absolute path
     if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' && preg_match(';^[a-zA-Z]:[/\\\\];', $directory)) {
@@ -712,8 +687,12 @@ HTACCESS;
       return $directory;
     }
 
-    // make everything absolute from the baseFilePath
-    $basePath = ($basePath === NULL) ? self::baseFilePath() : $basePath;
+    if ($basePath === NULL) {
+      // Previous versions interpreted `NULL` to mean "default to `self::baseFilePath()`".
+      // However, no code in the known `universe` relies on this interpretation, and
+      // the `baseFilePath()` function is problematic/deprecated.
+      throw new \RuntimeException("absoluteDirectory() requires specifying a basePath");
+    }
 
     // ensure that $basePath has a trailing slash
     $basePath = self::addTrailingSlash($basePath);

@@ -430,12 +430,10 @@ AND    (TABLE_NAME LIKE 'log_civicrm_%' $nonStandardTableNameString )
    *   name of the relevant table.
    * @param array $cols
    *   Mixed array of columns to add or null (to check for the missing columns).
-   * @param bool $rebuildTrigger
-   *   should we rebuild the triggers.
    *
    * @return bool
    */
-  public function fixSchemaDifferencesFor($table, $cols = [], $rebuildTrigger = FALSE) {
+  public function fixSchemaDifferencesFor($table, $cols = []) {
     if (empty($table)) {
       return FALSE;
     }
@@ -469,10 +467,6 @@ AND    (TABLE_NAME LIKE 'log_civicrm_%' $nonStandardTableNameString )
       }
     }
 
-    if ($rebuildTrigger) {
-      // invoke the meta trigger creation call
-      CRM_Core_DAO::triggerRebuild($table);
-    }
     return TRUE;
   }
 
@@ -523,7 +517,7 @@ AND    (TABLE_NAME LIKE 'log_civicrm_%' $nonStandardTableNameString )
     }
 
     foreach ($diffs as $table => $cols) {
-      $this->fixSchemaDifferencesFor($table, $cols, FALSE);
+      $this->fixSchemaDifferencesFor($table, $cols);
     }
     if ($rebuildTrigger) {
       // invoke the meta trigger creation call
@@ -919,6 +913,13 @@ COLS;
 
     // logging is enabled, so now lets create the trigger info tables
     foreach ($tableNames as $table) {
+      if (!isset($this->logTableSpec[$table])) {
+        // Per testIgnoreCustomTableByHook this would be unset if a hook had
+        // intervened to prevent logging / triggers on this table.
+        // This could go to the extent of blocking the updates to 'modified_date'
+        // which makes sense, in particular, for calculated fields.
+        continue;
+      }
       $columns = $this->columnsOf($table, $force);
 
       // only do the change if any data has changed

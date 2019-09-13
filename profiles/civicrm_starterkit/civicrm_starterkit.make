@@ -13,17 +13,13 @@ projects[drupal][version] = "7.61"
 ; ====== CIVICRM RELATED =========
 
 libraries[civicrm][download][type] = get
-libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.16.1-drupal.tar.gz"
+libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.17.4-drupal.tar.gz"
 libraries[civicrm][destination] = modules
 libraries[civicrm][directory_name] = civicrm
 
 ;PANTHEON RELATED PATCHES
 ; Settings for Pantheon (d.o/node/2082713 originally)
-; Private folders: https://civicrm.org/advisory/civi-sa-2014-001-risk-information-disclosure
-; Define [civicrm.files] and [civicrm.private] paths since there is no htaccess file
-; to set public/private folders.
 libraries[civicrm][patch][pantheonsettings] = ./patches/pantheon-settings-starterkit-55.patch
-libraries[civicrm][patch][publicfiledir] = ./patches/public_files_config.patch
 
 ; Set session for cron.
 ; Matches settings in CiviCRM core for extern/*.

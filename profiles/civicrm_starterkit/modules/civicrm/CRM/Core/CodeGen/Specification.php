@@ -368,6 +368,7 @@ class CRM_Core_CodeGen_Specification {
     $field['headerPattern'] = $this->value('headerPattern', $fieldXML);
     $field['dataPattern'] = $this->value('dataPattern', $fieldXML);
     $field['uniqueName'] = $this->value('uniqueName', $fieldXML);
+    $field['uniqueTitle'] = $this->value('uniqueTitle', $fieldXML);
     $field['serialize'] = $this->value('serialize', $fieldXML);
     $field['html'] = $this->value('html', $fieldXML);
     if (isset($fieldXML->permission)) {
@@ -429,6 +430,8 @@ class CRM_Core_CodeGen_Specification {
         'labelColumn',
         // Non-translated machine name for programmatic lookup. Defaults to 'name' if that column exists
         'nameColumn',
+        // Column to fetch in "abbreviate" context
+        'abbrColumn',
         // Where clause snippet (will be joined to the rest of the query with AND operator)
         'condition',
         // callback function incase of static arrays

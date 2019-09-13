@@ -118,7 +118,7 @@ class CRM_Core_IDS {
    */
   public static function createBaseConfig() {
     $config = \CRM_Core_Config::singleton();
-    $tmpDir = empty($config->uploadDir) ? CIVICRM_TEMPLATE_COMPILEDIR : $config->uploadDir;
+    $tmpDir = empty($config->uploadDir) ? Civi::paths()->getVariable('civicrm.compile', 'path') : $config->uploadDir;
     global $civicrm_root;
 
     return [
@@ -247,10 +247,8 @@ class CRM_Core_IDS {
    * @return bool
    */
   private function log($result, $reaction = 0) {
-    $ip = (isset($_SERVER['SERVER_ADDR']) &&
-      $_SERVER['SERVER_ADDR'] != '127.0.0.1') ? $_SERVER['SERVER_ADDR'] : (
-      isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : '127.0.0.1'
-      );
+    // Include X_FORWARD_FOR ip address if set as per IDS patten.
+    $ip = $_SERVER['REMOTE_ADDR'] . (isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? ' (' . $_SERVER['HTTP_X_FORWARDED_FOR'] . ')' : '');
 
     $data = [];
     $session = CRM_Core_Session::singleton();
