@@ -13,7 +13,7 @@ projects[drupal][version] = "7.61"
 ; ====== CIVICRM RELATED =========
 
 libraries[civicrm][download][type] = get
-libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.17.4-drupal.tar.gz"
+libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.19.1-drupal.tar.gz"
 libraries[civicrm][destination] = modules
 libraries[civicrm][directory_name] = civicrm
 
@@ -33,8 +33,8 @@ libraries[civicrm][patch][ipn] = ./patches/ipn.patch
 libraries[civicrm][patch][ipnstd] = ./patches/ipnStd.patch
 
 ; May be necessary where extension, etc paths are cached but Pantheon changes binding
-; https://www.drupal.org/node/2347897
-libraries[civicrm][patch][2347897] = ./patches/binding-extension-47-2347897.patch
+; https://lab.civicrm.org/dev/cloud-native/issues/21
+libraries[civicrm][patch][cloud-21] = ./patches/issue-21-cloud-friendly-extensions-mapper.patch
 
 ; === Installer ===
 

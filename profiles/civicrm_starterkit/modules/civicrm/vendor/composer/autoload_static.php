@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5
+class ComposerStaticInit9e8f3a34b149e5d9ad0b5dd7250ff3d0
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -58,6 +58,7 @@ class ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5
         'L' => 
         array (
             'League\\Csv\\' => 11,
+            'LastCall\\DownloadsPlugin\\' => 25,
         ),
         'G' => 
         array (
@@ -170,6 +171,10 @@ class ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5
         array (
             0 => __DIR__ . '/..' . '/league/csv/src',
         ),
+        'LastCall\\DownloadsPlugin\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/civicrm/composer-downloads-plugin/src',
+        ),
         'GuzzleHttp\\Psr7\\' => 
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/psr7/src',
@@ -210,6 +215,13 @@ class ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5
             'Validate' => 
             array (
                 0 => __DIR__ . '/..' . '/pear/validate_finance_creditcard',
+            ),
+        ),
+        'T' => 
+        array (
+            'TOGoS_GitIgnore_' => 
+            array (
+                0 => __DIR__ . '/..' . '/togos/gitignore/src/main/php',
             ),
         ),
         'S' => 
@@ -456,11 +468,11 @@ class ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5::$prefixesPsr0;
-            $loader->fallbackDirsPsr0 = ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5::$fallbackDirsPsr0;
-            $loader->classMap = ComposerStaticInit3324202d05d7a3ae8de98f2b862178d5::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit9e8f3a34b149e5d9ad0b5dd7250ff3d0::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit9e8f3a34b149e5d9ad0b5dd7250ff3d0::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit9e8f3a34b149e5d9ad0b5dd7250ff3d0::$prefixesPsr0;
+            $loader->fallbackDirsPsr0 = ComposerStaticInit9e8f3a34b149e5d9ad0b5dd7250ff3d0::$fallbackDirsPsr0;
+            $loader->classMap = ComposerStaticInit9e8f3a34b149e5d9ad0b5dd7250ff3d0::$classMap;
 
         }, null, ClassLoader::class);
     }

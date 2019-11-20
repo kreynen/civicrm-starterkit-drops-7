@@ -457,7 +457,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
         $participantCount[$participantNum] = 'participant';
       }
       $totalTaxAmount += CRM_Utils_Array::value('tax_amount', $record, 0);
-      if (CRM_Utils_Array::value('is_primary', $record)) {
+      if (!empty($record['is_primary'])) {
         $taxAmount = &$params[$participantNum]['tax_amount'];
       }
       //lets get additional participant id to cancel.
@@ -928,7 +928,6 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
 
         //send mail to primary as well as additional participants.
         $this->assign('contactID', $contactId);
-        $this->assign('participantID', $participantID);
         CRM_Event_BAO_Event::sendMail($contactId, $this->_values, $participantID, $isTest);
       }
     }
@@ -1302,8 +1301,8 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
     // This happens in buildQuickForm so emulate here.
     $form->_amount = $form->_totalAmount = CRM_Utils_Rule::cleanMoney(CRM_Utils_Array::value('totalAmount', $params));
     $form->set('params', $params['params']);
-    $form->_values['custom_pre_id'] = [];
-    $form->_values['custom_post_id'] = [];
+    $form->_values['custom_pre_id'] = CRM_Utils_Array::value('custom_pre_id', $params);
+    $form->_values['custom_post_id'] = CRM_Utils_Array::value('custom_post_id', $params);
     $form->_values['event'] = CRM_Utils_Array::value('event', $params);
     $form->_contributeMode = $params['contributeMode'];
     $eventParams = ['id' => $params['id']];

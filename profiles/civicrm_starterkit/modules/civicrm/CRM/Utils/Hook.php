@@ -335,7 +335,7 @@ abstract class CRM_Utils_Hook {
    * @param $moduleList
    */
   public function requireCiviModules(&$moduleList) {
-    $civiModules = CRM_Core_PseudoConstant::getModuleExtensions('NOCACHE');
+    $civiModules = CRM_Core_PseudoConstant::getModuleExtensions();
     foreach ($civiModules as $civiModule) {
       if (!file_exists($civiModule['filePath'])) {
         CRM_Core_Session::setStatus(
@@ -1368,7 +1368,7 @@ abstract class CRM_Utils_Hook {
    *
    * @return mixed
    */
-  public static function export(&$exportTempTable, &$headerRows, &$sqlColumns, &$exportMode, &$componentTable, &$ids) {
+  public static function export(&$exportTempTable, &$headerRows, &$sqlColumns, $exportMode, $componentTable, $ids) {
     return self::singleton()->invoke(['exportTempTable', 'headerRows', 'sqlColumns', 'exportMode', 'componentTable', 'ids'],
       $exportTempTable, $headerRows, $sqlColumns,
       $exportMode, $componentTable, $ids,
@@ -2498,9 +2498,10 @@ abstract class CRM_Utils_Hook {
    * @see CRM_Core_Resources::entityRefFilters
    *
    * @param array $filters
+   * @param array $links
    */
-  public static function entityRefFilters(&$filters) {
-    self::singleton()->invoke(['filters'], $filters, self::$_nullObject, self::$_nullObject,
+  public static function entityRefFilters(&$filters, &$links = NULL) {
+    self::singleton()->invoke(['filters', 'links'], $filters, $links, self::$_nullObject,
       self::$_nullObject, self::$_nullObject, self::$_nullObject,
       'civicrm_entityRefFilters'
     );

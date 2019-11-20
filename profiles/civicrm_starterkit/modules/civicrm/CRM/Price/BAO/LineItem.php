@@ -70,7 +70,7 @@ class CRM_Price_BAO_LineItem extends CRM_Price_DAO_LineItem {
         $params['unit_price'] = 0;
       }
     }
-    if (CRM_Financial_BAO_FinancialType::isACLFinancialTypeStatus() && CRM_Utils_Array::value('check_permissions', $params)) {
+    if (CRM_Financial_BAO_FinancialType::isACLFinancialTypeStatus() && !empty($params['check_permissions'])) {
       if (empty($params['financial_type_id'])) {
         throw new Exception('Mandatory key(s) missing from params array: financial_type_id');
       }
@@ -90,6 +90,9 @@ class CRM_Price_BAO_LineItem extends CRM_Price_DAO_LineItem {
         'contribution_id' => $lineItemBAO->contribution_id,
       ];
       if (!civicrm_api3('MembershipPayment', 'getcount', $membershipPaymentParams)) {
+        // If we are creating the membership payment row from the line item then we
+        // should have correct line item & membership payment should not need to fix.
+        $membershipPaymentParams['isSkipLineItem'] = TRUE;
         civicrm_api3('MembershipPayment', 'create', $membershipPaymentParams);
       }
     }
@@ -769,21 +772,18 @@ WHERE li.contribution_id = %1";
           ]);
           unset($updateFinancialItemInfoValues['financialTrxn']);
         }
-        elseif (!empty($updateFinancialItemInfoValues['link-financial-trxn']) && $newFinancialItem->amount != 0) {
+        elseif ($trxn && $newFinancialItem->amount != 0) {
           civicrm_api3('EntityFinancialTrxn', 'create', [
             'entity_id' => $newFinancialItem->id,
             'entity_table' => 'civicrm_financial_item',
             'financial_trxn_id' => $trxn->id,
             'amount' => $newFinancialItem->amount,
           ]);
-          unset($updateFinancialItemInfoValues['link-financial-trxn']);
         }
       }
     }
 
-    // @todo - it may be that trxn_id is always empty - flush out scenarios. Add tests.
-    $trxnId = !empty($trxn->id) ? ['id' => $trxn->id] : [];
-    $lineItemObj->addFinancialItemsOnLineItemsChange(array_merge($requiredChanges['line_items_to_add'], $requiredChanges['line_items_to_resurrect']), $entityID, $entityTable, $contributionId, $trxnId);
+    $lineItemObj->addFinancialItemsOnLineItemsChange(array_merge($requiredChanges['line_items_to_add'], $requiredChanges['line_items_to_resurrect']), $entityID, $entityTable, $contributionId, $trxn->id ?? NULL);
 
     // update participant fee_amount column
     $lineItemObj->updateEntityRecordOnChangeFeeSelection($params, $entityID, $entity);
@@ -842,8 +842,6 @@ WHERE li.contribution_id = %1";
         if ($amountChangeOnTextLineItem !== (float) 0) {
           // calculate the amount difference, considered as financial item amount
           $updateFinancialItemInfoValues['amount'] = $amountChangeOnTextLineItem;
-          // add a flag, later used to link financial trxn and this new financial item
-          $updateFinancialItemInfoValues['link-financial-trxn'] = TRUE;
           if ($previousLineItems[$updateFinancialItemInfoValues['entity_id']]['tax_amount']) {
             $updateFinancialItemInfoValues['tax']['amount'] = $lineItemsToUpdate[$updateFinancialItemInfoValues['entity_id']]['tax_amount'] - $previousLineItems[$updateFinancialItemInfoValues['entity_id']]['tax_amount'];
             $updateFinancialItemInfoValues['tax']['description'] = $this->getSalesTaxTerm();
@@ -1033,13 +1031,14 @@ WHERE li.contribution_id = %1";
    * @param int $entityID
    * @param string $entityTable
    * @param int $contributionID
-   * @param bool $isCreateAdditionalFinancialTrxn
+   * @param bool $trxnID
    *   Is there a change to the total balance requiring additional transactions to be created.
    */
-  protected function addFinancialItemsOnLineItemsChange($lineItemsToAdd, $entityID, $entityTable, $contributionID, $isCreateAdditionalFinancialTrxn) {
+  protected function addFinancialItemsOnLineItemsChange($lineItemsToAdd, $entityID, $entityTable, $contributionID, $trxnID) {
     $updatedContribution = new CRM_Contribute_BAO_Contribution();
     $updatedContribution->id = $contributionID;
     $updatedContribution->find(TRUE);
+    $trxnArray = $trxnID ? ['id' => $trxnID] : NULL;
 
     foreach ($lineItemsToAdd as $priceFieldValueID => $lineParams) {
       $lineParams = array_merge($lineParams, [
@@ -1047,7 +1046,14 @@ WHERE li.contribution_id = %1";
         'entity_id' => $entityID,
         'contribution_id' => $contributionID,
       ]);
-      $this->addFinancialItemsOnLineItemChange($isCreateAdditionalFinancialTrxn, $lineParams, $updatedContribution);
+      $financialTypeChangeTrxnID = $this->addFinancialItemsOnLineItemChange($trxnID, $lineParams, $updatedContribution);
+      $lineObj = CRM_Price_BAO_LineItem::retrieve($lineParams);
+      // insert financial items
+      // ensure entity_financial_trxn table has a linking of it.
+      CRM_Financial_BAO_FinancialItem::add($lineObj, $updatedContribution, NULL, $trxnArray);
+      if (isset($lineObj->tax_amount)) {
+        CRM_Financial_BAO_FinancialItem::add($lineObj, $updatedContribution, TRUE, $trxnArray);
+      }
     }
   }
 
@@ -1253,15 +1259,13 @@ WHERE li.contribution_id = %1";
     $tempFinancialTrxnID = NULL;
     // don't add financial item for cancelled line item
     if ($lineParams['qty'] == 0) {
-      return;
+      return NULL;
     }
     elseif ($isCreateAdditionalFinancialTrxn) {
       // This routine & the return below is super uncomfortable.
-      // I have refactored to here but don't understand how this would be hit
-      // and it is how it would be a good thing, given the odd return below which
-      // does not seem consistent with what is going on.
-      // I'm tempted to add an e-deprecated into it to confirm my suspicion it only exists to
-      // cause mental anguish.
+      // I have refactored to here and it is hit from
+      // testSubmitUnpaidPriceChangeWhileStillPending
+      // but I'm still skeptical it's not covered elsewhere.
       // original comment : add financial item if ONLY financial type is changed
       if ($lineParams['financial_type_id'] != $updatedContribution->financial_type_id) {
         $changedFinancialTypeID = (int) $lineParams['financial_type_id'];
@@ -1279,15 +1283,8 @@ WHERE li.contribution_id = %1";
           'currency' => $updatedContribution->currency,
         ];
         $adjustedTrxn = CRM_Core_BAO_FinancialTrxn::create($adjustedTrxnValues);
-        $tempFinancialTrxnID = ['id' => $adjustedTrxn->id];
+        return $adjustedTrxn->id;
       }
-    }
-    $lineObj = CRM_Price_BAO_LineItem::retrieve($lineParams);
-    // insert financial items
-    // ensure entity_financial_trxn table has a linking of it.
-    CRM_Financial_BAO_FinancialItem::add($lineObj, $updatedContribution, NULL, $tempFinancialTrxnID);
-    if (isset($lineObj->tax_amount)) {
-      CRM_Financial_BAO_FinancialItem::add($lineObj, $updatedContribution, TRUE, $tempFinancialTrxnID);
     }
   }
 

@@ -44,6 +44,12 @@ class CRM_Contact_BAO_Relationship extends CRM_Contact_DAO_Relationship {
   const NONE = 0, EDIT = 1, VIEW = 2;
 
   /**
+   * The list of column headers
+   * @var array
+   */
+  private static $columnHeaders;
+
+  /**
    * Create function - use the API instead.
    *
    * Note that the previous create function has been renamed 'legacyCreateMultiple'
@@ -181,6 +187,7 @@ class CRM_Contact_BAO_Relationship extends CRM_Contact_DAO_Relationship {
       $hook = 'edit';
     }
 
+    // @todo pre hook is called from add - remove it from here
     CRM_Utils_Hook::pre($hook, 'Relationship', $relationshipId, $params);
 
     if (!$relationshipId) {
@@ -295,33 +302,55 @@ class CRM_Contact_BAO_Relationship extends CRM_Contact_DAO_Relationship {
     if ($params['id']) {
       $hook = 'edit';
     }
-    //@todo hook are called from create and add - remove one
     CRM_Utils_Hook::pre($hook, 'Relationship', $params['id'], $params);
 
     $relationshipTypes = CRM_Utils_Array::value('relationship_type_id', $params);
-
     // explode the string with _ to get the relationship type id
     // and to know which contact has to be inserted in
     // contact_id_a and which one in contact_id_b
-    list($type) = explode('_', $relationshipTypes);
+    list($relationshipTypeID) = explode('_', $relationshipTypes);
+
+    $relationship = new CRM_Contact_BAO_Relationship();
+    if (!empty($params['id'])) {
+      $relationship->id = $params['id'];
+      // Only load the relationship if we're missing required params
+      $requiredParams = ['contact_id_a', 'contact_id_b', 'relationship_type_id'];
+      foreach ($requiredParams as $requiredKey) {
+        if (!isset($params[$requiredKey])) {
+          $relationship->find(TRUE);
+          break;
+        }
+      }
+
+    }
+    $relationship->copyValues($params);
+    // @todo we could probably set $params['relationship_type_id'] above but it's unclear
+    //   what that would do with the code below this. So for now be conservative and set it manually.
+    if (!empty($relationshipTypeID)) {
+      $relationship->relationship_type_id = $relationshipTypeID;
+    }
+
+    $params['contact_id_a'] = $relationship->contact_id_a;
+    $params['contact_id_b'] = $relationship->contact_id_b;
 
     // check if the relationship type is Head of Household then update the
     // household's primary contact with this contact.
-    if ($type == 6) {
-      CRM_Contact_BAO_Household::updatePrimaryContact($params['contact_id_b'], $params['contact_id_a']);
+    try {
+      $headOfHouseHoldID = civicrm_api3('RelationshipType', 'getvalue', [
+        'return' => "id",
+        'name_a_b' => "Head of Household for",
+      ]);
+      if ($relationshipTypeID == $headOfHouseHoldID) {
+        CRM_Contact_BAO_Household::updatePrimaryContact($relationship->contact_id_b, $relationship->contact_id_a);
+      }
     }
-    if (!empty($params['id']) && self::isCurrentEmployerNeedingToBeCleared($params, $params['id'], $type)) {
-      CRM_Contact_BAO_Contact_Utils::clearCurrentEmployer($params['contact_id_a']);
+    catch (Exception $e) {
+      // No "Head of Household" relationship found so we skip specific processing
     }
 
-    $relationship = new CRM_Contact_BAO_Relationship();
-    //@todo this code needs to be updated for the possibility that not all fields are set
-    // by using $relationship->copyValues($params);
-    // (update)
-    $relationship->contact_id_b = $params['contact_id_b'];
-    $relationship->contact_id_a = $params['contact_id_a'];
-    $relationship->relationship_type_id = $type;
-    $relationship->id = $params['id'];
+    if (!empty($params['id']) && self::isCurrentEmployerNeedingToBeCleared($relationship->toArray(), $params['id'], $relationshipTypeID)) {
+      CRM_Contact_BAO_Contact_Utils::clearCurrentEmployer($relationship->contact_id_a);
+    }
 
     $dateFields = ['end_date', 'start_date'];
 
@@ -1512,6 +1541,7 @@ LEFT JOIN  civicrm_country ON (civicrm_address.country_id = civicrm_country.id)
    * @param bool $active
    *
    * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public static function relatedMemberships($contactId, &$params, $ids, $action = CRM_Core_Action::ADD, $active = TRUE) {
     // Check the end date and set the status of the relationship
@@ -1668,23 +1698,17 @@ LEFT JOIN  civicrm_country ON (civicrm_address.country_id = civicrm_country.id)
       $mainRelatedContactId = reset($relatedContacts);
 
       foreach ($details['memberships'] as $membershipId => $membershipValues) {
+        $membershipInherittedFromContactID = NULL;
+        if (!empty($membershipValues['owner_membership_id'])) {
+          // Use get not getsingle so that we get e-notice noise but not a fatal is the membership has already been deleted.
+          $inheritedFromMembership = civicrm_api3('Membership', 'get', ['id' => $membershipValues['owner_membership_id'], 'sequential' => 1])['values'][0];
+          $membershipInherittedFromContactID = (int) $inheritedFromMembership['contact_id'];
+        }
         $relTypeIds = [];
         if ($action & CRM_Core_Action::DELETE) {
-          // Delete memberships of the related contacts only if relationship type exists for membership type
-          $query = "
-SELECT relationship_type_id, relationship_direction
-  FROM civicrm_membership_type
- WHERE id = {$membershipValues['membership_type_id']}";
-          $dao = CRM_Core_DAO::executeQuery($query);
-          $relTypeDirs = [];
-          while ($dao->fetch()) {
-            $relTypeId = $dao->relationship_type_id;
-            $relDirection = $dao->relationship_direction;
-          }
-          $relTypeIds = explode(CRM_Core_DAO::VALUE_SEPARATOR, $relTypeId);
-          if (in_array($values[$cid]['relationshipTypeId'], $relTypeIds
-            //CRM-16300 check if owner membership exist for related membership
-            ) && !empty($membershipValues['owner_membership_id']) && !empty($values[$mainRelatedContactId]['memberships'][$membershipValues['owner_membership_id']])) {
+          // @todo don't return relTypeId here - but it seems to be used later in a cryptic way (hint cryptic is not a complement).
+          list($relTypeId, $isDeletable) = self::isInheritedMembershipInvalidated($membershipValues, $values, $cid, $mainRelatedContactId);
+          if ($isDeletable) {
             CRM_Member_BAO_Membership::deleteRelatedMemberships($membershipValues['owner_membership_id'], $membershipValues['membership_contact_id']);
           }
           continue;
@@ -1758,17 +1782,10 @@ SELECT relationship_type_id, relationship_direction
             if (!empty($membershipValues['status_id']) && $membershipValues['status_id'] == $pendingStatusId) {
               $membershipValues['skipStatusCal'] = TRUE;
             }
-
-            // check whether we have some related memberships still available
-            $query = "
-SELECT count(*)
-  FROM civicrm_membership
-    LEFT JOIN civicrm_membership_status ON (civicrm_membership_status.id = civicrm_membership.status_id)
- WHERE membership_type_id = {$membershipValues['membership_type_id']} AND owner_membership_id = {$membershipValues['owner_membership_id']}
-    AND is_current_member = 1";
-            $result = CRM_Core_DAO::singleValueQuery($query);
-            if ($result < CRM_Utils_Array::value('max_related', $membershipValues, PHP_INT_MAX)) {
-              CRM_Member_BAO_Membership::create($membershipValues);
+            // As long as the membership itself was not created by inheritance from the same contact
+            // that stands to inherit the membership we add an inherited membership.
+            if ($membershipInherittedFromContactID !== (int) $membershipValues['contact_id']) {
+              $membershipValues = self::addInheritedMembership($membershipValues);
             }
           }
         }
@@ -2189,12 +2206,69 @@ AND cc.sort_name LIKE '%$name%'";
       }
     }
 
+    $columnHeaders = self::getColumnHeaders();
+    $selector = NULL;
+    CRM_Utils_Hook::searchColumns('relationship.rows', $columnHeaders, $contactRelationships, $selector);
+
     $relationshipsDT = [];
     $relationshipsDT['data'] = $contactRelationships;
     $relationshipsDT['recordsTotal'] = $params['total'];
     $relationshipsDT['recordsFiltered'] = $params['total'];
 
     return $relationshipsDT;
+  }
+
+  /**
+   * @return array
+   */
+  public static function getColumnHeaders() {
+    return [
+      'relation' => [
+        'name' => ts('Relationship'),
+        'sort' => 'relation',
+        'direction' => CRM_Utils_Sort::ASCENDING,
+      ],
+      'sort_name' => [
+        'name' => '',
+        'sort' => 'sort_name',
+        'direction' => CRM_Utils_Sort::ASCENDING,
+      ],
+      'start_date' => [
+        'name' => ts('Start'),
+        'sort' => 'start_date',
+        'direction' => CRM_Utils_Sort::DONTCARE,
+      ],
+      'end_date' => [
+        'name' => ts('End'),
+        'sort' => 'end_date',
+        'direction' => CRM_Utils_Sort::DONTCARE,
+      ],
+      'city' => [
+        'name' => ts('City'),
+        'sort' => 'city',
+        'direction' => CRM_Utils_Sort::DONTCARE,
+      ],
+      'state' => [
+        'name' => ts('State/Prov'),
+        'sort' => 'state',
+        'direction' => CRM_Utils_Sort::DONTCARE,
+      ],
+      'email' => [
+        'name' => ts('Email'),
+        'sort' => 'email',
+        'direction' => CRM_Utils_Sort::DONTCARE,
+      ],
+      'phone' => [
+        'name' => ts('Phone'),
+        'sort' => 'phone',
+        'direction' => CRM_Utils_Sort::DONTCARE,
+      ],
+      'links' => [
+        'name' => '',
+        'sort' => 'links',
+        'direction' => CRM_Utils_Sort::DONTCARE,
+      ],
+    ];
   }
 
   /**
@@ -2322,6 +2396,52 @@ AND cc.sort_name LIKE '%$name%'";
   private static function isRelationshipTypeCurrentEmployer(int $existingTypeID): bool {
     $isCurrentEmployerRelationshipType = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', $existingTypeID, 'name_b_a') === 'Employer of';
     return $isCurrentEmployerRelationshipType;
+  }
+
+  /**
+   * Is the inherited relationship invalidated by this relationship change.
+   *
+   * @param $membershipValues
+   * @param array $values
+   * @param int $cid
+   * @param int $mainRelatedContactId
+   *
+   * @return array
+   * @throws \CiviCRM_API3_Exception
+   */
+  private static function isInheritedMembershipInvalidated($membershipValues, array $values, $cid, $mainRelatedContactId): array {
+    $membershipType = CRM_Member_BAO_MembershipType::getMembershipType($membershipValues['membership_type_id']);
+    $relTypeIds = $membershipType['relationship_type_id'];
+    $membshipInheritedFrom = $membershipValues['owner_membership_id'] ?? NULL;
+    if (!$membshipInheritedFrom || !in_array($values[$cid]['relationshipTypeId'], $relTypeIds)) {
+      return [implode(',', $relTypeIds), FALSE];
+    }
+    //CRM-16300 check if owner membership exist for related membership
+    $isDeletable = !empty($values[$mainRelatedContactId]['memberships'][$membshipInheritedFrom]);
+    return [implode(',', $relTypeIds), $isDeletable];
+  }
+
+  /**
+   * Add an inherited membership, provided max related not exceeded.
+   *
+   * @param array $membershipValues
+   *
+   * @return array
+   * @throws \CRM_Core_Exception
+   */
+  protected static function addInheritedMembership($membershipValues) {
+    $query = "
+SELECT count(*)
+  FROM civicrm_membership
+    LEFT JOIN civicrm_membership_status ON (civicrm_membership_status.id = civicrm_membership.status_id)
+ WHERE membership_type_id = {$membershipValues['membership_type_id']}
+           AND owner_membership_id = {$membershipValues['owner_membership_id']}
+    AND is_current_member = 1";
+    $result = CRM_Core_DAO::singleValueQuery($query);
+    if ($result < CRM_Utils_Array::value('max_related', $membershipValues, PHP_INT_MAX)) {
+      CRM_Member_BAO_Membership::create($membershipValues);
+    }
+    return $membershipValues;
   }
 
 }
