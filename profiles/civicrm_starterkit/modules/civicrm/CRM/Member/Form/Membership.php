@@ -206,16 +206,12 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
 
   /**
    * Form preProcess function.
-   *
-   * @throws \Exception
    */
   public function preProcess() {
     // This string makes up part of the class names, differentiating them (not sure why) from the membership fields.
     $this->assign('formClass', 'membership');
     parent::preProcess();
-    if ($this->isUpdateToExistingRecurringMembership()) {
-      $this->entityFields['end_date']['is_freeze'] = TRUE;
-    }
+
     // get price set id.
     $this->_priceSetId = CRM_Utils_Array::value('priceSetId', $_GET);
     $this->set('priceSetId', $this->_priceSetId);
@@ -225,7 +221,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
       $contributionID = CRM_Member_BAO_Membership::getMembershipContributionId($this->_id);
       // check delete permission for contribution
       if ($this->_id && $contributionID && !CRM_Core_Permission::checkActionPermission('CiviContribute', $this->_action)) {
-        CRM_Core_Error::fatal(ts("This Membership is linked to a contribution. You must have 'delete in CiviContribute' permission in order to delete this record."));
+        CRM_Core_Error::statusBounce(ts("This Membership is linked to a contribution. You must have 'delete in CiviContribute' permission in order to delete this record."));
       }
     }
 
@@ -245,7 +241,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
           foreach ($contactMemberships as $mem) {
             $mem['member_of_contact_id'] = CRM_Utils_Array::value($mem['membership_type_id'], $memberorgs);
             if (!empty($mem['membership_end_date'])) {
-              $mem['membership_end_date'] = CRM_Utils_Date::customformat($mem['membership_end_date']);
+              $mem['membership_end_date'] = CRM_Utils_Date::customFormat($mem['membership_end_date']);
             }
             $mem['membership_type'] = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipType',
               $mem['membership_type_id'],
@@ -335,6 +331,11 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
         if ($contributionId) {
           $defaults['record_contribution'] = $contributionId;
         }
+      }
+    }
+    else {
+      if ($this->_contactID) {
+        $defaults['contact_id'] = $this->_contactID;
       }
     }
 
@@ -493,11 +494,9 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
       return;
     }
 
-    if ($this->_context == 'standalone') {
-      $this->addEntityRef('contact_id', ts('Contact'), [
-        'create' => TRUE,
-        'api' => ['extra' => ['email']],
-      ], TRUE);
+    $contactField = $this->addEntityRef('contact_id', ts('Contact'), ['create' => TRUE, 'api' => ['extra' => ['email']]], TRUE);
+    if ($this->_context != 'standalone') {
+      $contactField->freeze();
     }
 
     $selOrgMemType[0][0] = $selMemTypeOrg[0] = ts('- select -');
@@ -1132,20 +1131,21 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
     //take the required membership recur values.
     if ($this->_mode && !empty($formValues['auto_renew'])) {
       $params['is_recur'] = $formValues['is_recur'] = TRUE;
-      $mapping = [
-        'frequency_interval' => 'duration_interval',
-        'frequency_unit' => 'duration_unit',
-      ];
 
       $count = 0;
       foreach ($this->_memTypeSelected as $memType) {
         $recurMembershipTypeValues = CRM_Utils_Array::value($memType,
-          $this->_recurMembershipTypes, []
+          $this->allMembershipTypeDetails, []
         );
-        foreach ($mapping as $mapVal => $mapParam) {
-          $membershipTypeValues[$memType][$mapVal] = CRM_Utils_Array::value($mapParam,
-            $recurMembershipTypeValues
-          );
+        if (!$recurMembershipTypeValues['auto_renew']) {
+          continue;
+        }
+        foreach ([
+          'frequency_interval' => 'duration_interval',
+          'frequency_unit' => 'duration_unit',
+        ] as $mapVal => $mapParam) {
+          $membershipTypeValues[$memType][$mapVal] = $recurMembershipTypeValues[$mapParam];
+
           if (!$count) {
             $formValues[$mapVal] = CRM_Utils_Array::value($mapParam,
               $recurMembershipTypeValues

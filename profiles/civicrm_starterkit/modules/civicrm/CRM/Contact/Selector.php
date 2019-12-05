@@ -1016,6 +1016,8 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
    * @param string $cacheKey
    * @param int $start
    * @param int $end
+   *
+   * @throws \CRM_Core_Exception
    */
   public function fillupPrevNextCache($sort, $cacheKey, $start = 0, $end = self::CACHE_SIZE) {
     $coreSearch = TRUE;
@@ -1039,11 +1041,13 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
     // the other alternative of running the FULL query will just be incredibly inefficient
     // and slow things down way too much on large data sets / complex queries
 
-    $selectSQL = "SELECT DISTINCT %1, contact_a.id, contact_a.sort_name";
+    $selectSQL = CRM_Core_DAO::composeQuery("SELECT DISTINCT %1, contact_a.id, contact_a.sort_name", [1 => [$cacheKey, 'String']]);
 
-    $sql = str_ireplace(["SELECT contact_a.id as contact_id", "SELECT contact_a.id as id"], $selectSQL, $sql);
+    $sql = str_ireplace(['SELECT contact_a.id as contact_id', 'SELECT contact_a.id as id'], $selectSQL, $sql);
+    $sql = str_ireplace('ORDER BY `contact_id`', 'ORDER BY `id`', $sql, $sql);
+
     try {
-      Civi::service('prevnext')->fillWithSql($cacheKey, $sql, [1 => [$cacheKey, 'String']]);
+      Civi::service('prevnext')->fillWithSql($cacheKey, $sql);
     }
     catch (CRM_Core_Exception $e) {
       if ($coreSearch) {
@@ -1052,6 +1056,7 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
         $this->rebuildPreNextCache($start, $end, $sort, $cacheKey);
       }
       else {
+        CRM_Core_Error::deprecatedFunctionWarning('Custom searches should return sql capable of filling the prevnext cache.');
         // This will always show for CiviRules :-( as a) it orders by 'rule_label'
         // which is not available in the query & b) it uses contact not contact_a
         // as an alias.

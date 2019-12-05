@@ -163,7 +163,7 @@ class CRM_Report_Form_Contribute_Summary extends CRM_Report_Form {
           'contribution_status_id' => array(
             'title' => ts('Contribution Status'),
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
-            'options' => CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'label'),
+            'options' => CRM_Contribute_BAO_Contribution::buildOptions('contribution_status_id', 'search'),
             'default' => array(1),
             'type' => CRM_Utils_Type::T_INT,
           ),
@@ -227,7 +227,7 @@ class CRM_Report_Form_Contribute_Summary extends CRM_Report_Form {
           'contribution_status_id' => array(
             'title' => ts('Contribution Status'),
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
-            'options' => CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'label'),
+            'options' => CRM_Contribute_BAO_Contribution::buildOptions('contribution_status_id', 'search'),
             'default' => array(1),
             'type' => CRM_Utils_Type::T_INT,
           ),
@@ -784,7 +784,7 @@ ROUND(AVG({$this->_aliases['civicrm_contribution_soft']}.amount), 2) as civicrm_
         $config = CRM_Core_Config::Singleton();
         $graphRows['xname'] = $this->_interval;
         $graphRows['yname'] = ts('Amount (%1)', array(1 => $config->defaultCurrency));
-        CRM_Utils_OpenFlashChart::chart($graphRows, $this->_params['charts'], $this->_interval);
+        CRM_Utils_Chart::chart($graphRows, $this->_params['charts'], $this->_interval);
         $this->assign('chartType', $this->_params['charts']);
       }
     }

@@ -2119,6 +2119,9 @@ AND cl.modified_id  = c.id
         'type' => CRM_Utils_Type::T_STRING,
       ];
 
+      // @todo - remove these - they are added by CRM_Core_DAO::appendPseudoConstantsToFields
+      // below. That search label stuff is referenced in search builder but is likely just
+      // a hack that duplicates, maybe differently, other functionality.
       $Activityfields = [
         'activity_type' => [
           'title' => ts('Activity Type'),
@@ -2189,7 +2192,7 @@ AND cl.modified_id  = c.id
 
     // add custom data for case activities
     $fields = array_merge($fields, CRM_Core_BAO_CustomField::getFieldsForImport('Activity'));
-
+    CRM_Core_DAO::appendPseudoConstantsToFields($fields);
     self::$_exportableFields[$name] = $fields;
     return self::$_exportableFields[$name];
   }
@@ -2480,6 +2483,21 @@ INNER JOIN  civicrm_option_group grp ON (grp.id = option_group_id AND grp.name =
     }
 
     return FALSE;
+  }
+
+  /**
+   * Get the list of view only activities
+   *
+   * @return array
+   */
+  public static function getViewOnlyActivityTypeIDs() {
+    $viewOnlyActivities = [
+      'Email' => CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', 'Email'),
+    ];
+    if (self::checkEditInboundEmailsPermissions()) {
+      $viewOnlyActivities['Inbound Email'] = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', 'Inbound Email');
+    }
+    return $viewOnlyActivities;
   }
 
   /**

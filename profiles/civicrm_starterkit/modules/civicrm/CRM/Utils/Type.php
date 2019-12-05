@@ -233,7 +233,7 @@ class CRM_Utils_Type {
    *
    * @return mixed
    *   The data, escaped if necessary.
-   * @throws \Exception
+   * @throws CRM_Core_Exception
    */
   public static function escape($data, $type, $abort = TRUE) {
     switch ($type) {
@@ -376,7 +376,7 @@ class CRM_Utils_Type {
    *
    * @throws \CRM_Core_Exception
    */
-  public static function validate($data, $type, $abort = TRUE, $name = 'One of parameters ', $isThrowException = FALSE) {
+  public static function validate($data, $type, $abort = TRUE, $name = 'One of parameters ', $isThrowException = TRUE) {
 
     $possibleTypes = [
       'Integer',

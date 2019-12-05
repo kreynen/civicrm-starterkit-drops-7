@@ -159,6 +159,9 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
     CRM_Utils_Hook::post(($op === 'add' ? 'create' : 'edit'), 'CustomField', $customField->id, $customField);
 
     CRM_Utils_System::flushCache();
+    // Flush caches is not aggressive about clearing the specific cache we know we want to clear
+    // so do it manually. Ideally we wouldn't need to clear others...
+    Civi::cache('metadata')->clear();
 
     return $customField;
   }
@@ -1061,14 +1064,15 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
    * @param int $entityId
    *
    * @return string
-   * @throws \Exception
+   *
+   * @throws \CRM_Core_Exception
    */
   public static function displayValue($value, $field, $entityId = NULL) {
     $field = is_array($field) ? $field['id'] : $field;
     $fieldId = is_object($field) ? $field->id : (int) str_replace('custom_', '', $field);
 
     if (!$fieldId) {
-      throw new Exception('CRM_Core_BAO_CustomField::displayValue requires a field id');
+      throw new CRM_Core_Exception('CRM_Core_BAO_CustomField::displayValue requires a field id');
     }
 
     if (!is_a($field, 'CRM_Core_BAO_CustomField')) {

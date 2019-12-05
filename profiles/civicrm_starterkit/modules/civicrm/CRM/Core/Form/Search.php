@@ -201,9 +201,9 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
     foreach ($this->getSearchFieldMetadata() as $entity => $fields) {
       foreach ($fields as $fieldName => $fieldSpec) {
         $fieldType = $fieldSpec['type'] ?? '';
-        if ($fieldType === CRM_Utils_Type::T_DATE || $fieldType === (CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME)) {
+        if ($fieldType === CRM_Utils_Type::T_DATE || $fieldType === (CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME) || $fieldType === CRM_Utils_Type::T_TIMESTAMP) {
           $title = empty($fieldSpec['unique_title']) ? $fieldSpec['title'] : $fieldSpec['unique_title'];
-          $this->addDatePickerRange($fieldName, $title, ($fieldType === (CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME)));
+          $this->addDatePickerRange($fieldName, $title, ($fieldType === (CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME) || $fieldType === CRM_Utils_Type::T_TIMESTAMP));
         }
         else {
           // Not quite sure about moving to a mix of keying by entity vs permitting entity to
@@ -455,6 +455,27 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
       $this->addElement('checkbox', 'deleted_contacts', ts('Search in Trash') . '<br />' . ts('(deleted contacts)'));
     }
 
+  }
+
+  /**
+   * Get the label for the group field.
+   *
+   * @return string
+   */
+  protected function getGroupLabel() {
+    return ts('Group(s)');
+  }
+
+  /**
+   * Get the label for the tag field.
+   *
+   * We do this in a function so the 'ts' wraps the whole string to allow
+   * better translation.
+   *
+   * @return string
+   */
+  protected function getTagLabel() {
+    return ts('Tag(s)');
   }
 
   /**

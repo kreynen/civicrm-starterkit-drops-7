@@ -44,19 +44,5 @@
       {$form.$toName.html}
     </span>
   </span>
-  {literal}
-    <script type="text/javascript">
-      CRM.$(function($) {
-        $("#{/literal}{$relativeName}{literal}").change(function() {
-          var n = cj(this).parent().parent();
-          if ($(this).val() == "0") {
-            $(".crm-absolute-date-range", n).show();
-          } else {
-            $(".crm-absolute-date-range", n).hide();
-            $(':text', n).val('');
-          }
-        }).change();
-      });
-    </script>
-  {/literal}
+  {include file="CRM/Core/DatePickerRangejs.tpl" relativeName=$relativeName}
 

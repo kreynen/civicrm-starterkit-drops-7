@@ -984,19 +984,6 @@ WHERE     civicrm_contact.id = " . CRM_Utils_Type::escape($id, 'Integer');
     }
 
     $contactType = $contact->contact_type;
-    // currently we only clear employer cache.
-    // we are now deleting inherited membership if any.
-    if ($contact->contact_type == 'Organization') {
-      $action = $restore ? CRM_Core_Action::ENABLE : CRM_Core_Action::DISABLE;
-      $relationshipDtls = CRM_Contact_BAO_Relationship::getRelationship($id);
-      if (!empty($relationshipDtls)) {
-        foreach ($relationshipDtls as $rId => $details) {
-          CRM_Contact_BAO_Relationship::disableEnableRelationship($rId, $action);
-        }
-      }
-      CRM_Contact_BAO_Contact_Utils::clearAllEmployee($id);
-    }
-
     if ($restore) {
       return self::contactTrashRestore($contact, TRUE);
     }
@@ -1044,6 +1031,18 @@ WHERE     civicrm_contact.id = " . CRM_Utils_Type::escape($id, 'Integer');
     }
     else {
       self::contactTrashRestore($contact);
+    }
+    // currently we only clear employer cache.
+    // we are now deleting inherited membership if any.
+    if ($contact->contact_type == 'Organization') {
+      $action = $restore ? CRM_Core_Action::ENABLE : CRM_Core_Action::DISABLE;
+      $relationshipDtls = CRM_Contact_BAO_Relationship::getRelationship($id);
+      if (!empty($relationshipDtls)) {
+        foreach ($relationshipDtls as $rId => $details) {
+          CRM_Contact_BAO_Relationship::disableEnableRelationship($rId, $action);
+        }
+      }
+      CRM_Contact_BAO_Contact_Utils::clearAllEmployee($id);
     }
 
     //delete the contact id from recently view
@@ -1770,7 +1769,6 @@ WHERE     civicrm_contact.id = " . CRM_Utils_Type::escape($id, 'Integer');
    */
   public static function getHierContactDetails($contactId, $fields) {
     $params = [['contact_id', '=', $contactId, 0, 0]];
-    $options = [];
 
     $returnProperties = self::makeHierReturnProperties($fields, $contactId);
 
@@ -1781,7 +1779,8 @@ WHERE     civicrm_contact.id = " . CRM_Utils_Type::escape($id, 'Integer');
     $returnProperties['household_name'] = 1;
     $returnProperties['contact_type'] = 1;
     $returnProperties['contact_sub_type'] = 1;
-    return list($query, $options) = CRM_Contact_BAO_Query::apiQuery($params, $returnProperties, $options);
+    list($query) = CRM_Contact_BAO_Query::apiQuery($params, $returnProperties);
+    return $query;
   }
 
   /**
@@ -2116,7 +2115,7 @@ ORDER BY civicrm_email.is_primary DESC";
 
     // get the contact details (hier)
     if ($contactID) {
-      list($details, $options) = self::getHierContactDetails($contactID, $fields);
+      $details = self::getHierContactDetails($contactID, $fields);
 
       $contactDetails = $details[$contactID];
       $data['contact_type'] = CRM_Utils_Array::value('contact_type', $contactDetails);

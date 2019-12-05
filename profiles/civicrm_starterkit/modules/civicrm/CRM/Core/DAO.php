@@ -1064,6 +1064,18 @@ LIKE %1
   }
 
   /**
+   * Check if a given table has data.
+   *
+   * @param string $tableName
+   * @return bool
+   *   TRUE if $tableName has at least one record.
+   */
+  public static function checkTableHasData($tableName) {
+    $c = CRM_Core_DAO::singleValueQuery(sprintf('SELECT count(*) c FROM `%s`', $tableName));
+    return $c > 0;
+  }
+
+  /**
    * @param $version
    *
    * @return bool
@@ -1550,7 +1562,7 @@ FROM   civicrm_domain
           $tr['%' . $key] = $item[0];
         }
         elseif ($abort) {
-          CRM_Core_Error::fatal("{$item[0]} is not of type {$item[1]}");
+          throw new CRM_Core_Exception("{$item[0]} is not of type {$item[1]}");
         }
       }
     }
@@ -1858,7 +1870,7 @@ SELECT contact_id
   /**
    * Drop all CiviCRM tables.
    *
-   * @throws \CRM_Exception
+   * @throws \CRM_Core_Exception
    */
   public static function dropAllTables() {
 
@@ -2463,7 +2475,7 @@ SELECT contact_id
    * @param array $fields
    */
   public static function appendPseudoConstantsToFields(&$fields) {
-    foreach ($fields as $field) {
+    foreach ($fields as $fieldUniqueName => $field) {
       if (!empty($field['pseudoconstant'])) {
         $pseudoConstant = $field['pseudoconstant'];
         if (!empty($pseudoConstant['optionGroupName'])) {
@@ -2471,7 +2483,7 @@ SELECT contact_id
             'title' => CRM_Core_BAO_OptionGroup::getTitleByName($pseudoConstant['optionGroupName']),
             'name' => $pseudoConstant['optionGroupName'],
             'data_type' => CRM_Utils_Type::T_STRING,
-            'is_pseudofield_for' => $field['name'],
+            'is_pseudofield_for' => $fieldUniqueName,
           ];
         }
         // We restrict to id + name + FK as we are extending this a bit, but cautiously.

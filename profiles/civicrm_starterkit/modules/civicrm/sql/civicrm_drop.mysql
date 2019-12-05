@@ -173,7 +173,6 @@ DROP TABLE IF EXISTS `civicrm_acl`;
 DROP TABLE IF EXISTS `civicrm_recurring_entity`;
 DROP TABLE IF EXISTS `civicrm_action_mapping`;
 DROP TABLE IF EXISTS `civicrm_prevnext_cache`;
-DROP TABLE IF EXISTS `civicrm_persistent`;
 DROP TABLE IF EXISTS `civicrm_component`;
 DROP TABLE IF EXISTS `civicrm_worldregion`;
 DROP TABLE IF EXISTS `civicrm_system_log`;

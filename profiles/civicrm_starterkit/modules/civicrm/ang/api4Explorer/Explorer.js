@@ -469,10 +469,14 @@
     $scope.execute = function() {
       $scope.status = 'warning';
       $scope.loading = true;
-      $http.get(CRM.url('civicrm/ajax/api4/' + $scope.entity + '/' + $scope.action, {
+      $http.post(CRM.url('civicrm/ajax/api4/' + $scope.entity + '/' + $scope.action, {
         params: angular.toJson(getParams()),
         index: $scope.index
-      })).then(function(resp) {
+      }), null, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }).then(function(resp) {
           $scope.loading = false;
           $scope.status = 'success';
           $scope.result = [formatMeta(resp.data), prettyPrintOne(JSON.stringify(resp.data.values, null, 2), 'js', 1)];
@@ -658,7 +662,7 @@
 
         function makeWidget(field, op) {
           var $el = $(element),
-            inputType = field.input_type;
+            inputType = field.input_type,
             dataType = field.data_type;
           if (!op) {
             op = field.serialize || dataType === 'Array' ? 'IN' : '=';

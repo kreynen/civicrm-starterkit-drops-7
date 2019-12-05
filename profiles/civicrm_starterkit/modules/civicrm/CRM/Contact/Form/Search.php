@@ -302,7 +302,8 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
     }
 
     self::setModeValues();
-    if (!array_key_exists($mode, self::$_modeValues)) {
+    // Note $mode might === FALSE because array_search above failed, e.g. for searchPane='location'
+    if (empty(self::$_modeValues[$mode])) {
       $mode = CRM_Contact_BAO_Query::MODE_CONTACTS;
     }
 
@@ -652,6 +653,9 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
           'mailing_unsubscribe',
           'mailing_date_low',
           'mailing_date_high',
+          'mailing_job_start_date_low',
+          'mailing_job_start_date_high',
+          'mailing_job_start_date_relative',
         ] as $mailingFilter) {
           $type = 'String';
           if ($mailingFilter == 'mailing_id' &&
@@ -903,15 +907,29 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
   }
 
   /**
+   * Check Access for a component
+   * @param string $component
+   * @return bool
+   */
+  protected static function checkComponentAccess($component) {
+    $enabledComponents = CRM_Core_Component::getEnabledComponents();
+    if (!array_key_exists($component, $enabledComponents)) {
+      return FALSE;
+    }
+    return CRM_Core_Permission::access($component);
+  }
+
+  /**
    * Load metadata for fields on the form.
    *
    * @throws \CiviCRM_API3_Exception
    */
   protected function loadMetadata() {
-    // @todo - check what happens if the person does not have 'access civicontribute' - make sure they
     // can't by pass acls by passing search criteria in the url.
-    $this->addSearchFieldMetadata(['Contribution' => CRM_Contribute_BAO_Query::getSearchFieldMetadata()]);
-    $this->addSearchFieldMetadata(['ContributionRecur' => CRM_Contribute_BAO_ContributionRecur::getContributionRecurSearchFieldMetadata()]);
+    if (self::checkComponentAccess('CiviContribute')) {
+      $this->addSearchFieldMetadata(['Contribution' => CRM_Contribute_BAO_Query::getSearchFieldMetadata()]);
+      $this->addSearchFieldMetadata(['ContributionRecur' => CRM_Contribute_BAO_ContributionRecur::getContributionRecurSearchFieldMetadata()]);
+    }
   }
 
 }
