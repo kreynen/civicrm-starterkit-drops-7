@@ -34,7 +34,7 @@ libraries[civicrm][patch][ipnstd] = ./patches/ipnStd.patch
 
 ; May be necessary where extension, etc paths are cached but Pantheon changes binding
 ; https://lab.civicrm.org/dev/cloud-native/issues/21
-libraries[civicrm][patch][cloud-21] = ./patches/issue-21-cloud-friendly-extensions-mapper.patch
+libraries[civicrm][patch][cloud-21] = ./patches/civicrm-pr15410-cloud-friendly-extensions-mapper.patch
 
 ; === Installer ===
 

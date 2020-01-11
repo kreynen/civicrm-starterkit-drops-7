@@ -4,7 +4,7 @@ The following patches have been applied to this project:
 - extern-cms-bootstrap.patch
 - ipn.patch
 - ipnStd.patch
-- issue-21-cloud-friendly-extensions-mapper.patch
+- civicrm-pr15410-cloud-friendly-extensions-mapper.patch
 - installer-baseurl.patch
 - ignore-timezone-on-install-47-2130213.patch
 - settings_location-for-profiles.patch
