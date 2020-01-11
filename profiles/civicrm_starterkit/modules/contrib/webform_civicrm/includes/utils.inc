@@ -54,14 +54,12 @@ function wf_crm_field_options($field, $context, $data) {
     elseif ($name == 'privacy') {
       $ret = wf_crm_get_privacy_options();
     }
-    elseif ($table === 'other') {
-      if ($field['table'] === 'tag') {
-        $split = explode('_', $name);
-        $ret = CRM_Core_BAO_Tag::getTags("civicrm_{$ent}", $ret, wf_crm_aval($split, 1), '- ');
-      }
-      elseif ($field['table'] === 'group') {
-        $ret = wf_crm_apivalues('group', 'get', array('is_hidden' => 0), 'title');
-      }
+    elseif (isset($field['table']) && $field['table'] === 'tag') {
+      $split = explode('_', $name);
+      $ret = wf_crm_get_tags($ent, wf_crm_aval($split, 1));
+    }
+    elseif (isset($field['table']) && $field['table'] === 'group') {
+      $ret = wf_crm_apivalues('group', 'get', array('is_hidden' => 0), 'title');
     }
     elseif ($name === 'survey_id') {
       $ret = wf_crm_get_surveys(wf_crm_aval($data, "activity:$c:activity:1", array()));
@@ -121,28 +119,77 @@ function wf_crm_field_options($field, $context, $data) {
 }
 
 /**
+ * Fetch tags within a given tagset
+ *
+ * If no tagset specified, all tags NOT within a tagset are returned.
+ * Return format is a flat array with some tic marks to indicate nesting.
+ *
+ * @param string $used_for
+ * @param int $parent_id
+ * @return array
+ */
+function wf_crm_get_tags($used_for, $parent_id = NULL) {
+  $params = [
+    'used_for' => ['LIKE' => "%civicrm_{$used_for}%"],
+    'is_tagset' => 0,
+    'is_selectable' => 1,
+    'parent_id' => $parent_id ?: ['IS NULL' => 1],
+    'options' => ['sort' => 'name'],
+  ];
+  $tags = wf_crm_apivalues('Tag', 'get', $params, 'name');
+  // Tagsets cannot be nested so no need to fetch children
+  if ($parent_id || !$tags) {
+    return $tags;
+  }
+  // Fetch child tags
+  unset($params['parent_id']);
+  $params += ['return' => ['name', 'parent_id'], 'parent_id.is_tagset' => 0, 'parent_id.is_selectable' => 1];
+  $unsorted = wf_crm_apivalues('Tag', 'get', $params);
+  $parents = array_fill_keys(array_keys($tags), ['depth' => 1]);
+  // Loop until all children are placed under their parents
+  while ($unsorted) {
+    foreach ($unsorted as $id => $tag) {
+      $parent = $tag['parent_id'];
+      if (isset($parents[$parent])) {
+        $name = str_repeat('- ', $parents[$parent]['depth']) . $tag['name'];
+        $pos = array_search($parents[$parent]['child'] ?? $parent, array_keys($tags)) + 1;
+        $tags = array_slice($tags, 0, $pos, TRUE) + [$id => $name] + array_slice($tags, $pos, NULL, TRUE);
+        $parents[$id] = ['depth' => $parents[$parent]['depth'] + 1];
+        $parents[$parent]['child'] = $id;
+        unset($unsorted[$id]);
+      }
+    }
+  }
+  return $tags;
+}
+
+/**
  * Get list of states, keyed by abbreviation rather than ID.
- * FIXME use the api for this.
+ *
  * @param null|int|string $param
+ * @return array
  */
 function wf_crm_get_states($param = NULL) {
   $ret = array();
   if (!$param || $param == 'default') {
-    $config = CRM_Core_Config::singleton();
-    if (!$param && !empty($config->provinceLimit)) {
-      $param = implode(',', $config->provinceLimit);
+    $provinceLimit = wf_crm_get_civi_setting('provinceLimit');
+    if (!$param && $provinceLimit) {
+      $param = (array) $provinceLimit;
     }
     else {
-      $param = (int) $config->defaultContactCountry;
+      $param = [(int) wf_crm_get_civi_setting('defaultContactCountry', 1228)];
     }
   }
   else {
-    $param = (int) $param;
+    $param = array((int) $param);
   }
-  $sql = "SELECT name AS label, UPPER(abbreviation) AS value FROM civicrm_state_province WHERE country_id IN ($param) ORDER BY name";
-  $dao = CRM_Core_DAO::executeQuery($sql);
-  while ($dao->fetch()) {
-    $ret[$dao->value] = $dao->label;
+  $states = wf_crm_apivalues('state_province', 'get', array(
+    'return' => 'abbreviation,name',
+    'sort' => 'name',
+    'country_id' => array('IN' => $param)
+  ));
+  foreach ($states as $state) {
+    $ret[strtoupper($state['abbreviation'])] = $state['name'];
   }
   // Localize the state/province names if in an non-en_US locale
   $tsLocale = CRM_Utils_System::getUFLocale();
@@ -167,62 +214,73 @@ function wf_crm_get_states($param = NULL) {
  * @return string or integer
  */
 function wf_crm_state_abbr($input, $ret = 'abbreviation', $country_id = NULL) {
-  $input_type = $ret == 'id' ? 'abbreviation' : 'id';
-  $sql = "SELECT $ret FROM civicrm_state_province WHERE $input_type = %1";
-  $vars = array(1 => array($input, $ret == 'id' ? 'String' : 'Integer'));
-  if ($ret === 'id') {
+  $params = ['sequential' => 1];
+  if ($ret == 'id') {
+    $params['abbreviation'] = $input;
     if (!$country_id || $country_id === 'default') {
-      $config = CRM_Core_Config::singleton();
-      $country_id = (int) $config->defaultContactCountry;
+      $country_id = (int) wf_crm_get_civi_setting('defaultContactCountry', 1228);
     }
-    $sql .= ' AND country_id = %2';
-    $vars[2] = array($country_id, 'Integer');
   }
-  $sql .= ' LIMIT 0, 1';
-  return CRM_Core_DAO::singleValueQuery($sql, $vars);
+  else {
+    $params['id'] = $input;
+  }
+  $params['country_id'] = $country_id;
+  $result = wf_crm_apivalues('StateProvince', 'get', $params, $ret);
+  return wf_crm_aval($result, 0);
 }
 
 /**
  * Get list of events.
- * FIXME use the api for this.
  *
  * @param array $reg_options
  * @param string $context
+ *
  * @return array
  */
 function wf_crm_get_events($reg_options, $context) {
-  $ret = array();
+  $ret = [];
   $format = wf_crm_aval($reg_options, 'title_display', 'title');
-  $sql = "SELECT id, title, start_date, end_date, event_type_id FROM civicrm_event WHERE is_template = 0 AND is_active = 1";
+  $params = [
+    'is_template' => 0,
+    'is_active' => 1,
+  ];
+  $event_types = array_filter((array) $reg_options['event_type'], "is_numeric");
+  if ($event_types) {
+    $params['event_type_id'] = ['IN' => $event_types];
+  }
+  if (is_numeric(wf_crm_aval($reg_options, 'show_public_events'))) {
+    $params['is_public'] = $reg_options['show_public_events'];
+  }
+  $params['options'] = ['sort' => 'start_date' . ($context == 'config_form' ? ' DESC' : '')];
+  $values = wf_crm_apivalues('Event', 'get', $params);
   // 'now' means only current events, 1 means show all past events, other values are relative date strings
   $date_past = wf_crm_aval($reg_options, 'show_past_events', 'now');
   if ($date_past != '1') {
     $date_past = date('Y-m-d H:i:s', strtotime($date_past));
-    $sql .= " AND (end_date >= '$date_past' OR end_date IS NULL)";
+    foreach ($values as $key => $value) {
+      if (isset($value['end_date']) && $value['end_date'] <= $date_past) {
+        unset($values[$key]);
+      }
+    }
   }
   // 'now' means only past events, 1 means show all future events, other values are relative date strings
   $date_future = wf_crm_aval($reg_options, 'show_future_events', '1');
   if ($date_future != '1') {
     $date_future = date('Y-m-d H:i:s', strtotime($date_future));
-    $sql .= " AND (end_date <= '$date_future' OR end_date IS NULL)";
+    foreach ($values as $key => $value) {
+      if (isset($value['end_date']) && $value['end_date'] >= $date_future) {
+        unset($values[$key]);
+      }
+    }
   }
-  $event_types = array_filter((array) $reg_options['event_type'], "is_numeric");
-  if ($event_types) {
-    $sql .= ' AND event_type_id IN ( ' . implode(", ", $event_types) . ' ) ';
-  }
-  if (is_numeric(wf_crm_aval($reg_options, 'show_public_events'))) {
-    $sql .= ' AND is_public = ' . $reg_options['show_public_events'];
-  }
-  $sql .= ' ORDER BY start_date ' . ($context == 'config_form' ? 'DESC' : '');
-  $dao = CRM_Core_DAO::executeQuery($sql);
-  while ($dao->fetch()) {
-    $ret[$dao->id . '-' . $dao->event_type_id] = wf_crm_format_event($dao, $format);
+  foreach ($values as $value) {
+    $ret[$value['id'] . '-' . $value['event_type_id']] = wf_crm_format_event($value, $format);
   }
   return $ret;
 }
 
 /**
- * @param array|object $event
+ * @param array $event
  * @param string $format
  * @return string
  */
@@ -231,28 +289,29 @@ function wf_crm_format_event($event, $format) {
   // Date format
   foreach ($format as $value) {
     if (strpos($value, 'dateformat') === 0) {
-      $config = CRM_Core_Config::singleton();
-      $date_format = $config->$value;
+      $date_format = wf_crm_get_civi_setting($value);
     }
   }
-  $event = (object) $event;
-  $title = array();
+  $title = [];
   if (in_array('title', $format)) {
-    $title[] = $event->title;
+    $title[] = $event['title'];
   }
   if (in_array('type', $format)) {
-    $types = wf_crm_apivalues('event', 'getoptions', array('field' => 'event_type_id', 'context' => 'get'));
-    $title[] = $types[$event->event_type_id];
+    $types = wf_crm_apivalues('event', 'getoptions', [
+      'field' => 'event_type_id',
+      'context' => 'get',
+    ]);
+    $title[] = $types[$event['event_type_id']];
   }
-  if (in_array('start', $format) && $event->start_date) {
-    $title[] = CRM_Utils_Date::customFormat($event->start_date, $date_format);
+  if (in_array('start', $format) && !empty($event['start_date'])) {
+    $title[] = CRM_Utils_Date::customFormat($event['start_date'], $date_format);
   }
-  if (in_array('end', $format) && $event->end_date) {
+  if (in_array('end', $format) && isset($event['end_date'])) {
     // Avoid showing redundant end-date if it is the same as the start date
-    $same_day = substr($event->start_date, 0, 10) == substr($event->end_date, 0, 10);
+    $same_day = substr($event['start_date'], 0, 10) == substr($event['end_date'], 0, 10);
     if (!$same_day || in_array('dateformatDatetime', $format) || in_array('dateformatTime', $format)) {
-      $end_format = (in_array('dateformatDatetime', $format) && $same_day) ? $config->dateformatTime : $date_format;
-      $title[] = CRM_Utils_Date::customFormat($event->end_date, $end_format);
+      $end_format = (in_array('dateformatDatetime', $format) && $same_day) ? wf_crm_get_civi_setting('dateformatTime') : $date_format;
+      $title[] = CRM_Utils_Date::customFormat($event['end_date'], $end_format);
     }
   }
   return implode(' - ', $title);
@@ -393,10 +452,10 @@ function wf_crm_get_matching_rules($contact_type) {
   static $rules;
   $contact_type = ucfirst($contact_type);
   if (!$rules) {
-    $rules = array_fill_keys(array('Individual', 'Organization', 'Household'), array());
-    $dao = CRM_Core_DAO::executeQuery('SELECT * FROM civicrm_dedupe_rule_group');
-    while ($dao->fetch()) {
-      $rules[$dao->contact_type][$dao->id] = $dao->title;
+    $rules = array_fill_keys(['Individual', 'Organization', 'Household'], []);
+    $values = wf_crm_apivalues('RuleGroup', 'get');
+    foreach ($values as $value) {
+      $rules[$value['contact_type']][$value['id']] = $value['title'];
     }
   }
   return $rules[$contact_type];
@@ -469,8 +528,7 @@ function wf_crm_get_fields($var = 'fields') {
   static $sets;
 
   if (!$fields) {
-    $config = CRM_Core_Config::singleton();
-    $components = $config->enableComponents;
+    $components = wf_crm_get_civi_setting('enable_components');
 
     $sets = array(
       'contact' => array('entity_type' => 'contact', 'label' => t('Contact Fields')),
@@ -480,7 +538,7 @@ function wf_crm_get_fields($var = 'fields') {
       'email' => array('entity_type' => 'contact', 'label' => t('Email'), 'max_instances' => 9, 'custom_fields' => 'combined'),
       'website' => array('entity_type' => 'contact', 'label' => t('Website'), 'max_instances' => 9, 'custom_fields' => 'combined'),
       'im' => array('entity_type' => 'contact', 'label' => t('Instant Message'), 'max_instances' => 9, 'custom_fields' => 'combined'),
-      'activity' => array('entity_type' => 'activity', 'label' => t('Activity'), 'max_instances' => 40,  'attachments' => TRUE),
+      'activity' => array('entity_type' => 'activity', 'label' => t('Activity'), 'max_instances' => 60,  'attachments' => TRUE),
       'relationship' => array('entity_type' => 'contact', 'label' => t('Relationship'), 'help_text' => TRUE, 'custom_fields' => 'combined'),
     );
     $conditional_sets = array(
@@ -504,9 +562,9 @@ function wf_crm_get_fields($var = 'fields') {
       'type' => 'number',
       'data_type' => 'Money',
       'extra' => array(
-        'field_prefix' => wf_crm_aval($config, 'defaultCurrencySymbol', '$'),
-        'point' => wf_crm_aval($config, 'monetaryDecimalPoint', '.'),
-        'separator' => wf_crm_aval($config, 'monetaryThousandSeparator', ','),
+        'field_prefix' => wf_crm_get_civi_setting('defaultCurrencySymbol', '$'),
+        'point' => wf_crm_get_civi_setting('monetaryDecimalPoint', '.'),
+        'separator' => wf_crm_get_civi_setting('monetaryThousandSeparator', ','),
         'decimals' => 2,
         'min' => 0,
       ),
@@ -543,15 +601,9 @@ function wf_crm_get_fields($var = 'fields') {
       'contact_type' => 'organization',
     );
     // Individual names
-    if (version_compare(CRM_Utils_System::version(), '4.5', '<')) {
-      // This setting doesn't exist prior to 4.5 so hard-code it.
-      $enabled_names = array('Prefix', 'Suffix', 'First Name', 'Middle Name', 'Last Name');
-    }
-    else {
-      $enabled_names = wf_crm_explode_multivalue_str(CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME, 'contact_edit_options'));
-      $name_options = CRM_Core_OptionGroup::values('contact_edit_options', FALSE, FALSE, FALSE, NULL, 'name');
-      $enabled_names = array_intersect_key($name_options, array_flip($enabled_names));
-    }
+    $enabled_names = wf_crm_get_civi_setting('contact_edit_options');
+    $name_options = array_column(wf_crm_apivalues('OptionValue', 'get', ['option_group_id' => 'contact_edit_options', 'return' => ['name', 'value']]), 'name', 'value');
+    $enabled_names = array_intersect_key($name_options, array_flip($enabled_names));
     foreach (array('prefix_id' => t('Name Prefix'), 'formal_title' => t('Formal Title'), 'first_name' => t('First Name'), 'middle_name' => t('Middle Name'), 'last_name' => t('Last Name'), 'suffix_id' => t('Name Suffix')) as $key => $label) {
       if (in_array(ucwords(str_replace(array('_id', '_'), array('', ' '), $key)), $enabled_names)) {
         $fields['contact_' . $key] = array(
@@ -598,7 +650,7 @@ function wf_crm_get_fields($var = 'fields') {
     $fields['contact_preferred_language'] = array(
       'name' => t('Preferred Language'),
       'type' => 'select',
-      'value' => $config->lcMessages,
+      'value' => wf_crm_get_civi_setting('lcMessages', 'en_US'),
     );
     if (array_key_exists('file', webform_components())) {
       $fields['contact_image_URL'] = array(
@@ -692,7 +744,7 @@ function wf_crm_get_fields($var = 'fields') {
       'name' => t('Country'),
       'type' => 'select',
       'extra' => array('civicrm_live_options' => 1),
-      'value' => $config->defaultContactCountry,
+      'value' => wf_crm_get_civi_setting('defaultContactCountry', 1228),
     );
     $fields['address_state_province_id'] = array(
       'name' => t('State/Province'),
@@ -740,14 +792,17 @@ function wf_crm_get_fields($var = 'fields') {
       'type' => 'select',
       'expose_list' => TRUE,
     );
-    $defaultLocType = CRM_Core_BAO_LocationType::getDefault();
+    $defaultLocType = wf_crm_aval(wf_civicrm_api('LocationType', 'get', [
+      'return' => ["id"],
+      'is_default' => 1,
+    ]), 'id');
     foreach (array('address' => t('Address # Location'), 'phone' => t('Phone # Location'), 'email' => t('Email # Location'), 'im' => t('IM # Location')) as $key => $label) {
       if (isset($sets[$key])) {
         $fields[$key . '_location_type_id'] = array(
           'name' => $label,
           'type' => 'select',
           'expose_list' => TRUE,
-          'value' => $defaultLocType->id,
+          'value' => $defaultLocType,
         );
       }
     }
@@ -768,16 +823,6 @@ function wf_crm_get_fields($var = 'fields') {
       'table' => 'group',
       'expose_list' => TRUE,
     );
-    $tagsets = array('' => t('Tag(s)')) + CRM_Core_BAO_Tag::getTagSet('civicrm_contact');
-    foreach ($tagsets as $pid => $name) {
-      $fields['other_tag' . ($pid ? "_$pid" : '')] = array(
-        'name' => $name,
-        'type' => 'select',
-        'extra' => array('multiple' => 1, 'civicrm_live_options' => 1),
-        'table' => 'tag',
-        'expose_list' => TRUE,
-      );
-    }
     $fields['activity_activity_type_id'] = array(
       'name' => t('Activity # Type'),
       'type' => 'select',
@@ -849,8 +894,9 @@ function wf_crm_get_fields($var = 'fields') {
         'integer' => 1,
       ),
     );
+    $tag_entities = array('other', 'activity');
     if (isset($sets['case'])) {
-      $case_info = new CRM_Case_XMLProcessor_Process();
+      $tag_entities[] = 'case';
       $fields['case_case_type_id'] = array(
         'name' => t('Case # Type'),
         'type' => 'select',
@@ -860,7 +906,7 @@ function wf_crm_get_fields($var = 'fields') {
         'name' => t('Case # Client'),
         'type' => 'select',
         'expose_list' => TRUE,
-        'extra' => array('required' => 1, 'multiple' => $case_info->getAllowMultipleCaseClients()),
+        'extra' => array('required' => 1, 'multiple' => wf_crm_get_civi_setting('civicaseAllowMultipleClients', 0)),
         'data_type' => 'ContactReference',
         'set' => 'caseRoles',
         'value' => 1,
@@ -904,12 +950,10 @@ function wf_crm_get_fields($var = 'fields') {
       );
       // Fetch case roles
       $sets['caseRoles'] = array('entity_type' => 'case', 'label' => t('Case Roles'));
-      // Use the vanilla civicrm_api for this because it will throw an error in CiviCRM 4.4 (api doesn't exist)
-      $case_types = civicrm_api('case_type', 'get', array('version' => 3, 'options' => array('limit' => 0)));
-      foreach (wf_crm_aval($case_types, 'values', array()) as $case_type) {
+      foreach (wf_crm_apivalues('case_type', 'get') as $case_type) {
         foreach ($case_type['definition']['caseRoles'] as $role) {
           foreach (wf_crm_get_relationship_types() as $rel_type) {
-            if ($rel_type['name_b_a'] == $role['name']) {
+            if (in_array($role['name'], [$rel_type['name_b_a'], $rel_type['label_b_a']])) {
               if (!isset($fields['case_role_' . $rel_type['id']])) {
                 $fields['case_role_' . $rel_type['id']] = array(
                   'name' => $rel_type['label_b_a'],
@@ -928,6 +972,29 @@ function wf_crm_get_fields($var = 'fields') {
             }
           }
         }
+      }
+    }
+    $all_tagsets = wf_crm_apivalues('tag', 'get', [
+      'return' => ['id', 'name', 'used_for'],
+      'is_tagset' => 1,
+      'parent_id' => ['IS NULL' => 1],
+    ]);
+    foreach ($tag_entities as $entity) {
+      $table_name = $entity == 'other' ? 'civicrm_contact' : "civicrm_$entity";
+      $tagsets = ['' => t('Tag(s)')];
+      foreach ($all_tagsets as $set) {
+        if (strpos($set['used_for'], $table_name) !== FALSE) {
+          $tagsets[$set['id']] = $set['name'];
+        }
+      }
+      foreach ($tagsets as $pid => $name) {
+        $fields[$entity . '_tag' . ($pid ? "_$pid" : '')] = [
+          'name' => $name,
+          'type' => 'select',
+          'extra' => ['multiple' => 1, 'civicrm_live_options' => 1],
+          'table' => 'tag',
+          'expose_list' => TRUE,
+        ];
       }
     }
     $fields['relationship_relationship_type_id'] = array(
@@ -1074,7 +1141,7 @@ function wf_crm_get_fields($var = 'fields') {
         ),
         'set' => 'contributionRecur',
       );
-     }
+    }
     if (isset($sets['participant'])) {
       $fields['participant_event_id'] = array(
         'name' => t('Event(s)'),
@@ -1250,7 +1317,7 @@ function wf_crm_get_fields($var = 'fields') {
     }
 
     // File attachment fields
-    $numAttachments = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME, 'max_attachments');
+    $numAttachments = wf_crm_get_civi_setting('max_attachments', 3);
     foreach ($sets as $ent => $set) {
       if (!empty($set['attachments']) && $numAttachments) {
         $sets["{$ent}upload"] = array(
@@ -1291,109 +1358,117 @@ function wf_crm_get_fields($var = 'fields') {
       'email' => t('email'),
     );
 
-    // Pull custom fields and match to Webform element types
-    $custom_types = wf_crm_custom_types_map_array();
+    // Fetch custom groups
     list($contact_types) = wf_crm_get_contact_types();
-    $custom_extends = "'" . implode("','", array_keys($contact_types + $sets)) . "'";
-    $sql = "
-      SELECT cf.*, cg.title AS custom_group_name, LOWER(cg.extends) AS entity_type, cg.extends_entity_column_id, cg.extends_entity_column_value AS sub_types, cg.is_multiple, cg.max_multiple, cg.id AS custom_group_id, cg.help_pre as cg_help
-      FROM civicrm_custom_field cf
-      INNER JOIN civicrm_custom_group cg ON cg.id = cf.custom_group_id
-      WHERE cf.is_active <> 0 AND cg.extends IN ($custom_extends) AND cg.is_active <> 0
-      ORDER BY cf.custom_group_id, cf.weight";
-    $dao = CRM_Core_DAO::executeQuery($sql);
-    while ($dao->fetch()) {
-      if (isset($custom_types[$dao->html_type])) {
-        $set = 'cg' . $dao->custom_group_id;
-        // Place these custom fields directly into their entity
-        if (wf_crm_aval($sets, "$dao->entity_type:custom_fields") == 'combined') {
-        //if ($dao->entity_type == 'address' || $dao->entity_type == 'relationship' || $dao->entity_type == 'membership' || $dao->entity_type == 'phone') {
-          $set = $dao->entity_type;
-        }
-        elseif (!isset($sets[$set])) {
-          $sets[$set]['label'] = $dao->custom_group_name;
-          if (isset($contact_types[$dao->entity_type]) || $dao->entity_type == 'contact') {
-            $sets[$set]['entity_type'] = 'contact';
-            if ($dao->entity_type != 'contact') {
-              $sets[$set]['contact_type'] = $dao->entity_type;
-            }
-            if ($dao->is_multiple) {
-              $sets[$set]['max_instances'] = ($dao->max_multiple ? $dao->max_multiple : 9);
-            }
-            else {
-              $sets[$set]['max_instances'] = 1;
-            }
+    $custom_sets = [];
+    $custom_groups = wf_crm_apivalues('CustomGroup', 'get', [
+      'return' => ['title', 'extends', 'extends_entity_column_value', 'extends_entity_column_id', 'is_multiple', 'max_multiple', 'help_pre'],
+      'is_active' => 1,
+      'extends' => ['IN' => array_keys($contact_types + $sets)],
+      'options' => ['sort' => 'weight'],
+    ]);
+    foreach ($custom_groups as $custom_group) {
+      $set = 'cg' . $custom_group['id'];
+      $entity_type = strtolower($custom_group['extends']);
+      // Place these custom fields directly into their entity
+      if (wf_crm_aval($sets, "$entity_type:custom_fields") == 'combined') {
+        $set = $entity_type;
+      }
+      else {
+        $sets[$set] = [
+          'label' => $custom_group['title'],
+          'entity_type' => $entity_type,
+          'max_instances' => 1,
+        ];
+        if (isset($contact_types[$entity_type]) || $entity_type == 'contact') {
+          $sets[$set]['entity_type'] = 'contact';
+          if ($entity_type != 'contact') {
+            $sets[$set]['contact_type'] = $entity_type;
           }
-          else {
-            $sets[$set]['entity_type'] = $dao->entity_type;
+          if (!empty($custom_group['is_multiple'])) {
+            $sets[$set]['max_instances'] = $custom_group['max_multiple'] ?? 9;
           }
-          if ($dao->sub_types) {
-            $sets[$set]['sub_types'] = wf_crm_explode_multivalue_str($dao->sub_types);
-          }
-          if ($dao->extends_entity_column_id) {
-            $sets[$set]['extension_of'] = $dao->extends_entity_column_id;
-          }
-          $sets[$set]['help_text'] = $dao->cg_help;
         }
-        $id = $set . '_custom_' . $dao->id;
-        $fields[$id] = $custom_types[$dao->html_type];
-        if ($dao->html_type == 'Text' && $dao->data_type == 'Money') {
-          $fields[$id] = $moneyDefaults;
+        if (!empty($custom_group['extends_entity_column_value'])) {
+          $sets[$set]['sub_types'] = $custom_group['extends_entity_column_value'];
         }
-        $fields[$id]['name'] = $dao->label;
-        $fields[$id]['required'] = $dao->is_required;
-        $fields[$id]['value'] = implode(',', wf_crm_explode_multivalue_str($dao->default_value));
-        $fields[$id]['data_type'] = $dao->data_type;
-        if (!empty($dao->help_pre) || !empty($dao->help_post)) {
-          $fields[$id]['extra']['description'] = $dao->help_pre ? $dao->help_pre : $dao->help_post;
-          $fields[$id]['extra']['description_above'] = (int) !$dao->help_pre;
-          $fields[$id]['has_help'] = TRUE;
+        if (!empty($custom_group['extends_entity_column_id'])) {
+          $sets[$set]['extension_of'] = $custom_group['extends_entity_column_id'];
         }
-        // Conditional rule - todo: support additional entities
-        if ($sets[$set]['entity_type'] == 'contact' && !empty($sets[$set]['sub_types'])) {
-          $fields[$id]['civicrm_condition'] = array(
-            'andor' => 'or',
-            'action' => 'show',
-            'rules' => array(
-              'contact_contact_sub_type' => array(
-                'values' => $sets[$set]['sub_types'],
-              ),
-            ),
-          );
-        }
+        $sets[$set]['help_text'] = $custom_group['help_pre'] ?? NULL;
+      }
+      $custom_sets[$custom_group['id']] = $set;
+    }
 
-        if ($dao->entity_type == 'relationship' && $dao->sub_types) {
-          $fields[$id]['attributes']['data-relationship-type'] = implode(',', wf_crm_explode_multivalue_str($dao->sub_types));
-        }
+    // Fetch custom fields
+    $custom_types = wf_crm_custom_types_map_array();
+    $custom_fields = wf_crm_apivalues('CustomField', 'get', [
+      'is_active' => 1,
+      'custom_group_id' => ['IN' => array_keys($custom_sets)],
+      'html_type' => ['IN' => array_keys($custom_types)],
+      'options' => ['sort' => 'weight'],
+    ]);
+    foreach ($custom_fields as $custom_field) {
+      $set = $custom_sets[$custom_field['custom_group_id']];
+      $custom_group = $custom_groups[$custom_field['custom_group_id']];
+      $id = $set . '_custom_' . $custom_field['id'];
+      $fields[$id] = $custom_types[$custom_field['html_type']];
+      if ($custom_field['html_type'] == 'Text' && $custom_field['data_type'] == 'Money') {
+        $fields[$id] = $moneyDefaults;
+      }
+      $fields[$id]['name'] = $custom_field['label'];
+      $fields[$id]['required'] = (int) !empty($custom_field['is_required']);
+      if (!empty($custom_field['default_value'])) {
+        $fields[$id]['value'] = implode(',', wf_crm_explode_multivalue_str($custom_field['default_value']));
+      }
+      $fields[$id]['data_type'] = $custom_field['data_type'];
+      if (!empty($custom_field['help_pre']) || !empty($custom_field['help_post'])) {
+        $fields[$id]['extra']['description'] = !empty($custom_field['help_pre']) ? $custom_field['help_pre'] : $custom_field['help_post'];
+        $fields[$id]['extra']['description_above'] = (int) empty($custom_field['help_pre']);
+        $fields[$id]['has_help'] = TRUE;
+      }
+      // Conditional rule - todo: support additional entities
+      if ($sets[$set]['entity_type'] == 'contact' && !empty($sets[$set]['sub_types'])) {
+        $fields[$id]['civicrm_condition'] = [
+          'andor' => 'or',
+          'action' => 'show',
+          'rules' => [
+            'contact_contact_sub_type' => [
+              'values' => $sets[$set]['sub_types'],
+            ],
+          ],
+        ];
+      }
 
-        if ($fields[$id]['type'] == 'date') {
-          $fields[$id]['extra']['start_date'] = ($dao->start_date_years ? '-' . $dao->start_date_years : '-50') . ' years';
-          $fields[$id]['extra']['end_date'] = ($dao->end_date_years ? '+' . $dao->end_date_years : '+50') . ' years';
-          // Add "time" component for datetime fields
-          if (!empty($dao->time_format)) {
-            $fields[$id]['name'] .= ' - ' . t('date');
-            $fields[$id . '_timepart'] = array(
-              'name' => $dao->label . ' - ' . t('time'),
-              'type' => 'time',
-              'extra' => array('hourformat' => $dao->time_format == 1 ? '12-hour' : '24-hour'),
-            );
-          }
-        }
-        elseif ($fields[$id]['data_type'] == 'ContactReference') {
-          $fields[$id]['expose_list'] = TRUE;
-          $fields[$id]['empty_option'] = t('None');
-        }
-        elseif ($fields[$id]['data_type'] !== 'Boolean' && $fields[$id]['type'] == 'select') {
-          $fields[$id]['extra']['civicrm_live_options'] = 1;
-        }
-        elseif ($fields[$id]['type'] == 'textarea') {
-          $fields[$id]['extra']['cols'] = $dao->note_columns;
-          $fields[$id]['extra']['rows'] = $dao->note_rows;
+      if ($set == 'relationship' && !empty($custom_group['extends_entity_column_value'])) {
+        $fields[$id]['attributes']['data-relationship-type'] = implode(',', $custom_group['extends_entity_column_value']);
+      }
+
+      if ($fields[$id]['type'] == 'date') {
+        $fields[$id]['extra']['start_date'] = (!empty($custom_field['start_date_years']) ? '-' . $custom_field['start_date_years'] : '-50') . ' years';
+        $fields[$id]['extra']['end_date'] = (!empty($custom_field['end_date_years']) ? '+' . $custom_field['end_date_years'] : '+50') . ' years';
+        // Add "time" component for datetime fields
+        if (!empty($custom_field['time_format'])) {
+          $fields[$id]['name'] .= ' - ' . t('date');
+          $fields[$id . '_timepart'] = [
+            'name' => $custom_field['label'] . ' - ' . t('time'),
+            'type' => 'time',
+            'extra' => ['hourformat' => $custom_field['time_format'] == 1 ? '12-hour' : '24-hour'],
+          ];
         }
       }
+      elseif ($fields[$id]['data_type'] == 'ContactReference') {
+        $fields[$id]['expose_list'] = TRUE;
+        $fields[$id]['empty_option'] = t('None');
+      }
+      elseif ($fields[$id]['data_type'] !== 'Boolean' && $fields[$id]['type'] == 'select') {
+        $fields[$id]['extra']['civicrm_live_options'] = 1;
+      }
+      elseif ($fields[$id]['type'] == 'textarea') {
+        $fields[$id]['extra']['cols'] = $custom_field['note_columns'] ?? 60;
+        $fields[$id]['extra']['rows'] = $custom_field['note_rows'] ?? 4;
+      }
     }
-    $sets += wf_crm_get_empty_sets();
-    $dao->free();
   }
   return $$var;
 }
@@ -1737,31 +1812,11 @@ function wf_crm_is_positive($val) {
  * @return array $sets
  */
 function wf_crm_get_empty_sets() {
-  $sets = array();
-
-  $sql = "SELECT cg.id, cg.title, cg.help_pre, cg.extends, SUM(cf.is_active) as custom_field_sum
-          FROM civicrm_custom_group cg
-          LEFT OUTER JOIN civicrm_custom_field cf
-          ON (cg.id = cf.custom_group_id)
-          GROUP By cg.id";
-
-  $dao = CRM_Core_DAO::executeQuery($sql);
-
-  while($dao->fetch()) {
-    // Because a set with all fields disabled = empty set
-    if (empty($dao->custom_field_sum)) {
-      $set = 'cg' . $dao->id;
-      if ($dao->extends == 'address' || $dao->extends == 'relationship' || $dao->extends == 'membership') {
-        $set = $dao->extends;
-      }
-      $sets[$set] = array(
-        'label' => $dao->title,
-        'entity_type' => strtolower($dao->extends),
-        'help_text' => $dao->help_pre,
-      );
-    }
+  $sets = wf_crm_get_fields('sets');
+  foreach (array_keys(wf_crm_get_fields()) as $key) {
+    list($set) = explode('_', $key);
+    unset($sets[$set]);
   }
-
   return $sets;
 }
 
@@ -1774,7 +1829,6 @@ function wf_crm_custom_types_map_array() {
   $custom_types = array(
     'Select' => array('type' => 'select'),
     'Multi-Select' => array('type' => 'select', 'extra' => array('multiple' => 1)),
-    'AdvMulti-Select' => array('type' => 'select', 'extra' => array('multiple' => 1)),
     'Radio' => array('type' => 'select', 'extra' => array('aslist' => 0)),
     'CheckBox' => array('type' => 'select', 'extra' => array('multiple' => 1)),
     'Text'  => array('type' => 'textfield'),
@@ -1791,4 +1845,32 @@ function wf_crm_custom_types_map_array() {
   );
 
   return $custom_types;
+}
+
+/**
+ * @param string $setting_name
+ * @param mixed $default_value
+ * @return mixed
+ */
+function wf_crm_get_civi_setting($setting_name, $default_value = NULL) {
+  $aliases = [
+    'defaultCurrencySymbol' => 'defaultCurrency',
+  ];
+  $settings = wf_civicrm_api('Setting', 'get', [
+    'sequential' => 1,
+    'return' => str_replace(array_keys($aliases), array_values($aliases), $setting_name),
+  ]);
+  // Not a real setting, requires cross-lookup
+  if ($setting_name == 'defaultCurrencySymbol') {
+    $currencies = wf_crm_apivalues('Contribution', 'getoptions', [
+      'field' => "currency",
+      'context' => "abbreviate",
+    ]);
+    return wf_crm_aval($currencies, $settings['values'][0]['defaultCurrency'], $default_value);
+  }
+  $result = wf_crm_aval($settings, "values:0:$setting_name", $default_value);
+  if ($result === 'default') {
+    return $default_value;
+  }
+  return $result;
 }

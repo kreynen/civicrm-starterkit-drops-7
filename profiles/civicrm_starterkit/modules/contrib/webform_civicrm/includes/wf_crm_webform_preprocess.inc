@@ -21,6 +21,7 @@ class wf_crm_webform_preprocess extends wf_crm_webform_base {
     $this->node = $form['#node'];
     $this->settings = $this->node->webform_civicrm;
     $this->data = $this->settings['data'];
+    $this->fixPaymentProcessorID();
     $this->ent['contact'] = array();
     $this->all_fields = wf_crm_get_fields();
     $this->all_sets = wf_crm_get_fields('sets');
@@ -175,15 +176,15 @@ class wf_crm_webform_preprocess extends wf_crm_webform_base {
       'scope' => 'footer',
     );
     $this->form['#attached']['css'][] = drupal_get_path('module', 'webform_civicrm') . '/css/webform_civicrm_forms.css';
-    $config = CRM_Core_Config::singleton();
+    $default_country = wf_crm_get_civi_setting('defaultContactCountry', 1228);
     // Variables to push to the client-side
     $js_vars = array();
     // JS Cache eliminates the need for most ajax state/province callbacks
     foreach ($this->data['contact'] as $c) {
       if (!empty($c['number_of_address'])) {
         $js_vars += array(
-          'defaultCountry' => $config->defaultContactCountry,
-          'defaultStates' => wf_crm_get_states($config->defaultContactCountry),
+          'defaultCountry' => $default_country,
+          'defaultStates' => wf_crm_get_states($default_country),
           'noCountry' => t('- First Choose a Country -'),
           'callbackPath' => url('webform-civicrm/js', array('alias' => TRUE)),
         );
@@ -197,18 +198,10 @@ class wf_crm_webform_preprocess extends wf_crm_webform_base {
         'data' => drupal_get_path('module', 'webform_civicrm') . '/js/webform_civicrm_payment.js',
         'scope' => 'footer',
       );
-      $page_id = $this->data['contribution'][1]['contribution'][1]['contribution_page_id'];
-      if (version_compare($this->civicrm_version, '4.7', '>=')) {
-        $currency = $this->contribution_page['currency'];
-        $contributionCallbackQuery = array('currency' => $currency, 'snippet' => 4);
-        $contributionCallbackUrl = 'civicrm/payment/form';
-        $js_vars['processor_id_key'] = 'processor_id';
-      }
-      else {
-        $contributionCallbackQuery = array('reset' => 1, 'id' => $page_id, 'qfKey' => $this->getQfKey(), 'snippet' => 4);
-        $contributionCallbackUrl = 'civicrm/contribute/transact';
-        $js_vars['processor_id_key'] = 'type';
-      }
+      $currency = $this->contribution_page['currency'];
+      $contributionCallbackQuery = array('currency' => $currency, 'snippet' => 4);
+      $contributionCallbackUrl = 'civicrm/payment/form';
+      $js_vars['processor_id_key'] = 'processor_id';
       if (!empty($this->data['contribution'][1]['contribution'][1]['is_test'])) {
         // RM: This is needed in order for CiviCRM to know that this is a 'test' (i.e. 'preview' action in CiviCRM) transaction - otherwise, CiviCRM defaults to 'live' and returns the payment form with public key for the live payment processor!
         $contributionCallbackQuery['action'] = CRM_Core_Action::description(CRM_Core_Action::PREVIEW);
@@ -287,15 +280,15 @@ class wf_crm_webform_preprocess extends wf_crm_webform_base {
             $this->setMessage(t('Sorry, %event has ended.', array('%event' => $event['title'])), 'warning');
           }
         }
-        elseif ($event['full']) {
+        elseif (!empty($event['is_full'])) {
           if (!empty($reg['show_remaining'])) {
-            $this->setMessage('<em>' . check_plain($event['title']) . '</em>: ' . check_plain($event['full_message']), 'warning');
+            $this->setMessage('<em>' . check_plain($event['title']) . '</em>: ' . check_plain($event['event_full_text']), 'warning');
           }
         }
         else {
           $reg['block_form'] = FALSE;
-          if ($event['max_participants'] && ($reg['show_remaining'] == 'always' || intval($reg['show_remaining']) >= $event['remaining'])) {
-            $this->setMessage(format_plural($event['remaining'],
+          if (!empty($event['max_participants']) && ($reg['show_remaining'] == 'always' || intval($reg['show_remaining']) >= $event['available_places'])) {
+            $this->setMessage(format_plural($event['available_places'],
               '%event has 1 remaining space.',
               '%event has @count remaining spaces.',
               array('%event' => $event['title'])));
@@ -314,23 +307,20 @@ class wf_crm_webform_preprocess extends wf_crm_webform_base {
    * @param int $c
    */
   private function loadParticipants($c) {
-    $select = array('id', 'event_id', 'role_id', 'status_id');
-    if (array_key_exists('participant_campaign_id', $this->all_fields)) {
-      $select[] = 'campaign_id';
-    }
     $status_types = wf_crm_apivalues('participant_status_type', 'get');
-    $dao = CRM_Core_DAO::executeQuery('SELECT ' . implode(',', $select) . '
-      FROM civicrm_participant
-      WHERE contact_id = ' . $this->ent['contact'][$c]['id'] . ' AND event_id IN (' . implode(',', array_keys($this->events)) . ")"
-    );
-    while ($dao->fetch()) {
-      $par = array();
-      foreach ($select as $sel) {
-        $par['participant'][1][$sel] = $dao->$sel;
+    $participants = wf_crm_apivalues('participant', 'get', [
+      'contact_id' => $this->ent['contact'][$c]['id'],
+      'event_id' => ['IN' => array_keys($this->events)],
+    ]);
+    foreach ($participants as $row) {
+      $par = [];
+      // v3 participant api returns some non-standard keys with participant_ prepended
+      foreach (['id', 'event_id', 'role_id', 'status_id', 'campaign_id'] as $sel) {
+        $par['participant'][1][$sel] = $row[$sel] = $row[$sel] ?? $row['participant_' . $sel] ?? NULL;
       }
-      $par += $this->getCustomData($dao->id, 'Participant');
-      $status = $status_types[$dao->status_id];
-      foreach ($this->events[$dao->event_id]['form'] as $event) {
+      $par += $this->getCustomData($row['id'], 'Participant');
+      $status = $status_types[$row['status_id']];
+      foreach ($this->events[$row['event_id']]['form'] as $event) {
         if ($event['contact'] == $c) {
           // If status has been set by admin or exposed to the form, use it as a filter
           if (in_array($status['id'], $event['status_id']) ||
@@ -352,7 +342,6 @@ class wf_crm_webform_preprocess extends wf_crm_webform_base {
         }
       }
     }
-    $dao->free();
   }
 
   /**
@@ -582,7 +571,7 @@ class wf_crm_webform_preprocess extends wf_crm_webform_base {
 
       if (!is_null($itemTaxRate)) {
         // Change the line item label to display the tax rate it contains
-        $taxSettings = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME, 'contribution_invoice_settings');
+        $taxSettings = wf_crm_get_civi_setting('contribution_invoice_settings');
 
         if (($taxSettings['tax_display_settings'] != 'Do_not_show') && ($itemTaxRate !== 0)) {
           $item['label'] .= ' (' . t('includes !rate @tax', array('!rate' => (float)$itemTaxRate . '%', '@tax' => $taxSettings['tax_term'])) . ')';
@@ -786,17 +775,7 @@ class wf_crm_webform_preprocess extends wf_crm_webform_base {
       }
     }
     if ($items) {
-      // Todo: Remove when we drop support for 4.4 - https://www.drupal.org/node/2832331
-      if (version_compare($this->civicrm_version, '4.6.0', '<')) {
-        $values = array();
-        foreach ($items as $id) {
-          $value = wf_crm_apivalues($type, 'get', array('id' => $id));
-          $values[$id] = $value[$id];
-        }
-      }
-      else {
-        $values = wf_crm_apivalues($type, 'get', array('id' => array('IN' => array_values($items))));
-      }
+      $values = wf_crm_apivalues($type, 'get', array('id' => array('IN' => array_values($items))));
       foreach ($items as $n => $id) {
         if (isset($values[$id])) {
           // Load core + custom data
@@ -805,6 +784,14 @@ class wf_crm_webform_preprocess extends wf_crm_webform_base {
           if (!empty($this->all_sets["{$type}upload"])) {
             foreach ($this->getAttachments($type, $id) as $f => $file) {
               $this->info[$type][$n]["{$type}upload"][1]["file_$f"] = $file['file_id'];
+            }
+          }
+          // Load tags
+          $tags = NULL;
+          foreach (array_keys($this->enabled) as $fid) {
+            if (strpos($fid, "civicrm_{$n}_{$type}_1_{$type}_tag") === 0) {
+              $tags = $tags ?? wf_crm_apivalues('EntityTag', 'get', ['entity_id' => $id, 'entity_table' => "civicrm_" . $type, 'sequential' => 1], 'tag_id');
+              $this->info[$type][$n][$type][1][str_replace("civicrm_{$n}_{$type}_1_{$type}_", '', $fid)] = $tags;
             }
           }
         }

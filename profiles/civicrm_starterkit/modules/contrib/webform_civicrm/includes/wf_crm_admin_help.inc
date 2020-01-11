@@ -138,8 +138,6 @@ class wf_crm_admin_help {
   public static function contribution_payment_processor_id() {
     print '<p>' .
       t('Supported payment processors enabled on the contribution page are available here. "Pay Later" option allows the user to purchase events/memberships without entering a credit card.') .
-      '</p><p>' .
-      t("Note that only on-site credit card processors are currently supported on Webforms. Services that redirect to an external website, such as Paypal Standard, are not supported. Recurring payments are not supported.") .
       '</p>';
   }
 
@@ -350,7 +348,7 @@ class wf_crm_admin_help {
   public static function activity_assignee_contact_id() {
     civicrm_initialize();
     print '<p>';
-    if (CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME, 'activity_assignee_notification')) {
+    if (wf_crm_get_civi_setting('activity_assignee_notification')) {
       print t('A copy of this activity will be emailed to the assignee.');
     }
     else {
@@ -379,6 +377,16 @@ class wf_crm_admin_help {
       t('If a matching case of the chosen type already exists for the client, it will be autofilled and updated.') .
       '</p><p>' .
       t('Note: a case can also be autofilled by passing "case1", etc. in the url.') .
+      '</p>';
+  }
+
+  public static function duplicate_case_status() {
+    print '<p>' .
+      t('Choosing this option means a new case will always be created even when an existing case has been selected. If an existing case has been selected the data for this case will NOT be updated.') .
+      '</p><p>' .
+      t('Useful if you want to pre-fill a form with existing case data, allow the user to make updates and then create a new case with their updates.') .
+      '</p><p>' .
+      t('Note: Populate the existing case by selecting an option from the Update Existing Case drop-down or by passing "case1=[caseid]" in the url etc.') .
       '</p>';
   }
 

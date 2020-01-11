@@ -642,6 +642,12 @@ class wf_crm_admin_form {
         '#multiple' => TRUE,
       );
       $this->help($this->form['caseTab']['case'][$fs]["case_{$n}_settings_existing_case_status"], 'existing_case_status');
+      $this->form['caseTab']['case'][$fs]["case_{$n}_settings_duplicate_case"] = array(
+        '#type' => 'checkbox',
+        '#title' => t('Create new case based on existing case'),
+        '#default_value' => wf_crm_aval($this->data, "case:{$n}:duplicate_case", 0),
+      );
+      $this->help($this->form['caseTab']['case'][$fs]["case_{$n}_settings_duplicate_case"], 'duplicate_case_status');
       $case_type = wf_crm_aval($this->data, "case:{$n}:case:1:case_type_id");
       foreach ($this->filterCaseSets($case_type) as $sid => $set) {
         $fs1 = "case_case_{$n}_fieldset_$sid";
@@ -684,9 +690,8 @@ class wf_crm_admin_form {
         if ($sid == 'caseRoles') {
           // Lookup case-role names
           $creator = $manager = NULL;
-          // Use the vanilla civicrm_api for this because it will throw an error in CiviCRM 4.4 (api doesn't exist)
-          $case_types = civicrm_api('case_type', 'get', array('version' => 3, 'id' => $case_type, 'options' => array('limit' => 0)));
-          foreach (wf_crm_aval($case_types, 'values', array()) as $type) {
+          $case_types = wf_crm_apivalues('case_type', 'get', array('id' => $case_type));
+          foreach ($case_types as $type) {
             foreach ($type['definition']['caseRoles'] as $role) {
               if (!empty($role['creator'])) {
                 $creator = ($creator == $role['name'] || $creator === NULL) ? $role['name'] : FALSE;
@@ -1657,6 +1662,11 @@ class wf_crm_admin_form {
         if (substr($key, 0, 7) == 'civicrm') {
           ++$i;
           $field = wf_crm_get_field($key);
+          if (substr($key, -11) === '_createmode') {
+            // Update webform's settings with 'Create mode' value for custom group.
+            $this->settings['data']['config']['create_mode'][$key] = $val;
+          }
+
           if (!isset($enabled[$key])) {
             $val = (array) $val;
             if (in_array('create_civicrm_webform_element', $val, TRUE) || (!empty($val[0]) && $field['type'] == 'hidden')) {
@@ -1687,10 +1697,6 @@ class wf_crm_admin_form {
             webform_component_update($component);
           }
 
-          if (substr($key, -11) === '_createmode') {
-            // Update webform's settings with 'Create mode' value for custom group.
-            $this->settings['data']['config']['create_mode'][$key] = $val;
-          }
         }
         // add empty fieldsets for custom civicrm sets with no fields, if "add dynamically" is checked
         elseif (strpos($key, 'settings_dynamic_custom') && $val == 1) {
@@ -2004,7 +2010,7 @@ class wf_crm_admin_form {
    * Default value callback
    */
   public static function get_default_contact_cs($fid, $options) {
-    return CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME, 'checksum_timeout', NULL, 7);
+    return wf_crm_get_civi_setting('checksum_timeout', 7);
   }
 
   /**

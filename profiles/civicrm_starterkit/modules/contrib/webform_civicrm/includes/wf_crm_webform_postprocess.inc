@@ -43,6 +43,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
     $this->node = $node;
     $this->settings = $node->webform_civicrm;
     $this->data = $this->settings['data'];
+    $this->fixPaymentProcessorID();
     $this->enabled = wf_crm_enabled_fields($node);
     $this->all_fields = wf_crm_get_fields();
     $this->all_sets = wf_crm_get_fields('sets');
@@ -331,8 +332,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
               $country_id = $this->crmValues[$ckey];
             }
             else {
-              $config = CRM_Core_Config::singleton();
-              $country_id = $config->defaultContactCountry;
+              $country_id = wf_crm_get_civi_setting('defaultContactCountry', 1228);
             }
             $states = wf_crm_get_states($country_id);
             if ($states && !array_key_exists(strtoupper($element['#value']), $states)) {
@@ -386,14 +386,12 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
         continue;
       }
       $participants = current(wf_crm_aval($this->data['contact'], "$c:contact", array()));
-      $firstName = CRM_Utils_Array::value('first_name', $participants);
-      $lastName = CRM_Utils_Array::value('last_name', $participants);
 
-      $participantName = "{$firstName} {$lastName}";
+      $participantName = ($participants['first_name'] ?? '') . ' ' . ($participants['last_name'] ?? '');
       if (!trim($participantName)) {
-        $participantName = CRM_Utils_Array::value('webform_label', $participants);
+        $participantName = $participants['webform_label'] ?? NULL;
         if (!empty($this->existing_contacts[$c])) {
-          $participantName = CRM_Contact_BAO_Contact::displayName($this->existing_contacts[$c]);
+          $participantName = wf_crm_apivalues('contact', 'get', $this->existing_contacts[$c], 'display_name')[0];
         }
       }
       foreach (wf_crm_aval($par, 'participant', array()) as $n => $p) {
@@ -408,7 +406,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
               'entity_table' => 'civicrm_participant',
               'event_id' => $eid,
               'contact_ids' => $contacts,
-              'unit_price' => $p['fee_amount'],
+              'unit_price' => $p['fee_amount'] ?? 0,
               'element' => "civicrm_{$c}_participant_{$n}_participant_{$id_and_type}",
               'contact_label' => $participantName,
             );
@@ -419,28 +417,29 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
     // Subtract events already registered for - this only works with known contacts
     $cids = array_filter($this->existing_contacts);
     if ($this->events && $cids) {
-      $dao = CRM_Core_DAO::executeQuery("SELECT event_id, contact_id
-      FROM civicrm_participant p, civicrm_participant_status_type s
-      WHERE s.id = p.status_id AND s.is_counted = 1
-      AND event_id IN (" . implode(',', array_keys($this->events)) . ")
-      AND contact_id IN (" . implode(',', $cids) . ")
-      AND is_test = 0");
-      while ($dao->fetch()) {
-        if (isset($this->events[$dao->event_id])) {
-          if (!(--$this->events[$dao->event_id]['count'])) {
-            unset($this->events[$dao->event_id]);
+      $status_types = wf_crm_apivalues('participant_status_type', 'get', ['is_counted' => 1, 'return' => 'id']);
+      $existing = wf_crm_apivalues('Participant', 'get', [
+        'return' => ['event_id', 'contact_id'],
+        'event_id' => ['IN' => array_keys($this->events)],
+        'status_id' => ['IN' => array_keys($status_types)],
+        'contact_id' => ['IN' => $cids],
+        'is_test' => 0,
+      ]);
+      foreach ($existing as $participant) {
+        if (isset($this->events[$participant['event_id']])) {
+          if (!(--$this->events[$participant['event_id']]['count'])) {
+            unset($this->events[$participant['event_id']]);
           }
         }
         foreach ($this->line_items as $k => &$item) {
-          if ($dao->event_id == $item['event_id'] && in_array($dao->contact_id, $item['contact_ids'])) {
-            unset($this->line_items[$k]['contact_ids'][array_search($dao->contact_id, $item['contact_ids'])]);
+          if ($participant['event_id'] == $item['event_id'] && in_array($participant['contact_id'], $item['contact_ids'])) {
+            unset($this->line_items[$k]['contact_ids'][array_search($participant['contact_id'], $item['contact_ids'])]);
             if (!(--$item['qty'])) {
               unset($this->line_items[$k]);
             }
           }
         }
       }
-      $dao->free();
     }
     $this->loadEvents();
     // Add event info to line items
@@ -456,12 +455,12 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
         if ($event['ended']) {
           form_set_error($eid, t('Sorry, you can no longer register for %event.', array('%event' => $event['title'])));
         }
-        elseif ($event['max_participants'] && $event['count'] > $event['remaining']) {
-          if (!empty($event['full'])) {
-            form_set_error($eid, '<em>' . $event['title'] . '</em>: ' . $event['full_message']);
+        elseif (!empty($event['max_participants']) && $event['count'] > $event['available_places']) {
+          if (!empty($event['is_full'])) {
+            form_set_error($eid, '<em>' . $event['title'] . '</em>: ' . $event['event_full_text']);
           }
           else {
-            form_set_error($eid, format_plural($event['remaining'],
+            form_set_error($eid, format_plural($event['available_places'],
               'Sorry, you tried to register !count people for %event but there is only 1 space remaining.',
               'Sorry, you tried to register !count people for %event but there are only @count spaces remaining.',
               array('%event' => $event['title'], '!count' => $event['count'])));
@@ -757,8 +756,8 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
       foreach ($contact['address'] as &$address) {
         // Translate state/prov abbr to id
         if (!empty($address['state_province_id'])) {
-          $config = CRM_Core_Config::singleton();
-          if (!($address['state_province_id'] = wf_crm_state_abbr($address['state_province_id'], 'id', wf_crm_aval($address, 'country_id', $config->defaultContactCountry)))) {
+          $default_country = wf_crm_get_civi_setting('defaultContactCountry', 1228);
+          if (!($address['state_province_id'] = wf_crm_state_abbr($address['state_province_id'], 'id', wf_crm_aval($address, 'country_id', $default_country)))) {
             $address['state_province_id'] = '';
           }
         }
@@ -768,7 +767,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
         }
       }
     }
-    
+
     foreach (wf_crm_location_fields() as $location) {
       if (!empty($contact[$location])) {
         $existing = array();
@@ -900,14 +899,18 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
         $params['method'] = 'Webform';
         break;
       case 'tag':
-        $api = 'entity_tag';
+        $api = 'EntityTag';
         break;
       default:
         $api = $data_type;
     }
     if (!empty($add) || !empty($remove)) {
       // Retrieve current records for this entity
-      if ($entity_type == 'contact') {
+      if ($api == 'EntityTag') {
+        $params['entity_id'] = $id;
+        $params['entity_table'] = 'civicrm_' . $entity_type;
+      }
+      elseif ($api == 'group_contact' && $entity_type == 'contact') {
         $params['contact_id'] = $id;
       }
       else {
@@ -1027,11 +1030,12 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
     $n = $this->data['participant_reg_type'] == 'separate' ? $c : 1;
     if ($p = wf_crm_aval($this->data, "participant:$n:participant")) {
       // Fetch existing participant records
-      $existing = array();
-      $dao = CRM_Core_DAO::executeQuery("SELECT id, event_id FROM civicrm_participant WHERE contact_id = $cid AND is_test = 0");
-      while ($dao->fetch()) {
-        $existing[$dao->event_id] = $dao->id;
-      }
+      $existing = wf_crm_apivalues('Participant', 'get', [
+        'return' => ["event_id"],
+        'contact_id' => $cid,
+        'is_test' => 0,
+      ]);
+      $existing = array_column($existing, 'id', 'event_id');
       foreach ($p as $e => $params) {
         $remove = array();
         $fid = "civicrm_{$c}_participant_{$e}_participant_event_id";
@@ -1093,6 +1097,8 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
                 unset($params['status_id']);
               }
               $result = wf_civicrm_api('participant', 'create', $params);
+              $this->ent['participant'][$n]['id'] = $result['id'];
+
               // Update line-item
               foreach ($this->line_items as &$item) {
                 if ($item['element'] == "civicrm_{$n}_participant_{$e}_participant_{$id_and_type}") {
@@ -1261,7 +1267,8 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
       if (is_array($data) && !empty($data['case'][1]['client_id'])) {
         $params = $data['case'][1];
         // Set some defaults in create mode
-        if (empty($this->ent['case'][$n]['id'])) {
+        // Create duplicate case based on existing case if 'duplicate_case' checkbox is checked
+        if (empty($this->ent['case'][$n]['id']) || !empty($this->data['case'][$n]['duplicate_case'])) {
           if (empty($params['case_type_id'])) {
             // Abort if no case type.
             continue;
@@ -1301,6 +1308,8 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
         $result = wf_civicrm_api('case', 'create', $params);
         // Final processing if save was successful
         if (!empty($result['id'])) {
+          // handle case tags
+          $this->handleEntityTags('case', $result['id'], $n, $params);
           // Store id
           $this->ent['case'][$n]['id'] = $result['id'];
           // Save custom field data
@@ -1409,6 +1418,8 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
         $activity = wf_civicrm_api('activity', 'create', $params);
         // Final processing if save was successful
         if (!empty($activity['id'])) {
+          // handle activity tags
+          $this->handleEntityTags('activity', $activity['id'], $n, $params);
           // Store id
           $this->ent['activity'][$n]['id'] = $activity['id'];
           // Save custom data & attachments
@@ -1417,7 +1428,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
             $this->processAttachments('activity', $n, $activity['id'], empty($params['id']));
           }
           if (!empty($params['assignee_contact_id'])) {
-            if (CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME, 'activity_assignee_notification')) {
+            if (wf_crm_get_civi_setting('activity_assignee_notification')) {
               // Send email to assignees. TODO: Move to CiviCRM API?
               $assignees = wf_crm_apivalues('contact', 'get', array(
                 'id' => array('IN' => (array) $params['assignee_contact_id']),
@@ -1437,6 +1448,28 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
               }
             }
           }
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle adding/updating tags for entities (cases, activity)
+   *
+   * @param $entityType
+   * @param $entityId
+   * @param $n
+   * @param $params
+   */
+  function handleEntityTags($entityType, $entityId, $n, $params) {
+    foreach ($this->all_fields as $fid => $field) {
+      list($set, $type) = explode('_', $fid, 2);
+      if ($set == $entityType && isset($field['table']) && $field['table'] == 'tag') {
+        $field_name = 'civicrm_' . $n . '_' . $entityType. '_1_' . $fid;
+        if (isset($this->enabled[$field_name]) && isset($this->data[$entityType][$n])) {
+          $add = wf_crm_aval($this->data[$entityType][$n], $entityType . ":1:$type", array());
+          $remove = $this->getExposedOptions($field_name, $add);
+          $this->addOrRemoveMultivaluedData('tag', $entityType, $entityId, $add, $remove);
         }
       }
     }
@@ -1674,7 +1707,12 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
     // Email
     for ($i = 1; $i <= $this->data['contact'][1]['number_of_email']; ++$i) {
       if (!empty($this->crmValues["civicrm_1_contact_{$i}_email_email"])) {
-        $params['email'] = $this->crmValues["civicrm_1_contact_{$i}_email_email"];
+        // Force email value to contain a string.
+        // For saved draft $this->form_state['storage']['submitted'] contains
+        // a form values wrapped with array and this causes a payment error
+        // (because email appears as array($email_value) instead of $email_value).
+        $emailArray = (array) $this->crmValues["civicrm_1_contact_{$i}_email_email"];
+        $params['email'] = array_shift($emailArray);
         break;
       }
     }
@@ -1874,13 +1912,6 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
     $params = $this->contributionParams();
     $params['contribution_status_id'] = 'Pending';
     $params['is_pay_later'] = $this->contributionIsPayLater;
-    //Fix IPN payments marked as paid by cheque
-    if (empty($params['payment_instrument_id'])) {
-      if (!empty($params['payment_processor_id']) && $this->contribution_page['is_monetary']) {
-        $defaultPaymentInstrument = CRM_Core_OptionGroup::values('payment_instrument', FALSE, FALSE, FALSE, 'AND is_default = 1');
-        $params['payment_instrument_id'] = key($defaultPaymentInstrument);
-      }
-    }
 
     $numInstallments = wf_crm_aval($params, 'installments', NULL, TRUE);
     $frequencyInterval = wf_crm_aval($params, 'frequency_unit');
@@ -1900,18 +1931,8 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
   private function submitIPNPayment() {
     $params = $this->data['contribution'][1]['contribution'][1];
     $processor_type = wf_civicrm_api('payment_processor', 'getsingle', array('id' => $params['payment_processor_id']));
-    if (version_compare($this->civicrm_version, 4.7, '<')) {
-      $mode = empty($params['is_test']) ? 'live' : 'test';
-      $paymentProcessor = CRM_Core_Payment::singleton($mode, $processor_type);
-    }
-    else {
-      $paymentProcessor = \Civi\Payment\System::singleton()->getById($params['payment_processor_id']);
-      // Ideally we would pass the correct id for the test processor through but that seems not to be the
-      // case so load it here.
-      if (!empty($params['is_test'])) {
-        $paymentProcessor = \Civi\Payment\System::singleton()->getByName($processor_type['name'], TRUE);
-      }
-    }
+    $paymentProcessor = \Civi\Payment\System::singleton()->getById($params['payment_processor_id']);
+
     // Add contact details to params (most processors want a first_name and last_name)
     $contact = wf_civicrm_api('contact', 'getsingle', array('id' => $this->ent['contact'][1]['id']));
     $params += $contact;
@@ -1942,10 +1963,6 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
       $paymentProcessor->setSuccessUrl($this->getIpnRedirectUrl('success'));
       $paymentProcessor->setCancelUrl($this->getIpnRedirectUrl('cancel'));
     }
-    // Legacy paypal settings. Remove when dropping support for CiviCRM 4.6 and below.
-    // @see webform_civicrm_civicrm_alterPaymentProcessorParams
-    $params['webform_redirect_cancel'] = $this->getIpnRedirectUrl('cancel');
-    $params['webform_redirect_success'] = $this->getIpnRedirectUrl('success');
 
     if (method_exists($paymentProcessor, 'doTransferCheckout')) {
       //Paypal Express checkout
@@ -2060,46 +2077,25 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
       }
     }
 
-    // Fix bug for testing.
-    if ($params['is_test'] == 1) {
-      $liveProcessorName = wf_civicrm_api('payment_processor', 'getvalue', array(
-        'id' => $params['payment_processor_id'],
-        'return' => 'name',
-      ));
-      // Lookup current domain for multisite support
-      static $domain = 0;
-      if (!$domain) {
-        $domain = wf_civicrm_api('domain', 'get', array('current_domain' => 1, 'return' => 'id'));
-        $domain = wf_crm_aval($domain, 'id', 1);
-      }
-      $params['payment_processor_id'] = wf_civicrm_api('payment_processor', 'getvalue', array(
-        'return' => 'id',
-        'name' => $liveProcessorName,
-        'is_test' => 1,
-        'domain_id' => $domain,
-      ));
+    if (empty($params['payment_instrument_id'])) {
+      $params['payment_instrument_id'] = $this->getPaymentInstrument($params['payment_processor_id']);
     }
 
     // doPayment requries payment_processor and payment_processor_mode fields.
-    if (version_compare($this->civicrm_version, '4.7', '>=')) {
-      $params['payment_processor'] = wf_crm_aval($params, 'payment_processor_id');
-    }
+    $params['payment_processor'] = wf_crm_aval($params, 'payment_processor_id');
 
-    // Record additional parameters if we're processing a credit card after version 4.7.17 (CRM-20158)
-    if (version_compare($this->civicrm_version, '4.7.17', '>=')) {
-      if (!empty($params['credit_card_number'])) {
-        if (!empty($params['credit_card_type'])) {
-          $result = wf_civicrm_api('OptionValue', 'get', array(
-            'return' => ['value'],
-            'option_group_id.name' => 'accept_creditcard',
-            'name' => ucfirst($params['credit_card_type']),
-          ));
-          if (!empty($result['id'])) {
-            $params['card_type_id'] = $result['values'][$result['id']]['value'];
-          }
+    if (!empty($params['credit_card_number'])) {
+      if (!empty($params['credit_card_type'])) {
+        $result = wf_civicrm_api('OptionValue', 'get', array(
+          'return' => ['value'],
+          'option_group_id.name' => 'accept_creditcard',
+          'name' => ucfirst($params['credit_card_type']),
+        ));
+        if (!empty($result['id'])) {
+          $params['card_type_id'] = $result['values'][$result['id']]['value'];
         }
-        $params['pan_truncation'] = substr($params['credit_card_number'],-4);
       }
+      $params['pan_truncation'] = substr($params['credit_card_number'],-4);
     }
 
     // Save this stuff for later
@@ -2319,7 +2315,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
             $val = array_unique(array_merge($val, $this->data[$ent][$c][$table][$n][$name]));
           }
           // Implode data that will be stored as a string
-          if ($table !== 'other' && $name !== 'event_id' && $name !== 'relationship_type_id' && $table !== 'contact' && $dataType != 'ContactReference') {
+          if ($table !== 'other' && $name !== 'event_id' && $name !== 'relationship_type_id' && $table !== 'contact' && $dataType != 'ContactReference' && strpos($name, 'tag') !== 0) {
             $val = CRM_Utils_Array::implodePadded($val);
           }
         }
@@ -2361,7 +2357,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
           $val = $sum;
         }
         else {
-          $val = isset($val[0]) ? $val[0] : '';
+          $val = is_array($val) ? reset($val) : $val;
         }
         if ($component['type'] == 'autocomplete' && is_string($val) && strlen($val)) {
           $options = wf_crm_field_options($component, '', $this->data);
@@ -2370,8 +2366,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
         // Fudge together date and time fields
         if ($field['type'] === 'time' && substr($name, -8) === 'timepart') {
           $name = str_replace('_timepart', '', $name);
-          // Add date (default to today)
-          $date = wf_crm_aval($this->data, "$ent:$c:$table:$n:$name", date('Ymd'));
+          $date = wf_crm_aval($this->data, "$ent:$c:$table:$n:$name", '');
           $val = $date . str_replace(':', '', $val);
         }
         // Only known contacts are allowed to empty a field
@@ -2604,5 +2599,10 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
     }
 
     return $values;
+  }
+
+  private function getPaymentInstrument($paymentProcessorId) {
+    $processor = \Civi\Payment\System::singleton()->getById($paymentProcessorId);
+    return $processor->getPaymentInstrumentID();
   }
 }
