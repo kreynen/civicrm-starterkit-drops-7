@@ -1,33 +1,17 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -885,6 +869,16 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
         ]);
       }
     }
+    foreach (CRM_Contact_BAO_Contact::$_greetingTypes as $greeting) {
+      if ($greetingType = CRM_Utils_Array::value($greeting, $fields)) {
+        $customizedValue = CRM_Core_PseudoConstant::getKey('CRM_Contact_BAO_Contact', $greeting . '_id', 'Customized');
+        if ($customizedValue == $greetingType && empty($fields[$greeting . '_custom'])) {
+          $errors[$greeting . '_custom'] = ts('Custom %1 is a required field if %1 is of type Customized.',
+            [1 => ucwords(str_replace('_', ' ', $greeting))]
+          );
+        }
+      }
+    }
 
     // @todo - can we remove the 'is_monetary' concept?
     if ($form->_values['event']['is_monetary']) {
@@ -911,16 +905,6 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
       );
     }
 
-    foreach (CRM_Contact_BAO_Contact::$_greetingTypes as $greeting) {
-      if ($greetingType = CRM_Utils_Array::value($greeting, $fields)) {
-        $customizedValue = CRM_Core_PseudoConstant::getKey('CRM_Contact_BAO_Contact', $greeting . '_id', 'Customized');
-        if ($customizedValue == $greetingType && empty($fields[$greeting . '_custom'])) {
-          $errors[$greeting . '_custom'] = ts('Custom %1 is a required field if %1 is of type Customized.',
-            [1 => ucwords(str_replace('_', ' ', $greeting))]
-          );
-        }
-      }
-    }
     return empty($errors) ? TRUE : $errors;
   }
 
@@ -1085,9 +1069,6 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
       // assumptions we are working to remove.
       $this->set('contributeMode', 'direct');
 
-      // This code is duplicated multiple places and should be consolidated.
-      $params = $this->prepareParamsForPaymentProcessor($params);
-
       if ($this->_values['event']['is_monetary']) {
         $params['currencyID'] = $config->defaultCurrency;
         $params['invoiceID'] = $invoiceID;
@@ -1135,6 +1116,8 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
         $params['invoiceID'] = $invoiceID;
 
         $params['component'] = 'event';
+        // This code is duplicated multiple places and should be consolidated.
+        $params = $this->prepareParamsForPaymentProcessor($params);
         $this->handlePreApproval($params);
       }
       elseif ($this->_paymentProcessor &&

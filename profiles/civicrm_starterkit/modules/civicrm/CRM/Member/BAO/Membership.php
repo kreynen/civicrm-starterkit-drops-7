@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
 
@@ -380,7 +364,8 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
     if (empty($ids['contribution']) && !empty($ids['membership'])) {
       CRM_Price_BAO_LineItem::deleteLineItems($ids['membership'], 'civicrm_membership');
     }
-
+    // @todo - we should ONLY do the below if a contribution is created. Let's
+    // get some deprecation notices in here & see where it's hit & work to eliminate.
     // This could happen if there is no contribution or we are in one of many
     // weird and wonderful flows. This is scary code. Keep adding tests.
     if (!empty($params['line_item']) && empty($ids['contribution']) && empty($params['contribution_id'])) {
@@ -960,7 +945,7 @@ INNER JOIN  civicrm_membership_type type ON ( type.id = membership.membership_ty
       $tmpContactField['external_identifier'] = $contactFields['external_identifier'];
       $tmpContactField['external_identifier']['title'] = $contactFields['external_identifier']['title'] . " " . ts('(match to contact)');
 
-      $tmpFields['membership_contact_id']['title'] = $tmpFields['membership_contact_id']['title'] . " " . ts('(match to contact)');;
+      $tmpFields['membership_contact_id']['title'] = $tmpFields['membership_contact_id']['title'] . " " . ts('(match to contact)');
 
       $fields = array_merge($fields, $tmpContactField);
       $fields = array_merge($fields, $tmpFields);

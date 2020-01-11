@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -96,19 +80,7 @@ class CRM_Case_Form_Search extends CRM_Core_Form_Search {
 
     $this->_done = FALSE;
 
-    $this->loadStandardSearchOptionsFromUrl();
-    $this->loadFormValues();
-
-    if ($this->_force) {
-      $this->handleForcedSearch();
-    }
-
-    $sortID = NULL;
-    if ($this->get(CRM_Utils_Sort::SORT_ID)) {
-      $sortID = CRM_Utils_Sort::sortIDValue($this->get(CRM_Utils_Sort::SORT_ID),
-        $this->get(CRM_Utils_Sort::SORT_DIRECTION)
-      );
-    }
+    parent::preProcess();
 
     $this->_queryParams = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
     $selector = new CRM_Case_Selector_Search($this->_queryParams,
@@ -129,7 +101,7 @@ class CRM_Case_Form_Search extends CRM_Core_Form_Search {
 
     $controller = new CRM_Core_Selector_Controller($selector,
       $this->get(CRM_Utils_Pager::PAGE_ID),
-      $sortID,
+      $this->getSortID(),
       CRM_Core_Action::VIEW,
       $this,
       CRM_Core_Selector_Controller::TRANSFER,
@@ -211,6 +183,7 @@ class CRM_Case_Form_Search extends CRM_Core_Form_Search {
 
     $this->_done = TRUE;
     $this->setFormValues();
+    // @todo - stop changing formValues - respect submitted form values, change a working array.
     $this->fixFormValues();
     if (isset($this->_ssID) && empty($_POST)) {
       // if we are editing / running a saved search and the form has not been posted
@@ -219,19 +192,22 @@ class CRM_Case_Form_Search extends CRM_Core_Form_Search {
 
     //search for civicase
     if (!$this->_force) {
+      // @todo - stop changing formValues - respect submitted form values, change a working array.
       if (array_key_exists('case_owner', $this->_formValues) && !$this->_formValues['case_owner']) {
         $this->_formValues['case_owner'] = 0;
       }
     }
 
+    // @todo - stop changing formValues - respect submitted form values, change a working array.
     if (empty($this->_formValues['case_deleted'])) {
       $this->_formValues['case_deleted'] = 0;
     }
+    // @todo - stop changing formValues - respect submitted form values, change a working array.
     CRM_Core_BAO_CustomValue::fixCustomFieldValue($this->_formValues);
 
+    // @todo - stop changing formValues - respect submitted form values, change a working array.
     $this->_queryParams = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
 
-    $this->set('formValues', $this->_formValues);
     $this->set('queryParams', $this->_queryParams);
 
     $buttonName = $this->controller->getButtonName();
@@ -243,13 +219,6 @@ class CRM_Case_Form_Search extends CRM_Core_Form_Search {
       $formName = $stateMachine->getTaskFormName();
       $this->controller->resetPage($formName);
       return;
-    }
-
-    $sortID = NULL;
-    if ($this->get(CRM_Utils_Sort::SORT_ID)) {
-      $sortID = CRM_Utils_Sort::sortIDValue($this->get(CRM_Utils_Sort::SORT_ID),
-        $this->get(CRM_Utils_Sort::SORT_DIRECTION)
-      );
     }
 
     $this->_queryParams = CRM_Contact_BAO_Query::convertFormValues($this->_formValues);
@@ -273,7 +242,7 @@ class CRM_Case_Form_Search extends CRM_Core_Form_Search {
 
     $controller = new CRM_Core_Selector_Controller($selector,
       $this->get(CRM_Utils_Pager::PAGE_ID),
-      $sortID,
+      $this->getSortID(),
       CRM_Core_Action::VIEW,
       $this,
       CRM_Core_Selector_Controller::SESSION,
@@ -286,37 +255,6 @@ class CRM_Case_Form_Search extends CRM_Core_Form_Search {
       $query->setSkipPermission(TRUE);
     }
     $controller->run();
-  }
-
-  /**
-   * Add the rules (mainly global rules) for form.
-   *
-   * All local rules are added near the element
-   *
-   * @see valid_date
-   */
-  public function addRules() {
-    $this->addFormRule(['CRM_Case_Form_Search', 'formRule']);
-  }
-
-  /**
-   * Global validation rules for the form.
-   *
-   * @param array $fields
-   *   Posted values of the form.
-   * @param array $files
-   * @param object $form
-   *
-   * @return array|bool
-   */
-  public static function formRule($fields, $files, $form) {
-    $errors = [];
-
-    if (!empty($errors)) {
-      return $errors;
-    }
-
-    return TRUE;
   }
 
   public function fixFormValues() {

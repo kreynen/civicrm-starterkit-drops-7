@@ -1,34 +1,18 @@
 <?php
 /*
-  +--------------------------------------------------------------------+
-  | CiviCRM version 5                                                  |
-  +--------------------------------------------------------------------+
-  | Copyright CiviCRM LLC (c) 2004-2019                                |
-  +--------------------------------------------------------------------+
-  | This file is a part of CiviCRM.                                    |
-  |                                                                    |
-  | CiviCRM is free software; you can copy, modify, and distribute it  |
-  | under the terms of the GNU Affero General Public License           |
-  | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
-  |                                                                    |
-  | CiviCRM is distributed in the hope that it will be useful, but     |
-  | WITHOUT ANY WARRANTY; without even the implied warranty of         |
-  | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
-  | See the GNU Affero General Public License for more details.        |
-  |                                                                    |
-  | You should have received a copy of the GNU Affero General Public   |
-  | License and the CiviCRM Licensing Exception along                  |
-  | with this program; if not, contact CiviCRM LLC                     |
-  | at info[AT]civicrm[DOT]org. If you have questions about the        |
-  | GNU Affero General Public License or the licensing of CiviCRM,     |
-  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
-  +--------------------------------------------------------------------+
+ +--------------------------------------------------------------------+
+ | Copyright CiviCRM LLC. All rights reserved.                        |
+ |                                                                    |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
+ +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -275,34 +259,35 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
     if (!$this->id) {
       return FALSE;
     }
-    if (!$this->data_type || !$this->custom_group_id) {
-      $this->find(TRUE);
-    }
+    $cacheKey = "CRM_Core_BAO_CustomField_getOptions_{$this->id}_$context";
+    $cache = CRM_Utils_Cache::singleton();
+    $options = $cache->get($cacheKey);
+    if (!isset($options)) {
+      if (!$this->data_type || !$this->custom_group_id) {
+        $this->find(TRUE);
+      }
 
-    // This will hold the list of options in format key => label
-    $options = [];
+      // This will hold the list of options in format key => label
+      $options = [];
 
-    if (!empty($this->option_group_id)) {
-      $options = CRM_Core_OptionGroup::valuesByID(
-        $this->option_group_id,
-        FALSE,
-        FALSE,
-        FALSE,
-        'label',
-        !($context == 'validate' || $context == 'get')
-      );
+      if (!empty($this->option_group_id)) {
+        $options = CRM_Core_OptionGroup::valuesByID(
+        $this->option_group_id, FALSE, FALSE, FALSE, 'label', !($context == 'validate' || $context == 'get')
+        );
+      }
+      elseif ($this->data_type === 'StateProvince') {
+        $options = CRM_Core_PseudoConstant::stateProvince();
+      }
+      elseif ($this->data_type === 'Country') {
+        $options = $context == 'validate' ? CRM_Core_PseudoConstant::countryIsoCode() : CRM_Core_PseudoConstant::country();
+      }
+      elseif ($this->data_type === 'Boolean') {
+        $options = $context == 'validate' ? array(0, 1) : CRM_Core_SelectValues::boolean();
+      }
+      CRM_Utils_Hook::customFieldOptions($this->id, $options, FALSE);
+      CRM_Utils_Hook::fieldOptions($this->getEntity(), "custom_{$this->id}", $options, array('context' => $context));
+      $cache->set($cacheKey, $options);
     }
-    elseif ($this->data_type === 'StateProvince') {
-      $options = CRM_Core_PseudoConstant::stateProvince();
-    }
-    elseif ($this->data_type === 'Country') {
-      $options = $context == 'validate' ? CRM_Core_PseudoConstant::countryIsoCode() : CRM_Core_PseudoConstant::country();
-    }
-    elseif ($this->data_type === 'Boolean') {
-      $options = $context == 'validate' ? array(0, 1) : CRM_Core_SelectValues::boolean();
-    }
-    CRM_Utils_Hook::customFieldOptions($this->id, $options, FALSE);
-    CRM_Utils_Hook::fieldOptions($this->getEntity(), "custom_{$this->id}", $options, array('context' => $context));
     return $options;
   }
 

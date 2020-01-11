@@ -1,27 +1,11 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
@@ -70,7 +54,7 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
    *
    * @var string
    */
-  protected $_context = NULL;
+  protected $_context;
 
   /**
    * The list of tasks or actions that a searcher can perform on a result set.
@@ -159,7 +143,7 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
   /**
    * Set the form values based on input and preliminary processing.
    *
-   * @throws \Exception
+   * @throws \CRM_Core_Exception
    */
   protected function setFormValues() {
     $this->_formValues = $this->getFormValues();
@@ -169,6 +153,8 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
 
   /**
    * Common buildForm tasks required by all searches.
+   *
+   * @throws \CRM_Core_Exception
    */
   public function buildQuickForm() {
     CRM_Core_Resources::singleton()
@@ -194,6 +180,8 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
    *
    * The goal is to describe all fields in metadata and handle from metadata rather
    * than existing ad hoc handling.
+   *
+   * @throws \CiviCRM_API3_Exception
    */
   public function addFormFieldsFromMetadata() {
     $this->addFormRule(['CRM_Core_Form_Search', 'formRule'], $this);
@@ -300,7 +288,12 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
       if (empty($_POST[$fieldName])) {
         $value = CRM_Utils_Request::retrieveValue($fieldName, $this->getValidationTypeForField($entity, $fieldName), NULL, NULL, 'GET');
         if ($value !== NULL) {
-          $defaults[$fieldName] = $value;
+          if ($fieldSpec['html']['type'] === 'Select') {
+            $defaults[$fieldName] = explode(',', $value);
+          }
+          else {
+            $defaults[$fieldName] = $value;
+          }
         }
         if ($fieldSpec['type'] === CRM_Utils_Type::T_DATE || ($fieldSpec['type'] === CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME)) {
           $low = CRM_Utils_Request::retrieveValue($fieldName . '_low', 'Timestamp', NULL, NULL, 'GET');
@@ -378,6 +371,8 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
    *
    * Note that for translation purposes the full string works better than using 'prefix' hence we use override-able functions
    * to define the string.
+   *
+   * @throws \CiviCRM_API3_Exception
    */
   protected function addSortNameField() {
     $title = civicrm_api3('setting', 'getvalue', ['name' => 'includeEmailInName', 'group' => 'Search Preferences']) ? $this->getSortNameLabelWithEmail() : $this->getSortNameLabelWithOutEmail();
@@ -387,7 +382,7 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
       $title,
       CRM_Core_DAO::getAttribute('CRM_Contact_DAO_Contact', 'sort_name')
     );
-    $this->searchFieldMetadata['Contact']['sort_name'] = ['name' => 'sort_name', 'title' => $title, 'type' => CRM_Utils_Type::T_STRING];
+    $this->searchFieldMetadata['Contact']['sort_name'] = array_merge(CRM_Contact_DAO_Contact::fields()['sort_name'], ['name' => 'sort_name', 'title' => $title, 'type' => CRM_Utils_Type::T_STRING]);
   }
 
   /**
@@ -421,6 +416,8 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
 
   /**
    * Add generic fields that specify the contact.
+   *
+   * @throws \CiviCRM_API3_Exception
    */
   protected function addContactSearchFields() {
     if (!$this->isFormInViewOrEditMode()) {
@@ -481,6 +478,8 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
   /**
    * we allow the controller to set force/reset externally, useful when we are being
    * driven by the wizard framework
+   *
+   * @throws \CRM_Core_Exception
    */
   protected function loadStandardSearchOptionsFromUrl() {
     $this->_reset = CRM_Utils_Request::retrieve('reset', 'Boolean');
@@ -528,6 +527,22 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
       return $this->setDefaultValues();
     }
     return (array) $this->get('formValues');
+  }
+
+  /**
+   * Get the string processed to determine sort order.
+   *
+   * This looks like 'sort_name_u' for Sort name ascending.
+   *
+   * @return string|null
+   */
+  protected function getSortID() {
+    if ($this->get(CRM_Utils_Sort::SORT_ID)) {
+      return CRM_Utils_Sort::sortIDValue($this->get(CRM_Utils_Sort::SORT_ID),
+        $this->get(CRM_Utils_Sort::SORT_DIRECTION)
+      );
+    }
+    return NULL;
   }
 
   /**

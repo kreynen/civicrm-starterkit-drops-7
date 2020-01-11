@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit715c31a889f8fc265697204425fa56c5
+class ComposerStaticInit629c66822b0ba40cbff2236d7c311b04
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -48,6 +48,7 @@ class ComposerStaticInit715c31a889f8fc265697204425fa56c5
             'Symfony\\Component\\EventDispatcher\\' => 34,
             'Symfony\\Component\\DependencyInjection\\' => 38,
             'Symfony\\Component\\Config\\' => 25,
+            'Svg\\' => 4,
         ),
         'P' => 
         array (
@@ -148,6 +149,10 @@ class ComposerStaticInit715c31a889f8fc265697204425fa56c5
         array (
             0 => __DIR__ . '/..' . '/symfony/config',
         ),
+        'Svg\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/phenx/php-svg-lib/src/Svg',
+        ),
         'Psr\\SimpleCache\\' => 
         array (
             0 => __DIR__ . '/..' . '/psr/simple-cache/src',
@@ -246,10 +251,6 @@ class ComposerStaticInit715c31a889f8fc265697204425fa56c5
             'System' => 
             array (
                 0 => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib',
-            ),
-            'Svg\\' => 
-            array (
-                0 => __DIR__ . '/..' . '/phenx/php-svg-lib/src',
             ),
             'Sabberworm\\CSS' => 
             array (
@@ -485,11 +486,11 @@ class ComposerStaticInit715c31a889f8fc265697204425fa56c5
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit715c31a889f8fc265697204425fa56c5::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit715c31a889f8fc265697204425fa56c5::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit715c31a889f8fc265697204425fa56c5::$prefixesPsr0;
-            $loader->fallbackDirsPsr0 = ComposerStaticInit715c31a889f8fc265697204425fa56c5::$fallbackDirsPsr0;
-            $loader->classMap = ComposerStaticInit715c31a889f8fc265697204425fa56c5::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit629c66822b0ba40cbff2236d7c311b04::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit629c66822b0ba40cbff2236d7c311b04::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit629c66822b0ba40cbff2236d7c311b04::$prefixesPsr0;
+            $loader->fallbackDirsPsr0 = ComposerStaticInit629c66822b0ba40cbff2236d7c311b04::$fallbackDirsPsr0;
+            $loader->classMap = ComposerStaticInit629c66822b0ba40cbff2236d7c311b04::$classMap;
 
         }, null, ClassLoader::class);
     }

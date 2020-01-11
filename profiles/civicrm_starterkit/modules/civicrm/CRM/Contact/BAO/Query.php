@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -2186,15 +2170,17 @@ class CRM_Contact_BAO_Query {
       $this->_qill[$grouping][] = ts("%1 %2 %3", [1 => $field['title'], 2 => $qillop, 3 => $qillVal]);
     }
     elseif (!empty($field['pseudoconstant'])) {
+      // For the hacked fields we want to undo the hack to type to avoid missing the index by adding quotes.
+      $dataType = !empty($this->legacyHackedFields[$name]) ? CRM_Utils_Type::T_INT : $field['type'];
       $this->optionValueQuery(
         $name, $op, $value, $grouping,
         'CRM_Contact_DAO_Contact',
         $field,
         $field['title'],
-        'String',
+        CRM_Utils_Type::typeToString($dataType),
         TRUE
       );
-      if ($name == 'gender_id') {
+      if ($name === 'gender_id') {
         self::$_openedPanes[ts('Demographics')] = TRUE;
       }
     }
@@ -3574,7 +3560,7 @@ WHERE  $smartGroupClause
     $dbName = $name === 'email_id' ? 'id' : $name;
 
     if (is_array($value) || $name === 'email_id') {
-      $this->_qill[$grouping][] = $this->getQillForField($name, $value, $op);
+      $this->_qill[$grouping][] = $this->getQillForField($name, $value, $op, [], ts('Email'));
       $this->_where[$grouping][] = self::buildClause('civicrm_email.' . $dbName, $op, $value, 'String');
       return;
     }
@@ -4200,7 +4186,9 @@ WHERE  $smartGroupClause
     $relationshipTempTable = NULL;
     if (self::$_relType == 'reciprocal') {
       $where = [];
-      self::$_relationshipTempTable = $relationshipTempTable = CRM_Core_DAO::createTempTableName('civicrm_rel');
+      self::$_relationshipTempTable = $relationshipTempTable = CRM_Utils_SQL_TempTable::build()
+        ->createWithColumns("`contact_id` int(10) unsigned NOT NULL DEFAULT '0', `contact_id_alt` int(10) unsigned NOT NULL DEFAULT '0', relationship_id int unsigned, KEY `contact_id` (`contact_id`), KEY `contact_id_alt` (`contact_id_alt`)")
+        ->getName();
       if ($nameClause) {
         $where[$grouping][] = " sort_name $nameClause ";
       }
@@ -4323,13 +4311,7 @@ civicrm_relationship.start_date > {$today}
         $whereClause = str_replace('contact_b', 'c', $whereClause);
       }
       $sql = "
-        CREATE TEMPORARY TABLE {$relationshipTempTable}
-          (
-            `contact_id` int(10) unsigned NOT NULL DEFAULT '0',
-            `contact_id_alt` int(10) unsigned NOT NULL DEFAULT '0',
-            KEY `contact_id` (`contact_id`),
-            KEY `contact_id_alt` (`contact_id_alt`)
-          )
+        INSERT INTO {$relationshipTempTable} (contact_id, contact_id_alt, relationship_id)
           (SELECT contact_id_b as contact_id, contact_id_a as contact_id_alt, civicrm_relationship.id
             FROM civicrm_relationship
             INNER JOIN  civicrm_contact c ON civicrm_relationship.contact_id_a = c.id
@@ -5917,10 +5899,6 @@ AND   displayRelType.is_active = 1
       'email_greeting',
       'postal_greeting',
       'addressee',
-      'gender_id',
-      'prefix_id',
-      'suffix_id',
-      'communication_style_id',
     ];
 
     if ($useIDsOnly) {
@@ -5932,8 +5910,8 @@ AND   displayRelType.is_active = 1
         // Special handling for on_hold, so that we actually use the 'where'
         // property in order to limit the query by the on_hold status of the email,
         // instead of using email.id which would be nonsensical.
-        if ($field['name'] == 'on_hold') {
-          $wc = "{$field['where']}";
+        if ($field['name'] === 'on_hold') {
+          $wc = $field['where'];
         }
         else {
           $wc = "$tableName.id";
@@ -5945,9 +5923,7 @@ AND   displayRelType.is_active = 1
       $wc = "{$field['where']}";
     }
     if (in_array($name, $pseudoFields)) {
-      if (!in_array($name, ['gender_id', 'prefix_id', 'suffix_id', 'communication_style_id'])) {
-        $wc = "contact_a.{$name}_id";
-      }
+      $wc = "contact_a.{$name}_id";
       $dataType = 'Positive';
       $value = (!$value) ? 0 : $value;
     }
@@ -6214,10 +6190,9 @@ AND   displayRelType.is_active = 1
       return [CRM_Utils_Array::value($op, $qillOperators, $op), ''];
     }
 
-    if ($fieldName == 'activity_type_id') {
-      $pseudoOptions = CRM_Core_PseudoConstant::activityType(TRUE, TRUE, FALSE, 'label', TRUE);
-    }
-    elseif ($fieldName == 'country_id') {
+    // @todo - if the right BAO is passed in special handling for the below
+    // fields should not be required. testQillOptions.
+    if ($fieldName == 'country_id') {
       $pseudoOptions = CRM_Core_PseudoConstant::country();
     }
     elseif ($fieldName == 'county_id') {
@@ -7213,19 +7188,44 @@ AND   displayRelType.is_active = 1
   /**
    * Get the qill value for the field.
    *
-   * @param $name
+   * @param string $name
    * @param array|int|string $value
-   * @param $op
+   * @param string $op
+   * @param array $fieldSpec
+   * @param string $labelOverride
+   *   Label override, if required.
    *
    * @return string
    */
-  protected function getQillForField($name, $value, $op): string {
-    list($qillop, $qillVal) = CRM_Contact_BAO_Query::buildQillForFieldValue(NULL, $name, $value, $op);
+  public function getQillForField($name, $value, $op, $fieldSpec = [], $labelOverride = NULL): string {
+    list($qillop, $qillVal) = CRM_Contact_BAO_Query::buildQillForFieldValue($fieldSpec['bao'] ?? NULL, $name, $value, $op);
     return (string) ts("%1 %2 %3", [
-      1 => ts('Email'),
+      1 => $labelOverride ?? $fieldSpec['title'],
       2 => $qillop,
       3 => $qillVal,
     ]);
+  }
+
+  /**
+   * Where handling for any field with adequately defined metadata.
+   *
+   * @param array $fieldSpec
+   * @param string $name
+   * @param string|array|int $value
+   * @param string $op
+   * @param string|int $grouping
+   *
+   * @throws \CRM_Core_Exception
+   */
+  public function handleWhereFromMetadata($fieldSpec, $name, $value, $op, $grouping = 0) {
+    $this->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause($fieldSpec['where'], $op, $value, CRM_Utils_Type::typeToString($fieldSpec['type']));
+    $this->_qill[$grouping][] = $this->getQillForField($name, $value, $op, $fieldSpec);
+    if (!isset($this->_tables[$fieldSpec['table_name']])) {
+      $this->_tables[$fieldSpec['table_name']] = 1;
+    }
+    if (!isset($this->_whereTables[$fieldSpec['table_name']])) {
+      $this->_whereTables[$fieldSpec['table_name']] = 1;
+    }
   }
 
 }

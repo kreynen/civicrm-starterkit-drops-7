@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
 
@@ -108,6 +92,7 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     }
     //per http://wiki.civicrm.org/confluence/display/CRM/Database+layer we are moving away from $ids array
     $contributionID = CRM_Utils_Array::value('contribution', $ids, CRM_Utils_Array::value('id', $params));
+    $action = $contributionID ? 'edit' : 'create';
     $duplicates = [];
     if (self::checkDuplicate($params, $duplicates, $contributionID)) {
       $message = ts("Duplicate error - existing contribution record(s) have a matching Transaction ID or Invoice ID. Contribution record ID(s) are: %1", [1 => implode(', ', $duplicates)]);
@@ -212,12 +197,8 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
       $params = CRM_Contribute_BAO_Contribution::checkTaxAmount($params);
     }
 
-    if ($contributionID) {
-      CRM_Utils_Hook::pre('edit', 'Contribution', $contributionID, $params);
-    }
-    else {
-      CRM_Utils_Hook::pre('create', 'Contribution', NULL, $params);
-    }
+    CRM_Utils_Hook::pre($action, 'Contribution', $contributionID, $params);
+
     $contribution = new CRM_Contribute_BAO_Contribution();
     $contribution->copyValues($params);
 
@@ -257,15 +238,17 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
       );
     }
 
+    $params['contribution_id'] = $contribution->id;
+
+    if (!empty($params['custom']) &&
+      is_array($params['custom'])
+    ) {
+      CRM_Core_BAO_CustomValueTable::store($params['custom'], 'civicrm_contribution', $contribution->id, $action);
+    }
+
     CRM_Contact_BAO_GroupContactCache::opportunisticCacheFlush();
 
-    if ($contributionID) {
-      CRM_Utils_Hook::post('edit', 'Contribution', $contribution->id, $contribution);
-    }
-    else {
-      CRM_Utils_Hook::post('create', 'Contribution', $contribution->id, $contribution);
-    }
-
+    CRM_Utils_Hook::post($action, 'Contribution', $contribution->id, $contribution);
     return $result;
   }
 
@@ -500,10 +483,11 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
    *   The array that holds all the db ids.
    *
    * @return CRM_Contribute_BAO_Contribution
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public static function create(&$params, $ids = []) {
-    $contributionID = CRM_Utils_Array::value('contribution', $ids, CRM_Utils_Array::value('id', $params));
-    $action = $contributionID ? 'edit' : 'create';
 
     $dateFields = [
       'receive_date',
@@ -529,13 +513,6 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     }
 
     $params['contribution_id'] = $contribution->id;
-
-    if (!empty($params['custom']) &&
-      is_array($params['custom'])
-    ) {
-      CRM_Core_BAO_CustomValueTable::store($params['custom'], 'civicrm_contribution', $contribution->id, $action);
-    }
-
     $session = CRM_Core_Session::singleton();
 
     if (!empty($params['note'])) {
@@ -4442,7 +4419,6 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    * @param array $ids
    * @param array $objects
    * @param CRM_Core_Transaction $transaction
-   * @param int $recur
    * @param CRM_Contribute_BAO_Contribution $contribution
    * @param bool $isPostPaymentCreate
    *   Is this being called from the payment.create api. If so the api has taken care of financial entities.
@@ -4453,7 +4429,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    */
-  public static function completeOrder(&$input, &$ids, $objects, $transaction, $recur, $contribution, $isPostPaymentCreate = FALSE) {
+  public static function completeOrder($input, &$ids, $objects, $transaction, $contribution, $isPostPaymentCreate = FALSE) {
     $primaryContributionID = isset($contribution->id) ? $contribution->id : $objects['first_contribution']->id;
     // The previous details are used when calculating line items so keep it before any code that 'does something'
     if (!empty($contribution->id)) {
@@ -4589,21 +4565,9 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
       CRM_Contribute_BAO_ContributionRecur::addrecurSoftCredit($objects['contributionRecur']->id, $contribution->id);
     }
 
-    $contributionStatuses = CRM_Core_PseudoConstant::get('CRM_Contribute_DAO_Contribution', 'contribution_status_id', [
-      'labelColumn' => 'name',
-      'flip' => 1,
-    ]);
-    if (isset($input['prevContribution']) && (!$input['prevContribution']->is_pay_later && $input['prevContribution']->contribution_status_id == $contributionStatuses['Pending'])) {
-      $input['payment_processor'] = $paymentProcessorId;
-    }
-
-    if (!empty($contribution->_relatedObjects['participant'])) {
-      $input['contribution_mode'] = 'participant';
-      $input['participant_id'] = $contribution->_relatedObjects['participant']->id;
-    }
-    elseif (!empty($contribution->_relatedObjects['membership'])) {
+    if (empty($contribution->_relatedObjects['participant']) && !empty($contribution->_relatedObjects['membership'])) {
+      // @fixme Can we remove this if altogether? - we removed the participant if / else and left relatedObjects['participant'] to ensure behaviour didn't change but it is probably not required.
       // @todo - use getRelatedMemberships instead
-      $input['contribution_mode'] = 'membership';
       $contribution->contribution_status_id = $contributionParams['contribution_status_id'];
       $contribution->trxn_id = CRM_Utils_Array::value('trxn_id', $input);
       $contribution->receive_date = CRM_Utils_Date::isoToMysql($contribution->receive_date);
@@ -4862,12 +4826,16 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
   }
 
   /**
-   * Function to add payments for contribution
-   * for Partially Paid status
+   * Function to add payments for contribution for Partially Paid status
+   *
+   * @deprecated this is known to be flawed and possibly buggy.
+   *
+   * Replace with Order.create->Payment.create flow.
    *
    * @param array $contributions
    * @param string $contributionStatusId
    *
+   * @throws \CiviCRM_API3_Exception
    */
   public static function addPayments($contributions, $contributionStatusId = NULL) {
     // get financial trxn which is a payment

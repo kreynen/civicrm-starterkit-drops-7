@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Case_BAO_Query extends CRM_Core_BAO_Query {
 
@@ -268,6 +252,8 @@ class CRM_Case_BAO_Query extends CRM_Core_BAO_Query {
       return;
     }
     list($name, $op, $value, $grouping, $wildcard) = $values;
+    $fields = CRM_Case_BAO_Case::fields();
+    $fieldSpec = $fields[$values[0]] ?? [];
     $val = $names = [];
     switch ($name) {
 
@@ -331,10 +317,7 @@ class CRM_Case_BAO_Query extends CRM_Core_BAO_Query {
         return;
 
       case 'case_subject':
-        $query->_where[$grouping][] = CRM_Contact_BAO_Query::buildClause("civicrm_case.subject", $op, $value, 'String');
-        $query->_qill[$grouping][] = CRM_Contact_BAO_Query::getQillValue('CRM_Case_DAO_Case', $name, $value, $op, 'Case Subject');
-        $query->_tables['civicrm_case'] = $query->_whereTables['civicrm_case'] = 1;
-        $query->_tables['civicrm_case_contact'] = $query->_whereTables['civicrm_case_contact'] = 1;
+        $query->handleWhereFromMetadata($fieldSpec, $name, $value, $op);
         return;
 
       case 'case_source_contact_id':
@@ -699,12 +682,14 @@ case_relation_type.id = case_relationship.relationship_type_id )";
       'title' => ts('Case Tag(s)'),
       'type' => CRM_Utils_Type::T_INT,
       'is_pseudofield' => TRUE,
+      'html' => ['type' => 'Select2'],
     ];
     if (CRM_Core_Permission::check('access all cases and activities')) {
       $metadata['case_owner'] = [
         'title' => ts('Cases'),
         'type' => CRM_Utils_Type::T_INT,
         'is_pseudofield' => TRUE,
+        'html' => ['type' => 'Radio'],
       ];
     }
     if (!CRM_Core_Permission::check('administer CiviCase')) {

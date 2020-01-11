@@ -1,33 +1,17 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -616,10 +600,12 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
    *
    * @param CRM_Core_Form $form
    * @param int $eventID
+   * @param bool $includeExpiredFields
+   *   See CRM-16456.
    *
    * @throws Exception
    */
-  public static function initEventFee(&$form, $eventID) {
+  public static function initEventFee(&$form, $eventID, $includeExpiredFields = TRUE) {
     // get price info
 
     // retrive all active price set fields.
@@ -628,19 +614,13 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
       $discountId = $form->_discountId;
     }
 
-    //CRM-16456 get all price field including expired one.
-    $getAllPriceField = TRUE;
-    $className = CRM_Utils_System::getClassName($form);
-    if ($className == 'CRM_Event_Form_ParticipantFeeSelection' && $form->_action == CRM_Core_Action::UPDATE) {
-      $getAllPriceField = FALSE;
-    }
-
     if ($discountId) {
       $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Core_BAO_Discount', $discountId, 'price_set_id');
-      $price = CRM_Price_BAO_PriceSet::initSet($form, $eventID, 'civicrm_event', $getAllPriceField, $priceSetId);
+      CRM_Price_BAO_PriceSet::initSet($form, 'civicrm_event', $includeExpiredFields, $priceSetId);
     }
     else {
-      $price = CRM_Price_BAO_PriceSet::initSet($form, $eventID, 'civicrm_event', $getAllPriceField);
+      $priceSetId = CRM_Price_BAO_PriceSet::getFor('civicrm_event', $eventID);
+      CRM_Price_BAO_PriceSet::initSet($form, 'civicrm_event', $includeExpiredFields, $priceSetId);
     }
 
     if (property_exists($form, '_context') && ($form->_context == 'standalone'
@@ -723,8 +703,11 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
       // CRM-10032
       $this->processFirstParticipant($participant->id);
     }
-    $this->_params['participantID'] = $participant->id;
-    $this->set('primaryParticipant', $this->_params);
+
+    if (!empty($this->_params['is_primary'])) {
+      $this->_params['participantID'] = $participant->id;
+      $this->set('primaryParticipant', $this->_params);
+    }
 
     CRM_Core_BAO_CustomValueTable::postProcess($this->_params,
       'civicrm_participant',

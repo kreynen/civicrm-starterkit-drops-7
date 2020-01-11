@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Activity_BAO_Query {
 
@@ -167,11 +151,13 @@ class CRM_Activity_BAO_Query {
   /**
    * Given a list of conditions in query generate the required where clause.
    *
-   * @param $query
+   * @param \CRM_Contact_BAO_Query $query
+   *
+   * @throws \CRM_Core_Exception
    */
   public static function where(&$query) {
     foreach (array_keys($query->_params) as $id) {
-      if (substr($query->_params[$id][0], 0, 9) == 'activity_') {
+      if (substr($query->_params[$id][0], 0, 9) === 'activity_') {
         if ($query->_mode == CRM_Contact_BAO_Query::MODE_CONTACTS) {
           $query->_useDistinct = TRUE;
         }
@@ -461,17 +447,21 @@ class CRM_Activity_BAO_Query {
   /**
    * Get the metadata for fields to be included on the activity search form.
    *
+   * @throws \CiviCRM_API3_Exception
    * @todo ideally this would be a trait included on the activity search & advanced search
    * rather than a static function.
    */
   public static function getSearchFieldMetadata() {
-    $fields = ['activity_type_id', 'activity_date_time', 'priority_id', 'activity_location'];
+    $fields = ['activity_type_id', 'activity_date_time', 'priority_id', 'activity_location', 'activity_status_id'];
     $metadata = civicrm_api3('Activity', 'getfields', [])['values'];
     $metadata = array_intersect_key($metadata, array_flip($fields));
     $metadata['activity_text'] = [
       'title' => ts('Activity Text'),
       'type' => CRM_Utils_Type::T_STRING,
       'is_pseudofield' => TRUE,
+      'html' => [
+        'type' => 'Text',
+      ],
     ];
     return $metadata;
   }
@@ -480,6 +470,9 @@ class CRM_Activity_BAO_Query {
    * Add all the elements shared between case activity search and advanced search.
    *
    * @param CRM_Core_Form_Search $form
+   *
+   * @throws \CiviCRM_API3_Exception
+   * @throws \CRM_Core_Exception
    */
   public static function buildSearchForm(&$form) {
     $form->addSearchFieldMetadata(['Activity' => self::getSearchFieldMetadata()]);
@@ -502,21 +495,13 @@ class CRM_Activity_BAO_Query {
       'flip' => 1,
       'labelColumn' => 'name',
     ]);
-    $form->addSelect('status_id',
-      [
-        'entity' => 'activity',
-        'multiple' => 'multiple',
-        'option_url' => NULL,
-        'placeholder' => ts('- any -'),
-      ]
-    );
     $ssID = $form->get('ssID');
     $status = [$activityStatus['Completed'], $activityStatus['Scheduled']];
     //If status is saved in smart group.
     if (!empty($ssID) && !empty($form->_formValues['activity_status_id'])) {
       $status = $form->_formValues['activity_status_id'];
     }
-    $form->setDefaults(['status_id' => $status]);
+    $form->setDefaults(['activity_status_id' => $status]);
 
     $form->addElement('text', 'activity_text', ts('Activity Text'), CRM_Core_DAO::getAttribute('CRM_Contact_DAO_Contact', 'sort_name'));
 

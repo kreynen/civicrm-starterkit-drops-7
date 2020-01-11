@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -1396,93 +1380,6 @@ HERESQL;
     }
 
     return FALSE;
-  }
-
-  /**
-   * Create an activity for a case via email.
-   *
-   * @param int $file
-   *   Email sent.
-   *
-   * @return array|void
-   *   $activity object of newly creted activity via email
-   */
-  public static function recordActivityViaEmail($file) {
-    if (!file_exists($file) ||
-      !is_readable($file)
-    ) {
-      return CRM_Core_Error::fatal(ts('File %1 does not exist or is not readable',
-        [1 => $file]
-      ));
-    }
-
-    $result = CRM_Utils_Mail_Incoming::parse($file);
-    if ($result['is_error']) {
-      return $result;
-    }
-
-    foreach ($result['to'] as $to) {
-      $caseId = NULL;
-
-      $emailPattern = '/^([A-Z0-9._%+-]+)\+([\d]+)@[A-Z0-9.-]+\.[A-Z]{2,4}$/i';
-      $replacement = preg_replace($emailPattern, '$2', $to['email']);
-
-      if ($replacement !== $to['email']) {
-        $caseId = $replacement;
-        //if caseId is invalid, return as error file
-        if (!CRM_Core_DAO::getFieldValue('CRM_Case_DAO_Case', $caseId, 'id')) {
-          return CRM_Core_Error::createAPIError(ts('Invalid case ID ( %1 ) in TO: field.',
-            [1 => $caseId]
-          ));
-        }
-      }
-      else {
-        continue;
-      }
-
-      // TODO: May want to replace this with a call to getRelatedAndGlobalContacts() when this feature is revisited.
-      // (Or for efficiency call the global one outside the loop and then union with this each time.)
-      $contactDetails = self::getRelatedContacts($caseId, FALSE);
-
-      if (!empty($contactDetails[$result['from']['id']])) {
-        $params = [];
-        $params['subject'] = $result['subject'];
-        $params['activity_date_time'] = $result['date'];
-        $params['details'] = $result['body'];
-        $params['source_contact_id'] = $result['from']['id'];
-        $params['status_id'] = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_status_id', 'Completed');
-
-        $details = CRM_Case_PseudoConstant::caseActivityType();
-        $matches = [];
-        preg_match('/^\W+([a-zA-Z0-9_ ]+)(\W+)?\n/i',
-          $result['body'], $matches
-        );
-
-        if (!empty($matches) && isset($matches[1])) {
-          $activityType = trim($matches[1]);
-          if (isset($details[$activityType])) {
-            $params['activity_type_id'] = $details[$activityType]['id'];
-          }
-        }
-        if (!isset($params['activity_type_id'])) {
-          $params['activity_type_id'] = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', 'Inbound Email');
-        }
-
-        // create activity
-        $activity = CRM_Activity_BAO_Activity::create($params);
-
-        $caseParams = [
-          'activity_id' => $activity->id,
-          'case_id' => $caseId,
-        ];
-        self::processCaseActivity($caseParams);
-      }
-      else {
-        return CRM_Core_Error::createAPIError(ts('FROM email contact %1 doesn\'t have a relationship to the referenced case.',
-          [1 => $result['from']['email']]
-        ));
-      }
-    }
   }
 
   /**

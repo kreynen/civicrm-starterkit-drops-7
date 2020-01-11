@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -294,7 +278,7 @@ WHERE li.contribution_id = %1";
         'financial_type' => CRM_Core_PseudoConstant::getLabel('CRM_Contribute_BAO_Contribution', 'financial_type_id', $dao->financial_type_id),
         'membership_type_id' => $dao->membership_type_id,
         'membership_num_terms' => $dao->membership_num_terms,
-        'tax_amount' => $dao->tax_amount,
+        'tax_amount' => (float) $dao->tax_amount,
         'price_set_id' => $dao->price_set_id,
       ];
       $taxRates = CRM_Core_PseudoConstant::getTaxRates();
@@ -382,7 +366,7 @@ WHERE li.contribution_id = %1";
         'auto_renew' => CRM_Utils_Array::value('auto_renew', $options[$oid]),
         'html_type' => $fields['html_type'],
         'financial_type_id' => CRM_Utils_Array::value('financial_type_id', $options[$oid]),
-        'tax_amount' => CRM_Utils_Array::value('tax_amount', $options[$oid]),
+        'tax_amount' => CRM_Utils_Array::value('tax_amount', $options[$oid], 0),
         'non_deductible_amount' => CRM_Utils_Array::value('non_deductible_amount', $options[$oid]),
       ];
 
@@ -815,18 +799,20 @@ WHERE li.contribution_id = %1";
       $totalFinancialAmount = $this->checkFinancialItemTotalAmountByLineItemID($updateFinancialItemInfoValues['entity_id']);
       unset($updateFinancialItemInfoValues['id']);
       unset($updateFinancialItemInfoValues['created_date']);
+      $previousLineItem = $previousLineItems[$updateFinancialItemInfoValues['entity_id']];
 
       // if not submitted and difference is not 0 make it negative
       if ((empty($lineItemsToUpdate) || (in_array($updateFinancialItemInfoValues['price_field_value_id'], $priceFieldValueIDsToCancel) &&
           $totalFinancialAmount == $updateFinancialItemInfoValues['amount'])
         ) && $updateFinancialItemInfoValues['amount'] > 0
       ) {
+
         // INSERT negative financial_items
         $updateFinancialItemInfoValues['amount'] = -$updateFinancialItemInfoValues['amount'];
         // reverse the related financial trxn too
         $updateFinancialItemInfoValues['financialTrxn'] = $this->getRelatedCancelFinancialTrxn($previousFinancialItemID);
         if ($previousLineItems[$updateFinancialItemInfoValues['entity_id']]['tax_amount']) {
-          $updateFinancialItemInfoValues['tax']['amount'] = -($previousLineItems[$updateFinancialItemInfoValues['entity_id']]['tax_amount']);
+          $updateFinancialItemInfoValues['tax']['amount'] = -($previousLineItem['tax_amount']);
           $updateFinancialItemInfoValues['tax']['description'] = $this->getSalesTaxTerm();
         }
         // INSERT negative financial_items for tax amount
@@ -843,8 +829,9 @@ WHERE li.contribution_id = %1";
         if ($amountChangeOnTextLineItem !== (float) 0) {
           // calculate the amount difference, considered as financial item amount
           $updateFinancialItemInfoValues['amount'] = $amountChangeOnTextLineItem;
-          if ($previousLineItems[$updateFinancialItemInfoValues['entity_id']]['tax_amount']) {
-            $updateFinancialItemInfoValues['tax']['amount'] = $lineItemsToUpdate[$updateFinancialItemInfoValues['entity_id']]['tax_amount'] - $previousLineItems[$updateFinancialItemInfoValues['entity_id']]['tax_amount'];
+          if ($previousLineItem['tax_amount']
+            && $previousLineItems[$updateFinancialItemInfoValues['entity_id']]['tax_amount'] !== 0.00) {
+            $updateFinancialItemInfoValues['tax']['amount'] = $lineItemsToUpdate[$updateFinancialItemInfoValues['entity_id']]['tax_amount'] - $previousLineItem['tax_amount'];
             $updateFinancialItemInfoValues['tax']['description'] = $this->getSalesTaxTerm();
           }
           $financialItemsArray[$updateFinancialItemInfoValues['entity_id']] = $updateFinancialItemInfoValues;
@@ -1051,7 +1038,7 @@ WHERE li.contribution_id = %1";
       // insert financial items
       // ensure entity_financial_trxn table has a linking of it.
       CRM_Financial_BAO_FinancialItem::add($lineObj, $updatedContribution, NULL, $trxnArray);
-      if (isset($lineObj->tax_amount)) {
+      if (isset($lineObj->tax_amount) && (float) $lineObj->tax_amount !== 0.00) {
         CRM_Financial_BAO_FinancialItem::add($lineObj, $updatedContribution, TRUE, $trxnArray);
       }
     }

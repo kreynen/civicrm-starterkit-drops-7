@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2019                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2019
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Dedupe_Merger {
 
@@ -950,12 +934,10 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
   public static function skipMerge($mainId, $otherId, &$migrationInfo, $mode = 'safe', &$conflicts = []) {
 
     $conflicts = self::getConflicts($migrationInfo, $mainId, $otherId, $mode);
-
-    if (!empty($conflicts)) {
-      // if there are conflicts and mode is aggressive, allow hooks to decide if to skip merges
-      return (bool) $migrationInfo['skip_merge'];
-    }
-    return FALSE;
+    // A hook could have set skip_merge in order to alter merge behaviour.
+    // This is a something we might ideally deprecate since they really 'should'
+    // mess with the conflicts array instead.
+    return (bool) ($migrationData['skip_merge'] ?? !empty($conflicts));
   }
 
   /**
@@ -1091,8 +1073,11 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
         // CRM-15681 don't display sub-types in UI
         continue;
       }
-      $rows["move_$field"]['main'] = self::getFieldValueAndLabel($field, $main)['label'];
-      $rows["move_$field"]['other'] = self::getFieldValueAndLabel($field, $other)['label'];
+      $rows["move_$field"] = [
+        'main' => self::getFieldValueAndLabel($field, $main)['label'],
+        'other' => self::getFieldValueAndLabel($field, $other)['label'],
+        'title' => $fields[$field]['title'],
+      ];
 
       $value = self::getFieldValueAndLabel($field, $other)['value'];
       //CRM-14334
@@ -1109,17 +1094,17 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
       // Display a checkbox to migrate, only if the values are different
       if ($value != $main[$field]) {
         $elements[] = [
-          'advcheckbox',
-          "move_$field",
-          NULL,
-          NULL,
-          NULL,
-          $value,
+          0 => 'advcheckbox',
+          1 => "move_$field",
+          2 => NULL,
+          3 => NULL,
+          4 => NULL,
+          5 => $value,
+          'is_checked' => (!isset($main[$field]) || $main[$field] === ''),
         ];
       }
 
       $migrationInfo["move_$field"] = $value;
-      $rows["move_$field"]['title'] = $fields[$field]['title'];
     }
 
     // Handle location blocks.
@@ -1314,17 +1299,9 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
       }
     }
 
-    $relTables = CRM_Dedupe_Merger::relTables();
-    $activeRelTables = CRM_Dedupe_Merger::getActiveRelTables($otherId);
-    $activeMainRelTables = CRM_Dedupe_Merger::getActiveRelTables($mainId);
+    $mergeHandler = new CRM_Dedupe_MergeHandler((int) $mainId, (int) $otherId);
+    $relTables = $mergeHandler->getTablesRelatedToTheMergePair();
     foreach ($relTables as $name => $null) {
-      if (!in_array($name, $activeRelTables) &&
-        !(($name == 'rel_table_users') && in_array($name, $activeMainRelTables))
-      ) {
-        unset($relTables[$name]);
-        continue;
-      }
-
       $relTableElements[] = ['checkbox', "move_$name"];
       $migrationInfo["move_$name"] = 1;
 
@@ -2375,7 +2352,6 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
         unset($conflicts[$key]);
       }
     }
-    $migrationInfo['skip_merge'] = $migrationData['skip_merge'] ?? !empty($conflicts);
     return self::formatConflictArray($conflicts, $migrationInfo['rows'], $migrationInfo['main_details']['location_blocks'], $migrationInfo['other_details']['location_blocks'], $mainId, $otherId);
   }
 
