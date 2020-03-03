@@ -185,9 +185,10 @@ class WebformTestCase extends DrupalWebTestCase {
           'value' => '',
           'extra' => array(
             // Left side.
-            'questions' => "one|What's your option?\ntwo|Agåin?\nthree|One more time!",
+            'questions' => "one|What's your option?\ntwo|Agåin?|Again, right text\nthree|One more time!",
             // Top.
             'options' => "one|Option one\ntwo|Option 2\nthree| Three is me",
+            'title_display' => 'internal',
           ),
           'required' => '0',
           'pid' => '0',

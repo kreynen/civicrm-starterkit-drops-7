@@ -53,7 +53,7 @@ function captcha_admin_settings() {
   $form['captcha_form_protection'] = array(
     '#type' => 'fieldset',
     '#title' => t('Form protection'),
-    '#description' => t("Select the challenge type you want for each of the listed forms (identified by their so called <em>form_id</em>'s). You can easily add arbitrary forms with the textfield at the bottom of the table or with the help of the option <em>Add CAPTCHA administration links to forms</em> below."),
+    '#description' => t("Select the challenge type you want for each of the listed forms (identified by their so called <em>form_id</em> or <em>base_form_id</em>). You can easily add arbitrary forms with the textfield at the bottom of the table or with the help of the option <em>Add CAPTCHA administration links to forms</em> below."),
   );
   $form['captcha_form_protection']['captcha_default_challenge'] = array(
     '#type' => 'select',
@@ -454,7 +454,7 @@ function captcha_point_admin_form($form, $form_state, $captcha_point_form_id = N
     $form['captcha_point_form_id'] = array(
       '#type' => 'textfield',
       '#title' => t('Form ID'),
-      '#description' => t('The Drupal form_id of the form to add the CAPTCHA to.'),
+      '#description' => t('The Drupal form_id or base_form_id of the form to add the CAPTCHA to.'),
       '#value' => check_plain($captcha_point_form_id),
       '#disabled' => TRUE,
     );
@@ -468,7 +468,7 @@ function captcha_point_admin_form($form, $form_state, $captcha_point_form_id = N
     $form['captcha_point_form_id'] = array(
       '#type' => 'textfield',
       '#title' => t('Form ID'),
-      '#description' => t('The Drupal form_id of the form to add the CAPTCHA to.'),
+      '#description' => t('The Drupal form_id or base_form_id of the form to add the CAPTCHA to.'),
     );
   }
   // Select widget for CAPTCHA type.

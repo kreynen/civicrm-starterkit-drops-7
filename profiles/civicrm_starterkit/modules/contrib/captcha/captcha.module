@@ -403,6 +403,14 @@ function captcha_form_alter(&$form, &$form_state, $form_id) {
 
     // Get CAPTCHA type and module for given form_id.
     $captcha_point = captcha_get_form_id_setting($form_id);
+
+    // If no captcha point found, check to see if there is a setting for the base form id
+    if (!$captcha_point) {
+      if (isset($form_state['build_info']['base_form_id'])) {
+        $captcha_point = captcha_get_form_id_setting($form_state['build_info']['base_form_id']);
+      }
+    }
+
     if ($captcha_point && !empty($captcha_point->captcha_type)) {
       module_load_include('inc', 'captcha');
       // Build CAPTCHA form element.
