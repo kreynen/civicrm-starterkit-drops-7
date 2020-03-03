@@ -1967,7 +1967,7 @@ class CRM_Contribute_Form_Contribution_Confirm extends CRM_Contribute_Form_Contr
     }
     $priceFields = $priceFields[$priceSetID]['fields'];
     $lineItems = [];
-    CRM_Price_BAO_PriceSet::processAmount($priceFields, $paramsProcessedForForm, $lineItems, 'civicrm_contribution', $priceSetID);
+    $form->processAmountAndGetAutoRenew($priceFields, $paramsProcessedForForm, $lineItems, $priceSetID);
     $form->_lineItem = [$priceSetID => $lineItems];
     $membershipPriceFieldIDs = [];
     foreach ((array) $lineItems as $lineItem) {
@@ -2020,6 +2020,7 @@ class CRM_Contribute_Form_Contribution_Confirm extends CRM_Contribute_Form_Contr
    * @param int $contactID
    *
    * @return array
+   * @throws \CRM_Core_Exception
    */
   protected function processFormSubmission($contactID) {
     if (!isset($this->_params['payment_processor_id'])) {

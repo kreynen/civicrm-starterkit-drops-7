@@ -105,9 +105,9 @@
       return container;
     }
 
-    function getFieldList(source) {
+    function getFieldList(action) {
       var fields = [],
-        fieldInfo = _.findWhere(getEntity().actions, {name: $scope.action}).fields;
+        fieldInfo = _.findWhere(getEntity().actions, {name: action}).fields;
       formatForSelect2(fieldInfo, fields, 'name', ['description', 'required', 'default_value']);
       return fields;
     }
@@ -159,7 +159,7 @@
     };
 
     $scope.valuesFields = function() {
-      var fields = _.cloneDeep($scope.fields);
+      var fields = _.cloneDeep($scope.action === 'getFields' ? getFieldList($scope.params.action || 'get') : $scope.fields);
       // Disable fields that are already in use
       _.each($scope.params.values || [], function(val) {
         (_.findWhere(fields, {id: val[0]}) || {}).disabled = true;
@@ -265,7 +265,7 @@
       }
       if ($scope.action) {
         var actionInfo = _.findWhere(actions, {id: $scope.action});
-        $scope.fields = getFieldList();
+        $scope.fields = getFieldList($scope.action);
         if (_.contains(['get', 'update', 'delete', 'replace'], $scope.action)) {
           $scope.fieldsAndJoins = addJoins($scope.fields);
         } else {
@@ -400,7 +400,7 @@
           code.php += ', ' + phpFormat(index);
         }
         code.php += ");";
-        
+
         // Write oop code
         if (entity.substr(0, 7) !== 'Custom_') {
           code.oop = '$' + results + " = \\Civi\\Api4\\" + entity + '::' + action + '()';
@@ -445,7 +445,7 @@
         code.cli = 'cv api4 ' + entity + '.' + action + " '" + stringify(params) + "'";
       }
       _.each(code, function(val, type) {
-        $scope.code[type] = prettyPrintOne(val);
+        $scope.code[type] = prettyPrintOne(_.escape(val));
       });
     }
 
@@ -466,7 +466,7 @@
           ret += (ret.length ? ', ' : '') + key + ': ' + (_.isArray(val) ? '[' + val + ']' : val);
         }
       });
-      return prettyPrintOne(ret);
+      return prettyPrintOne(_.escape(ret));
     }
 
     $scope.execute = function() {
@@ -482,11 +482,11 @@
       }).then(function(resp) {
           $scope.loading = false;
           $scope.status = 'success';
-          $scope.result = [formatMeta(resp.data), prettyPrintOne(JSON.stringify(resp.data.values, null, 2), 'js', 1)];
+          $scope.result = [formatMeta(resp.data), prettyPrintOne(_.escape(JSON.stringify(resp.data.values, null, 2)), 'js', 1)];
         }, function(resp) {
           $scope.loading = false;
           $scope.status = 'danger';
-          $scope.result = [formatMeta(resp), prettyPrintOne(JSON.stringify(resp.data, null, 2))];
+          $scope.result = [formatMeta(resp), prettyPrintOne(_.escape(JSON.stringify(resp.data, null, 2)))];
         });
     };
 
@@ -658,7 +658,7 @@
         var ts = scope.ts = CRM.ts(),
           multi = _.includes(['IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN'], scope.data.op),
           entity = $routeParams.api4entity,
-          action = $routeParams.api4action;
+          action = scope.data.action || $routeParams.api4action;
 
         function destroyWidget() {
           var $el = $(element);

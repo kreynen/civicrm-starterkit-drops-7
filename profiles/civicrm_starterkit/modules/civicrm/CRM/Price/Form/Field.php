@@ -608,10 +608,14 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
 
   /**
    * Process the form.
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public function postProcess() {
     // store the submitted values in an array
     $params = $this->controller->exportValues('Field');
+    $params['price'] = CRM_Utils_Rule::cleanMoney($params['price']);
 
     $params['is_display_amounts'] = CRM_Utils_Array::value('is_display_amounts', $params, FALSE);
     $params['is_required'] = CRM_Utils_Array::value('is_required', $params, FALSE);
@@ -638,7 +642,7 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
     }
     $params['is_enter_qty'] = CRM_Utils_Array::value('is_enter_qty', $params, FALSE);
 
-    if ($params['html_type'] == 'Text') {
+    if ($params['html_type'] === 'Text') {
       // if html type is Text, force is_enter_qty on
       $params['is_enter_qty'] = 1;
       // modify params values as per the option group and option

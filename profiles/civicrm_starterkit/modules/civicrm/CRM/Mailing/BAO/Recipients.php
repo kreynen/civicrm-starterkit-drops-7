@@ -64,7 +64,7 @@ WHERE  mailing_id = %1
       // if any email is marked on_hold =1 or contact is deceased after mailing is submitted
       // then it should be get skipped while preparing event_queue
       // event_queue list is prepared when mailing job gets started.
-      $additionalJoin = " INNER JOIN civicrm_email e ON (r.email_id = e.id AND e.on_hold = 0 AND e.is_primary = 1)
+      $additionalJoin = " INNER JOIN civicrm_email e ON (r.email_id = e.id AND e.on_hold = 0)
                           INNER JOIN civicrm_contact c on (c.id = r.contact_id AND c.is_deceased <> 1 AND c.do_not_email = 0 AND c.is_opt_out = 0)
 ";
     }
@@ -100,7 +100,7 @@ WHERE  r.mailing_id = %1
       $limitString = "LIMIT 0, $totalLimit";
     }
     $temporaryTable = CRM_Utils_SQL_TempTable::build()
-      ->setCategory('srcmailing' . $sourceMailingId)
+      ->setCategory('sr' . $sourceMailingId)
       ->setMemory()
       ->createWithColumns("mailing_recipient_id int unsigned, id int PRIMARY KEY AUTO_INCREMENT, INDEX(mailing_recipient_id)");
     $temporaryTableName = $temporaryTable->getName();

@@ -28,7 +28,7 @@ class Kernel {
   protected $dispatcher;
 
   /**
-   * @var array<ProviderInterface>
+   * @var \Civi\API\Provider\ProviderInterface[]
    */
   protected $apiProviders;
 
@@ -167,7 +167,6 @@ class Kernel {
       throw new \API_Exception('Input variable `params` is not an array', 2000);
     }
     switch ($apiRequest['version']) {
-      case 2:
       case 3:
         require_once 'api/v3/utils.php';
         _civicrm_api3_initialize();
@@ -304,8 +303,10 @@ class Kernel {
    *   An unhandled exception.
    * @param array $apiRequest
    *   The full description of the API request.
+   *
    * @return array
    *   API response.
+   * @throws \API_Exception
    */
   public function formatException($e, $apiRequest) {
     $data = [];
@@ -320,8 +321,10 @@ class Kernel {
    *   An unhandled exception.
    * @param array $apiRequest
    *   The full description of the API request.
+   *
    * @return array
    *   (API response)
+   * @throws \API_Exception
    */
   public function formatApiException($e, $apiRequest) {
     $data = $e->getExtraParams();
@@ -343,15 +346,18 @@ class Kernel {
    *   An unhandled exception.
    * @param array $apiRequest
    *   The full description of the API request.
+   *
    * @return array
    *   API response.
+   *
+   * @throws \API_Exception
    */
   public function formatPearException($e, $apiRequest) {
     $data = [];
     $error = $e->getCause();
     if ($error instanceof \DB_Error) {
-      $data["error_code"] = \DB::errorMessage($error->getCode());
-      $data["sql"] = $error->getDebugInfo();
+      $data['error_code'] = \DB::errorMessage($error->getCode());
+      $data['sql'] = $error->getDebugInfo();
     }
     if (!empty($apiRequest['params']['debug'])) {
       if (method_exists($e, 'getUserInfo')) {
@@ -363,7 +369,7 @@ class Kernel {
       $data['trace'] = $e->getTraceAsString();
     }
     else {
-      $data['tip'] = "add debug=1 to your API call to have more info about the error";
+      $data['tip'] = 'add debug=1 to your API call to have more info about the error';
     }
 
     return $this->createError($e->getMessage(), $data, $apiRequest);
@@ -385,7 +391,7 @@ class Kernel {
    */
   public function createError($msg, $data, $apiRequest, $code = NULL) {
     // FIXME what to do with $code?
-    if ($msg == 'DB Error: constraint violation' || substr($msg, 0, 9) == 'DB Error:' || $msg == 'DB Error: already exists') {
+    if ($msg === 'DB Error: constraint violation' || substr($msg, 0, 9) == 'DB Error:' || $msg == 'DB Error: already exists') {
       try {
         $fields = _civicrm_api3_api_getfields($apiRequest);
         _civicrm_api3_validate_foreign_keys($apiRequest['entity'], $apiRequest['action'], $apiRequest['params'], $fields);

@@ -127,7 +127,7 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
   public function preProcess() {
     // Check for edit permission.
     if (!CRM_Core_Permission::checkActionPermission('CiviMember', $this->_action)) {
-      CRM_Core_Error::fatal(ts('You do not have permission to access this page.'));
+      CRM_Core_Error::statusBounce(ts('You do not have permission to access this page.'));
     }
     if (!CRM_Member_BAO_Membership::statusAvailabilty()) {
       // all possible statuses are disabled - redirect back to contact form
@@ -219,6 +219,7 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
 
     $this->addPaymentProcessorSelect(TRUE, FALSE, TRUE);
     CRM_Core_Payment_Form::buildPaymentForm($this, $this->_paymentProcessor, FALSE, TRUE, $this->getDefaultPaymentInstrumentId());
+    $this->assign('recurProcessor', json_encode($this->_recurPaymentProcessors));
     // Build the form for auto renew. This is displayed when in credit card mode or update mode.
     // The reason for showing it in update mode is not that clear.
     if ($this->_mode || ($this->_action & CRM_Core_Action::UPDATE)) {
@@ -233,7 +234,6 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
         $autoRenewElement->freeze();
       }
 
-      $this->assign('recurProcessor', json_encode($this->_recurPaymentProcessors));
       $this->addElement('checkbox',
         'auto_renew',
         ts('Membership renewed automatically')

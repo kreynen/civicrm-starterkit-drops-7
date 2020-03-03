@@ -51,7 +51,6 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
    */
   public static function add(&$params, $ids = []) {
     $oldStatus = $oldType = NULL;
-    $params['id'] = CRM_Utils_Array::value('id', $params, CRM_Utils_Array::value('membership', $ids));
     if ($params['id']) {
       CRM_Utils_Hook::pre('edit', 'Membership', $params['id'], $params);
     }
@@ -269,16 +268,6 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
         'today', $excludeIsAdmin, CRM_Utils_Array::value('membership_type_id', $params), $params
       );
       if (empty($calcStatus)) {
-        // Redirect the form in case of error
-        // @todo this redirect in the BAO layer is really bad & should be moved to the form layer
-        // however since we have no idea how (if) this is triggered we can't safely move / remove it
-        // NB I tried really hard to trigger this error from backoffice membership form in order to test it
-        // and am convinced form validation is complete on that form WRT this error.
-        $errorParams = [
-          'message_title' => ts('No valid membership status for given dates.'),
-          'legacy_redirect_path' => 'civicrm/contact/view',
-          'legacy_redirect_query' => "reset=1&force=1&cid={$params['contact_id']}&selectedChild=member",
-        ];
         throw new CRM_Core_Exception(ts(
           "The membership cannot be saved because the status cannot be calculated for start_date: $start_date end_date $end_date join_date $join_date as at " . date('Y-m-d H:i:s')),
           0,
@@ -306,7 +295,8 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
 
     $transaction = new CRM_Core_Transaction();
 
-    // @todo remove $ids from here - $ids['contribution'] is not used or set by add. $ids['userId'] is used. $ids['membership'] is used if $params['id'] is not set
+    // @todo remove $ids from here $ids['userId'] is still used
+    $params['id'] = CRM_Utils_Array::value('id', $params, CRM_Utils_Array::value('membership', $ids));
     $membership = self::add($params, $ids);
 
     if (is_a($membership, 'CRM_Core_Error')) {
@@ -447,6 +437,9 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
    *
    * @return array
    *   array of contact_id of all related contacts.
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public static function checkMembershipRelationship($membershipTypeID, $contactId, $action = CRM_Core_Action::ADD) {
     $contacts = [];
@@ -1331,13 +1324,15 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
    */
   public static function createRelatedMemberships(&$params, &$dao, $reset = FALSE) {
     // CRM-4213 check for loops, using static variable to record contacts already processed.
-    static $relatedContactIds = [];
+    if (!isset(\Civi::$statics[__CLASS__]['related_contacts'])) {
+      \Civi::$statics[__CLASS__]['related_contacts'] = [];
+    }
     if ($reset) {
-      // We need a way to reset this static variable from the test suite.
-      // @todo consider replacing with Civi::$statics but note reset now used elsewhere: CRM-17723.
-      $relatedContactIds = [];
+      // CRM-17723.
+      unset(\Civi::$statics[__CLASS__]['related_contacts']);
       return FALSE;
     }
+    $relatedContactIds = &\Civi::$statics[__CLASS__]['related_contacts'];
 
     $membership = new CRM_Member_DAO_Membership();
     $membership->id = $dao->id;
@@ -1367,14 +1362,11 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
       $expiredStatusId = array_search('Expired', CRM_Member_PseudoConstant::membershipStatus());
     }
 
-    $allRelatedContacts = [];
     $relatedContacts = [];
-    if (!is_a($membership, 'CRM_Core_Error')) {
-      $allRelatedContacts = CRM_Member_BAO_Membership::checkMembershipRelationship($membership->membership_type_id,
-        $membership->contact_id,
-        CRM_Utils_Array::value('action', $params)
-      );
-    }
+    $allRelatedContacts = CRM_Member_BAO_Membership::checkMembershipRelationship($membership->membership_type_id,
+      $membership->contact_id,
+      CRM_Utils_Array::value('action', $params)
+    );
 
     // CRM-4213, CRM-19735 check for loops, using static variable to record contacts already processed.
     // Remove repeated related contacts, which already inherited membership of this type.

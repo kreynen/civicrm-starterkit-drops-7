@@ -57,7 +57,7 @@ abstract class CRM_Utils_Hook {
   private $commonIncluded = FALSE;
 
   /**
-   * @var array(string)
+   * @var array|string
    */
   private $commonCiviModules = [];
 
@@ -160,7 +160,7 @@ abstract class CRM_Utils_Hook {
     // Instead of not calling any hooks we only call those we know to be frequently important - if a particular extension wanted
     // to avoid this they could do an early return on CRM_Core_Config::singleton()->isUpgradeMode
     // Futther discussion is happening at https://lab.civicrm.org/dev/core/issues/1460
-    $upgradeFriendlyHooks = ['civicrm_alterSettingsFolders', 'civicrm_alterSettingsMetaData', 'civicrm_triggerInfo', 'civicrm_alterLogTables', 'civicrm_container'];
+    $upgradeFriendlyHooks = ['civicrm_alterSettingsFolders', 'civicrm_alterSettingsMetaData', 'civicrm_triggerInfo', 'civicrm_alterLogTables', 'civicrm_container', 'civicrm_permission', 'civicrm_managed'];
     if (CRM_Core_Config::singleton()->isUpgradeMode() && !in_array($fnSuffix, $upgradeFriendlyHooks)) {
       return;
     }
@@ -249,7 +249,7 @@ abstract class CRM_Utils_Hook {
    * @param mixed $arg6
    *
    * @return array|bool
-   * @throws \Exception
+   * @throws \CRM_Core_Exception
    */
   public function runHooks(
     $civiModules, $fnSuffix, $numParams,
@@ -307,8 +307,7 @@ abstract class CRM_Utils_Hook {
           break;
 
         default:
-          CRM_Core_Error::fatal(ts('Invalid hook invocation'));
-          break;
+          throw new CRM_Core_Exception(ts('Invalid hook invocation'));
       }
 
       if (!empty($fResult) &&
@@ -2244,6 +2243,10 @@ abstract class CRM_Utils_Hook {
    *    - js: array, list of JS files or globs.
    *    - css: array, list of CSS files or globs.
    *    - partials: array, list of base-dirs containing HTML.
+   *    - partialsCallback: mixed, a callback function which generates a list of HTML
+   *        function(string $moduleName, array $moduleDefn) => array(string $file => string $html)
+   *        For future-proofing, use a serializable callback (e.g. string/array).
+   *        See also: Civi\Core\Resolver.
    *    - requires: array, list of required Angular modules.
    *    - basePages: array, uncondtionally load this module onto the given Angular pages. [v4.7.21+]
    *      If omitted, default to "array('civicrm/a')" for backward compat.
