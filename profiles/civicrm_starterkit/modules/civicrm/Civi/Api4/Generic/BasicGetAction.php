@@ -24,9 +24,9 @@ namespace Civi\Api4\Generic;
 use Civi\API\Exception\NotImplementedException;
 
 /**
- * Retrieve items based on criteria specified in the 'where' param.
+ * Retrieve $ENTITIES based on criteria specified in the `where` parameter.
  *
- * Use the 'select' param to determine which fields are returned, defaults to *.
+ * Use the `select` param to determine which fields are returned, defaults to `[*]`.
  */
 class BasicGetAction extends AbstractGetAction {
   use Traits\ArrayQueryActionTrait;
@@ -57,6 +57,7 @@ class BasicGetAction extends AbstractGetAction {
    */
   public function _run(Result $result) {
     $this->setDefaultWhereClause();
+    $this->expandSelectClauseWildcards();
     $values = $this->getRecords();
     $result->exchangeArray($this->queryArray($values));
   }
@@ -95,6 +96,7 @@ class BasicGetAction extends AbstractGetAction {
    */
   protected function getRecords() {
     if (is_callable($this->getter)) {
+      $this->addCallbackToDebugOutput($this->getter);
       return call_user_func($this->getter, $this);
     }
     throw new NotImplementedException('Getter function not found for api4 ' . $this->getEntityName() . '::' . $this->getActionName());

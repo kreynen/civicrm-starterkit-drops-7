@@ -35,6 +35,7 @@ class CRM_Utils_Token {
     ],
     'mailing' => [
       'id',
+      'key',
       'name',
       'group',
       'subject',
@@ -448,6 +449,14 @@ class CRM_Utils_Token {
 
       case 'id':
         $value = $mailing ? $mailing->id : 'undefined';
+        break;
+
+      // Key is the ID, or the hash when the hash URLs setting is enabled
+      case 'key':
+        $value = $mailing->id;
+        if ($hash = CRM_Mailing_BAO_Mailing::getMailingHash($value)) {
+          $value = $hash;
+        }
         break;
 
       case 'name':
@@ -1603,7 +1612,7 @@ class CRM_Utils_Token {
 
   /**
    * @param int $caseId
-   * @param int $str
+   * @param string $str
    * @param array $knownTokens
    * @param bool $escapeSmarty
    * @return string
@@ -1875,7 +1884,7 @@ class CRM_Utils_Token {
       else {
         $split = explode('.', trim($k, '{}'));
         if (isset($split[1])) {
-          $entity = array_key_exists($split[1], CRM_Core_DAO_Address::export()) ? 'Address' : ucfirst($split[0]);
+          $entity = array_key_exists($split[1], CRM_Core_DAO_Address::export()) ? 'Address' : ucwords(str_replace('_', ' ', $split[0]));
         }
         else {
           $entity = 'Contact';

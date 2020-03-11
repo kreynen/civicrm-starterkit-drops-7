@@ -689,6 +689,7 @@ class CRM_Mailing_BAO_Mailing extends CRM_Mailing_DAO_Mailing {
         $this->templates['subject'] = implode("\n", $template);
       }
 
+      $this->templates['mailingID'] = $this->id;
       CRM_Utils_Hook::alterMailContent($this->templates);
     }
     return $this->templates;
@@ -1139,8 +1140,8 @@ ORDER BY   civicrm_email.is_bulkmail DESC
 
     // push the tracking url on to the html email if necessary
     if ($this->open_tracking && $html) {
-      array_push($html, "\n" . '<img src="' . $config->userFrameworkResourceURL .
-        "extern/open.php?q=$event_queue_id\" width='1' height='1' alt='' border='0'>"
+      array_push($html, "\n" . '<img src="' . CRM_Utils_System::externUrl('extern/open', "q=$event_queue_id")
+        . '" width="1" height="1" alt="" border="0">'
       );
     }
 
@@ -1514,7 +1515,9 @@ ORDER BY   civicrm_email.is_bulkmail DESC
    *
    * @return object
    *   $mailing      The new mailing object
-   * @throws \Exception
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public static function create(&$params, $ids = []) {
 
@@ -1546,8 +1549,7 @@ ORDER BY   civicrm_email.is_bulkmail DESC
         $domain_name = 'EXAMPLE.ORG';
       }
       if (!isset($params['created_id'])) {
-        $session =& CRM_Core_Session::singleton();
-        $params['created_id'] = $session->get('userID');
+        $params['created_id'] = CRM_Core_Session::getLoggedInContactID();
       }
       $defaults = [
         // load the default config settings for each

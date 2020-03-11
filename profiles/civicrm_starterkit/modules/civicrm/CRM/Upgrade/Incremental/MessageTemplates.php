@@ -199,6 +199,15 @@ class CRM_Upgrade_Incremental_MessageTemplates {
           ['name' => 'membership_online_receipt', 'type' => 'html'],
         ],
       ],
+      [
+        'version' => '5.23.alpha1',
+        'upgrade_descriptor' => ts('Add Contributor Name to Offline Contribution receipts; fix bad event self-service URL'),
+        'templates' => [
+          ['name' => 'contribution_offline_receipt', 'type' => 'text'],
+          ['name' => 'contribution_offline_receipt', 'type' => 'html'],
+          ['name' => 'participant_confirm', 'type' => 'html'],
+        ],
+      ],
 
     ];
   }

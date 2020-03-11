@@ -692,7 +692,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
     }
 
     // add participant record
-    $participant = CRM_Event_Form_Registration::addParticipant($this, $contactID);
+    $participant = $this->addParticipant($this, $contactID);
     $this->_participantIDS[] = $participant->id;
 
     //setting register_by_id field and primaryContactId
@@ -778,10 +778,11 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
    * @return \CRM_Event_BAO_Participant
    * @throws \CiviCRM_API3_Exception
    */
-  public static function addParticipant(&$form, $contactID) {
+  protected function addParticipant(&$form, $contactID) {
     if (empty($form->_params)) {
       return NULL;
     }
+    // Note this used to be shared with the backoffice form & no longer is, some code may no longer be required.
     $params = $form->_params;
     $transaction = new CRM_Core_Transaction();
 
@@ -805,7 +806,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
       'status_id' => CRM_Utils_Array::value('participant_status',
         $params, 1
       ),
-      'role_id' => CRM_Utils_Array::value('participant_role_id', $params) ?: self::getDefaultRoleID(),
+      'role_id' => CRM_Utils_Array::value('participant_role_id', $params) ?: CRM_Event_BAO_Participant::getDefaultRoleID(),
       'register_date' => ($registerDate) ? $registerDate : date('YmdHis'),
       'source' => CRM_Utils_String::ellipsify(
         isset($params['participant_source']) ? CRM_Utils_Array::value('participant_source', $params) : CRM_Utils_Array::value('description', $params),
@@ -855,21 +856,6 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
     $transaction->commit();
 
     return $participant;
-  }
-
-  /**
-   * Get the ID of the default (first) participant role
-   *
-   * @return int
-   * @throws \CiviCRM_API3_Exception
-   */
-  private static function getDefaultRoleID() {
-    return (int) civicrm_api3('OptionValue', 'getvalue', [
-      'return' => "value",
-      'option_group_id' => "participant_role",
-      'is_active' => 1,
-      'options' => ['limit' => 1, 'sort' => "is_default DESC"],
-    ]);
   }
 
   /**

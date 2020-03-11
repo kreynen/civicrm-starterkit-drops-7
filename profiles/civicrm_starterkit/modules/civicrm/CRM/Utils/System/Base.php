@@ -974,4 +974,20 @@ abstract class CRM_Utils_System_Base {
     CRM_Utils_System::civiExit();
   }
 
+  /**
+   * Start a new session.
+   */
+  public function sessionStart() {
+    session_start();
+  }
+
+  /**
+   * Get role names
+   *
+   * @return array|null
+   */
+  public function getRoleNames() {
+    return NULL;
+  }
+
 }

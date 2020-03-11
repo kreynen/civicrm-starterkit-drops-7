@@ -22,7 +22,7 @@
 namespace Civi\Api4\Generic;
 
 /**
- * Base class for all actions that need to fetch records (Get, Update, Delete, etc)
+ * Base class for all actions that need to fetch records (`Get`, `Update`, `Delete`, etc.).
  *
  * @package Civi\Api4\Generic
  *
@@ -38,27 +38,29 @@ namespace Civi\Api4\Generic;
 abstract class AbstractQueryAction extends AbstractAction {
 
   /**
-   * Criteria for selecting items.
+   * Criteria for selecting $ENTITIES.
    *
-   * $example->addWhere('contact_type', 'IN', array('Individual', 'Household'))
-   *
+   * ```php
+   * $example->addWhere('contact_type', 'IN', ['Individual', 'Household'])
+   * ```
    * @var array
    */
   protected $where = [];
 
   /**
-   * Array of field(s) to use in ordering the results
+   * Array of field(s) to use in ordering the results.
    *
    * Defaults to id ASC
    *
+   * ```php
    * $example->addOrderBy('sort_name', 'ASC')
-   *
+   * ```
    * @var array
    */
   protected $orderBy = [];
 
   /**
-   * Maximum number of results to return.
+   * Maximum number of $ENTITIES to return.
    *
    * Defaults to unlimited.
    *
@@ -70,26 +72,26 @@ abstract class AbstractQueryAction extends AbstractAction {
   protected $limit = 0;
 
   /**
-   * Zero-based index of first result to return.
+   * Zero-based index of first $ENTITY to return.
    *
-   * Defaults to "0" - first record.
+   * Defaults to "0" - first $ENTITY found.
    *
    * @var int
    */
   protected $offset = 0;
 
   /**
-   * @param string $field
+   * @param string $fieldName
    * @param string $op
    * @param mixed $value
    * @return $this
    * @throws \API_Exception
    */
-  public function addWhere($field, $op, $value = NULL) {
+  public function addWhere(string $fieldName, string $op, $value = NULL) {
     if (!in_array($op, \CRM_Core_DAO::acceptedSQLOperators())) {
       throw new \API_Exception('Unsupported operator');
     }
-    $this->where[] = [$field, $op, $value];
+    $this->where[] = [$fieldName, $op, $value];
     return $this;
   }
 
@@ -103,7 +105,7 @@ abstract class AbstractQueryAction extends AbstractAction {
    * @return $this
    * @throws \API_Exception
    */
-  public function addClause($operator, $condition1) {
+  public function addClause(string $operator, $condition1) {
     if (!is_array($condition1[0])) {
       $condition1 = array_slice(func_get_args(), 1);
     }
@@ -112,17 +114,18 @@ abstract class AbstractQueryAction extends AbstractAction {
   }
 
   /**
-   * @param string $field
+   * Adds to the orderBy clause
+   * @param string $fieldName
    * @param string $direction
    * @return $this
    */
-  public function addOrderBy($field, $direction = 'ASC') {
-    $this->orderBy[$field] = $direction;
+  public function addOrderBy(string $fieldName, $direction = 'ASC') {
+    $this->orderBy[$fieldName] = $direction;
     return $this;
   }
 
   /**
-   * A human-readable where clause, for the reading enjoyment of you humans.
+   * Produces a human-readable where clause, for the reading enjoyment of you humans.
    *
    * @param array $whereClause
    * @param string $op

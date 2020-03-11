@@ -1232,8 +1232,6 @@ WHERE civicrm_event.is_active = 1
             $values['event']
           );
           // append invoice pdf to email
-          $template = CRM_Core_Smarty::singleton();
-          $taxAmt = $template->get_template_vars('totalTaxAmount');
           $prefixValue = Civi::settings()->get('contribution_invoice_settings');
           $invoicing = CRM_Utils_Array::value('invoicing', $prefixValue);
           if (isset($invoicing) && isset($prefixValue['is_email_pdf']) && !empty($values['contributionId'])) {
@@ -1751,7 +1749,7 @@ WHERE  id = $cfID
 
     $customProfile = $additionalIDs = [];
     if (!$participantId) {
-      CRM_Core_Error::fatal(ts('Cannot find participant ID'));
+      throw new CRM_Core_Exception(ts('Cannot find participant ID'));
     }
 
     //set Ids of Primary Participant also.
@@ -2350,10 +2348,13 @@ LEFT  JOIN  civicrm_price_field_value value ON ( value.id = lineItem.price_field
     // Special logic for fields whose options depend on context or properties
     switch ($fieldName) {
       case 'financial_type_id':
-        // Fixme - this is going to ignore context, better to get conditions, add params, and call PseudoConstant::get
-        return CRM_Financial_BAO_FinancialType::getIncomeFinancialType();
-
-      break;
+        // @fixme - this is going to ignore context, better to get conditions, add params, and call PseudoConstant::get
+        // @fixme - https://lab.civicrm.org/dev/core/issues/547 if CiviContribute not enabled this causes an invalid query
+        //   because $relationTypeId is not set in CRM_Financial_BAO_FinancialType::getIncomeFinancialType()
+        if (array_key_exists('CiviEvent', CRM_Core_Component::getEnabledComponents())) {
+          return CRM_Financial_BAO_FinancialType::getIncomeFinancialType();
+        }
+        return [];
     }
     return CRM_Core_PseudoConstant::get(__CLASS__, $fieldName, $params, $context);
   }

@@ -10,19 +10,30 @@
  */
 
 /**
- *
+ * Back office participant form.
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
  */
 
 /**
- * This class generates form components for processing a participation
- * in an event
+ * Back office participant form.
  */
 class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment {
+
+  /**
+   * Participant ID - use getParticipantID.
+   *
+   * @var int
+   */
+  public $_pId;
+
+  /**
+   * ID of discount record.
+   *
+   * @var int
+   */
+  public $_discountId;
 
   public $useLivePageJS = TRUE;
 
@@ -96,60 +107,70 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
 
   /**
    * If event is paid or unpaid.
+   *
    * @var bool
    */
   public $_isPaidEvent;
 
   /**
    * Page action.
+   *
    * @var int
    */
   public $_action;
 
   /**
    * Role Id.
+   *
    * @var int
    */
   protected $_roleId = NULL;
 
   /**
    * Event Type Id.
+   *
    * @var int
    */
   protected $_eventTypeId = NULL;
 
   /**
    * Participant status Id.
+   *
    * @var int
    */
   protected $_statusId = NULL;
 
   /**
    * Cache all the participant statuses.
+   *
    * @var array
    */
   protected $_participantStatuses;
 
   /**
    * Participant mode.
+   *
    * @var string
    */
   public $_mode = NULL;
 
   /**
    * Event ID preselect.
+   *
    * @var int
    */
   public $_eID = NULL;
 
   /**
    * Line Item for Price Set.
+   *
    * @var array
    */
   public $_lineItem = NULL;
 
   /**
    * Contribution mode for event registration for offline mode.
+   *
    * @var string
    * @deprecated
    */
@@ -159,30 +180,35 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
 
   /**
    * Store id of role custom data type ( option value )
+   *
    * @var int
    */
   protected $_roleCustomDataTypeID;
 
   /**
    * Store id of event Name custom data type ( option value)
+   *
    * @var int
    */
   protected $_eventNameCustomDataTypeID;
 
   /**
    * Selected discount id.
+   *
    * @var int
    */
   public $_originalDiscountId = NULL;
 
   /**
    * Event id.
+   *
    * @var int
    */
   public $_eventId = NULL;
 
   /**
    * Id of payment, if any
+   *
    * @var int
    */
   public $_paymentId = NULL;
@@ -192,6 +218,13 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
    * @todo add explanatory note about this
    */
   public $_onlinePendingContributionId = NULL;
+
+  /**
+   * Stored participant record.
+   *
+   * @var array
+   */
+  protected $participantRecord;
 
   /**
    * Explicitly declare the entity api name.
@@ -210,8 +243,8 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
   /**
    * Set variables up before form is built.
    *
-   * @return void
    * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public function preProcess() {
     parent::preProcess();
@@ -365,7 +398,7 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
     // when fee amount is included in form
     if (!empty($_POST['hidden_feeblock']) || !empty($_POST['send_receipt'])) {
       CRM_Event_Form_EventFees::preProcess($this);
-      self::buildEventFeeForm($this);
+      $this->buildEventFeeForm($this);
       CRM_Event_Form_EventFees::setDefaultValues($this);
     }
 
@@ -587,7 +620,7 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
     $this->assign('partiallyPaidStatusId', $partiallyPaidStatusId);
 
     if ($this->_showFeeBlock) {
-      return self::buildEventFeeForm($this);
+      return $this->buildEventFeeForm($this);
     }
 
     //need to assign custom data type to the template
@@ -973,10 +1006,16 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
    * @throws \CiviCRM_API3_Exception
    */
   public function submit($params) {
+    if ($this->_mode && !$this->_isPaidEvent) {
+      CRM_Core_Error::statusBounce(ts('Selected Event is not Paid Event '));
+    }
     $participantStatus = CRM_Event_PseudoConstant::participantStatus();
     // set the contact, when contact is selected
     if (!empty($params['contact_id'])) {
       $this->_contactID = $this->_contactId = $params['contact_id'];
+    }
+    if (!$this->_priceSetId && $this->_isPaidEvent) {
+      CRM_Core_Error::deprecatedFunctionWarning('this should never be true, handling to be removed');
     }
     if ($this->_priceSetId && $isQuickConfig = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', $this->_priceSetId, 'is_quick_config')) {
       $this->_quickConfig = $isQuickConfig;
@@ -991,101 +1030,7 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
       $params['total_amount'] = CRM_Utils_Rule::cleanMoney($params['total_amount']);
     }
     if ($this->_isPaidEvent) {
-
-      $contributionParams = ['skipCleanMoney' => TRUE];
-      $lineItem = [];
-      $additionalParticipantDetails = [];
-      if (Civi::settings()->get('deferred_revenue_enabled')) {
-        $eventStartDate = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $this->_eventId, 'start_date');
-        if (strtotime($eventStartDate) > strtotime(date('Ymt'))) {
-          $contributionParams['revenue_recognition_date'] = date('Ymd', strtotime($eventStartDate));
-        }
-      }
-      if (($this->_id && $this->_action & CRM_Core_Action::UPDATE) && $this->_paymentId) {
-        $participantBAO = new CRM_Event_BAO_Participant();
-        $participantBAO->id = $this->_id;
-        $participantBAO->find(TRUE);
-        $contributionParams['total_amount'] = $participantBAO->fee_amount;
-
-        $params['discount_id'] = NULL;
-        //re-enter the values for UPDATE mode
-        $params['fee_level'] = $params['amount_level'] = $participantBAO->fee_level;
-        $params['fee_amount'] = $participantBAO->fee_amount;
-        if (isset($params['priceSetId'])) {
-          $lineItem[0] = CRM_Price_BAO_LineItem::getLineItems($this->_id);
-        }
-        //also add additional participant's fee level/priceset
-        if (CRM_Event_BAO_Participant::isPrimaryParticipant($this->_id)) {
-          $additionalIds = CRM_Event_BAO_Participant::getAdditionalParticipantIds($this->_id);
-          $hasLineItems = CRM_Utils_Array::value('priceSetId', $params, FALSE);
-          $additionalParticipantDetails = CRM_Event_BAO_Participant::getFeeDetails($additionalIds,
-            $hasLineItems
-          );
-        }
-      }
-      else {
-
-        // check that discount_id is set
-        if (empty($params['discount_id'])) {
-          $params['discount_id'] = 'null';
-        }
-
-        //lets carry currency, CRM-4453
-        $params['fee_currency'] = $config->defaultCurrency;
-        if (!isset($lineItem[0])) {
-          $lineItem[0] = [];
-        }
-        CRM_Price_BAO_PriceSet::processAmount($this->_values['fee'],
-          $params, $lineItem[0]
-        );
-        //CRM-11529 for quick config backoffice transactions
-        //when financial_type_id is passed in form, update the
-        //lineitems with the financial type selected in form
-        $submittedFinancialType = CRM_Utils_Array::value('financial_type_id', $params);
-        $isPaymentRecorded = CRM_Utils_Array::value('record_contribution', $params);
-        if ($isPaymentRecorded && $this->_quickConfig && $submittedFinancialType) {
-          foreach ($lineItem[0] as &$values) {
-            $values['financial_type_id'] = $submittedFinancialType;
-          }
-        }
-
-        $params['fee_level'] = $params['amount_level'];
-        $contributionParams['total_amount'] = $params['amount'];
-        if ($this->_quickConfig && !empty($params['total_amount']) &&
-          $params['status_id'] != array_search('Partially paid', $participantStatus)
-        ) {
-          $params['fee_amount'] = $params['total_amount'];
-        }
-        else {
-          //fix for CRM-3086
-          $params['fee_amount'] = $params['amount'];
-        }
-      }
-
-      if (isset($params['priceSetId'])) {
-        if (!empty($lineItem[0])) {
-          $this->set('lineItem', $lineItem);
-
-          $this->_lineItem = $lineItem;
-          $lineItem = array_merge($lineItem, $additionalParticipantDetails);
-
-          $participantCount = [];
-          foreach ($lineItem as $k) {
-            foreach ($k as $v) {
-              if (CRM_Utils_Array::value('participant_count', $v) > 0) {
-                $participantCount[] = $v['participant_count'];
-              }
-            }
-          }
-        }
-        if (isset($participantCount)) {
-          $this->assign('pricesetFieldsCount', $participantCount);
-        }
-        $this->assign('lineItem', empty($lineItem[0]) || $this->_quickConfig ? FALSE : $lineItem);
-      }
-      else {
-        $this->assign('amount_level', $params['amount_level']);
-      }
+      list($contributionParams, $lineItem, $additionalParticipantDetails, $params) = $this->preparePaidEventProcessing($params);
     }
 
     $this->_params = $params;
@@ -1113,28 +1058,16 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
     //participant method (addParticipant)
     $this->_params['participant_status_id'] = $params['status_id'];
     $this->_params['participant_role_id'] = is_array($params['role_id']) ? $params['role_id'] : explode(',', $params['role_id']);
-    $this->_params['participant_register_date'] = $params['register_date'];
     $roleIdWithSeparator = implode(CRM_Core_DAO::VALUE_SEPARATOR, $this->_params['participant_role_id']);
 
     $now = date('YmdHis');
 
     if ($this->_mode) {
-      if (!$this->_isPaidEvent) {
-        CRM_Core_Error::statusBounce(ts('Selected Event is not Paid Event '));
-      }
-
-      $eventTitle
-        = CRM_Core_DAO::getFieldValue(
-          'CRM_Event_DAO_Event',
-          $params['event_id'],
-          'title'
-        );
-
       // set source if not set
       if (empty($params['source'])) {
         $this->_params['participant_source'] = ts('Offline Registration for Event: %2 by: %1', [
           1 => $userName,
-          2 => $eventTitle,
+          2 => $this->getEventValue('title'),
         ]);
       }
       else {
@@ -1150,8 +1083,6 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
       // set email for primary location.
       $fields['email-Primary'] = 1;
       $params['email-Primary'] = $params["email-{$this->_bltID}"] = $this->_contributorEmail;
-
-      $params['register_date'] = $now;
 
       // now set the values for the billing location.
       foreach ($this->_fields as $name => $dontCare) {
@@ -1277,10 +1208,10 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
       $this->_params['mode'] = $this->_mode;
 
       //add contribution record
-      $contributions[] = $contribution = CRM_Event_Form_Registration_Confirm::processContribution(
+      $contributions[] = $contribution = $this->processContribution(
         $this, $this->_params,
         $result, $contactID,
-        FALSE, FALSE,
+        FALSE,
         $this->_paymentProcessor
       );
 
@@ -1295,7 +1226,7 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
       //CRM-15372 patch to fix fee amount replacing amount
       $this->_params['fee_amount'] = $this->_params['amount'];
 
-      $participants[] = CRM_Event_Form_Registration::addParticipant($this, $contactID);
+      $participants[] = $this->addParticipant($this, $this->_params, $contactID);
 
       //add custom data for participant
       CRM_Core_BAO_CustomValueTable::postProcess($this->_params,
@@ -1338,13 +1269,6 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
         }
       }
 
-      if (isset($params['event_id'])) {
-        $eventTitle = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event',
-          $params['event_id'],
-          'title'
-        );
-      }
-
       if ($this->_single) {
         $this->_contactIds[] = $this->_contactId;
       }
@@ -1353,10 +1277,10 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
       if (!empty($params['record_contribution'])) {
         if (!empty($params['id'])) {
           if ($this->_onlinePendingContributionId) {
-            $ids['contribution'] = $this->_onlinePendingContributionId;
+            $contributionParams['id'] = $this->_onlinePendingContributionId;
           }
           else {
-            $ids['contribution'] = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_ParticipantPayment',
+            $contributionParams['id'] = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_ParticipantPayment',
               $params['id'],
               'contribution_id',
               'participant_id'
@@ -1369,7 +1293,7 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
         if (!$this->_onlinePendingContributionId) {
           if (empty($params['source'])) {
             $contributionParams['source'] = ts('%1 : Offline registration (by %2)', [
-              1 => $eventTitle,
+              1 => $this->getEventValue('title'),
               2 => $userName,
             ]);
           }
@@ -1428,7 +1352,7 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
           // if multiple participants are link, consider contribution total amount as the amount Owed
           if ($this->_id && CRM_Event_BAO_Participant::isPrimaryParticipant($this->_id)) {
             $amountOwed = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution',
-              $ids['contribution'],
+              $contributionParams['id'],
               'total_amount'
             );
           }
@@ -1439,6 +1363,7 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
             $contributionParams['partial_payment_total'] = $amountOwed;
             // the actual amount paid
             $contributionParams['partial_amount_to_pay'] = $params['total_amount'];
+            $this->assign('balanceAmount', $contributionParams['partial_payment_total'] - $contributionParams['partial_amount_to_pay']);
           }
         }
 
@@ -1447,21 +1372,17 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
         }
 
         if ($this->_single) {
-          if (empty($ids)) {
-            $ids = [];
-          }
-          $contributions[] = CRM_Contribute_BAO_Contribution::create($contributionParams, $ids);
+          $contributions[] = CRM_Contribute_BAO_Contribution::create($contributionParams);
         }
         else {
-          $ids = [];
           foreach ($this->_contactIds as $contactID) {
             $contributionParams['contact_id'] = $contactID;
-            $contributions[] = CRM_Contribute_BAO_Contribution::create($contributionParams, $ids);
+            $contributions[] = CRM_Contribute_BAO_Contribution::create($contributionParams);
           }
         }
 
         // Insert payment record for this participant
-        if (empty($ids['contribution'])) {
+        if (empty($contributionParams['id'])) {
           foreach ($this->_contactIds as $num => $contactID) {
             $participantPaymentParams = [
               'participant_id' => $participants[$num]->id,
@@ -1504,8 +1425,12 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
               $lineItem[$this->_priceSetId][$lineKey] = $line;
             }
             CRM_Price_BAO_LineItem::processPriceSet($participants[$num]->id, $lineItem, CRM_Utils_Array::value($num, $contributions, NULL), 'civicrm_participant');
-            CRM_Contribute_BAO_Contribution::addPayments($contributions);
           }
+        }
+      }
+      foreach ($contributions as $contribution) {
+        if ('Partially paid' === CRM_Core_PseudoConstant::getName('CRM_Contribute_BAO_Contribution', 'contribution_status_id', $contribution->contribution_status_id)) {
+          CRM_Contribute_BAO_Contribution::addPayments($contribution);
         }
       }
     }
@@ -1525,53 +1450,11 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
     $sent = [];
     $notSent = [];
     if (!empty($params['send_receipt'])) {
-      if (array_key_exists($params['from_email_address'], $this->_fromEmails['from_email_id'])) {
-        $receiptFrom = $params['from_email_address'];
-      }
 
       $this->assign('module', 'Event Registration');
-      //use of the message template below requires variables in different format
-      $event = $events = [];
-      $returnProperties = ['event_type_id', 'fee_label', 'start_date', 'end_date', 'is_show_location', 'title'];
-
-      //get all event details.
-      CRM_Core_DAO::commonRetrieveAll('CRM_Event_DAO_Event', 'id', $params['event_id'], $events, $returnProperties);
-      $event = $events[$params['event_id']];
-      unset($event['start_date']);
-      unset($event['end_date']);
-
-      $role = CRM_Event_PseudoConstant::participantRole();
-      $participantRoles = CRM_Utils_Array::value('role_id', $params);
-      if (is_array($participantRoles)) {
-        $selectedRoles = [];
-        foreach ($participantRoles as $roleId) {
-          $selectedRoles[] = $role[$roleId];
-        }
-        $event['participant_role'] = implode(', ', $selectedRoles);
-      }
-      else {
-        $event['participant_role'] = CRM_Utils_Array::value($participantRoles, $role);
-      }
-      $event['is_monetary'] = $this->_isPaidEvent;
-
-      if ($params['receipt_text']) {
-        $event['confirm_email_text'] = $params['receipt_text'];
-      }
-
+      $this->assignEventDetailsToTpl($params['event_id'], CRM_Utils_Array::value('role_id', $params), CRM_Utils_Array::value('receipt_text', $params), $this->_isPaidEvent);
       $this->assign('isAmountzero', 1);
-      $this->assign('event', $event);
 
-      $this->assign('isShowLocation', $event['is_show_location']);
-      if (CRM_Utils_Array::value('is_show_location', $event) == 1) {
-        $locationParams = [
-          'entity_id' => $params['event_id'],
-          'entity_table' => 'civicrm_event',
-        ];
-        $location = CRM_Core_BAO_Location::getValues($locationParams, TRUE);
-        $this->assign('location', $location);
-      }
-
-      $status = CRM_Event_PseudoConstant::participantStatus();
       if ($this->_isPaidEvent) {
         $paymentInstrument = CRM_Contribute_PseudoConstant::paymentInstrument();
         if (!$this->_mode) {
@@ -1585,11 +1468,6 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
         }
 
         $this->assign('totalAmount', $contributionParams['total_amount']);
-        if (isset($contributionParams['partial_payment_total'])) {
-          // balance amount
-          $balanceAmount = $contributionParams['partial_payment_total'] - $contributionParams['partial_amount_to_pay'];
-          $this->assign('balanceAmount', $balanceAmount);
-        }
         $this->assign('isPrimary', 1);
         $this->assign('checkNumber', CRM_Utils_Array::value('check_number', $params));
       }
@@ -1705,6 +1583,9 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
         // try to send emails only if email id is present
         // and the do-not-email option is not checked for that contact
         if ($this->_contributorEmail and !$this->_toDoNotEmail) {
+          if (array_key_exists($params['from_email_address'], $this->_fromEmails['from_email_id'])) {
+            $receiptFrom = $params['from_email_address'];
+          }
           $sendTemplateParams['from'] = $receiptFrom;
           $sendTemplateParams['toName'] = $this->_contributorDisplayName;
           $sendTemplateParams['toEmail'] = $this->_contributorEmail;
@@ -1807,33 +1688,21 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
   /**
    * Build the form object.
    *
-   * @param CRM_Core_Form $form
+   * @param \CRM_Event_Form_Participant $form
    *
    * @return bool
    * @throws \CRM_Core_Exception
    * @throws \Exception
    */
-  public static function buildEventFeeForm(&$form) {
+  public function buildEventFeeForm($form) {
     if ($form->_eventId) {
       $form->_isPaidEvent = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $form->_eventId, 'is_monetary');
       if ($form->_isPaidEvent) {
         $form->addElement('hidden', 'hidden_feeblock', 1);
       }
 
-      // make sure this is for backoffice registration.
-      if ($form->getName() == 'Participant') {
-        $eventfullMsg = CRM_Event_BAO_Participant::eventFullMessage($form->_eventId, $form->_pId);
-        $form->addElement('hidden', 'hidden_eventFullMsg', $eventfullMsg, ['id' => 'hidden_eventFullMsg']);
-      }
-    }
-
-    if ($form->_pId) {
-      if (CRM_Core_DAO::getFieldValue('CRM_Event_DAO_ParticipantPayment',
-        $form->_pId, 'contribution_id', 'participant_id'
-      )
-      ) {
-        $form->_online = !$form->isBackOffice;
-      }
+      $eventfullMsg = CRM_Event_BAO_Participant::eventFullMessage($form->_eventId, $this->getParticipantID());
+      $form->addElement('hidden', 'hidden_eventFullMsg', $eventfullMsg, ['id' => 'hidden_eventFullMsg']);
     }
 
     if ($form->_isPaidEvent) {
@@ -1873,10 +1742,6 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
           FALSE,
           ['class' => "crm-select2"]
         );
-
-        if ($form->_online) {
-          $element->freeze();
-        }
       }
       if (CRM_Financial_BAO_FinancialType::isACLFinancialTypeStatus()
         && !CRM_Utils_Array::value('fee', $form->_values)
@@ -1969,6 +1834,406 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
     $mailingInfo = Civi::settings()->get('mailing_backend');
     $form->assign('outBound_option', $mailingInfo['outBound_option']);
     $form->assign('hasPayment', $form->_paymentId);
+  }
+
+  /**
+   * Extracted code relating to paid events.
+   *
+   * @param $params
+   *
+   * @return array
+   *
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function preparePaidEventProcessing($params): array {
+    $participantStatus = CRM_Event_PseudoConstant::participantStatus();
+    $contributionParams = [
+      'skipCleanMoney' => TRUE,
+      'revenue_recognition_date' => $this->getRevenueRecognitionDate(),
+    ];
+    $lineItem = [];
+    $additionalParticipantDetails = [];
+
+    if ($this->isPaymentOnExistingContribution()) {
+      $contributionParams['total_amount'] = $this->getParticipantValue('fee_amount');
+
+      $params['discount_id'] = NULL;
+      //re-enter the values for UPDATE mode
+      $params['fee_level'] = $params['amount_level'] = $this->getParticipantValue('fee_level');
+      $params['fee_amount'] = $this->getParticipantValue('fee_amount');
+      if (isset($params['priceSetId'])) {
+        $lineItem[0] = CRM_Price_BAO_LineItem::getLineItems($this->_id);
+      }
+      //also add additional participant's fee level/priceset
+      if (CRM_Event_BAO_Participant::isPrimaryParticipant($this->_id)) {
+        $additionalIds = CRM_Event_BAO_Participant::getAdditionalParticipantIds($this->_id);
+        $hasLineItems = CRM_Utils_Array::value('priceSetId', $params, FALSE);
+        $additionalParticipantDetails = CRM_Event_BAO_Participant::getFeeDetails($additionalIds,
+          $hasLineItems
+        );
+      }
+    }
+    else {
+
+      // check that discount_id is set
+      if (empty($params['discount_id'])) {
+        $params['discount_id'] = 'null';
+      }
+
+      //lets carry currency, CRM-4453
+      $params['fee_currency'] = CRM_Core_Config::singleton()->defaultCurrency;
+      if (!isset($lineItem[0])) {
+        $lineItem[0] = [];
+      }
+      CRM_Price_BAO_PriceSet::processAmount($this->_values['fee'],
+        $params, $lineItem[0]
+      );
+      //CRM-11529 for quick config backoffice transactions
+      //when financial_type_id is passed in form, update the
+      //lineitems with the financial type selected in form
+      $submittedFinancialType = CRM_Utils_Array::value('financial_type_id', $params);
+      $isPaymentRecorded = CRM_Utils_Array::value('record_contribution', $params);
+      if ($isPaymentRecorded && $this->_quickConfig && $submittedFinancialType) {
+        foreach ($lineItem[0] as &$values) {
+          $values['financial_type_id'] = $submittedFinancialType;
+        }
+      }
+
+      $params['fee_level'] = $params['amount_level'];
+      $contributionParams['total_amount'] = $params['amount'];
+      if ($this->_quickConfig && !empty($params['total_amount']) &&
+        $params['status_id'] != array_search('Partially paid', $participantStatus)
+      ) {
+        $params['fee_amount'] = $params['total_amount'];
+      }
+      else {
+        //fix for CRM-3086
+        $params['fee_amount'] = $params['amount'];
+      }
+    }
+
+    if (isset($params['priceSetId'])) {
+      if (!empty($lineItem[0])) {
+        $this->set('lineItem', $lineItem);
+
+        $this->_lineItem = $lineItem;
+        $lineItem = array_merge($lineItem, $additionalParticipantDetails);
+
+        $participantCount = [];
+        foreach ($lineItem as $k) {
+          foreach ($k as $v) {
+            if (CRM_Utils_Array::value('participant_count', $v) > 0) {
+              $participantCount[] = $v['participant_count'];
+            }
+          }
+        }
+      }
+      if (isset($participantCount)) {
+        $this->assign('pricesetFieldsCount', $participantCount);
+      }
+      $this->assign('lineItem', empty($lineItem[0]) || $this->_quickConfig ? FALSE : $lineItem);
+    }
+    else {
+      $this->assign('amount_level', $params['amount_level']);
+    }
+    return [$contributionParams, $lineItem, $additionalParticipantDetails, $params];
+  }
+
+  /**
+   * @param $eventID
+   * @param $participantRoles
+   * @param $receiptText
+   * @param $isPaidEvent
+   *
+   * @return void
+   */
+  protected function assignEventDetailsToTpl($eventID, $participantRoles, $receiptText, $isPaidEvent) {
+    //use of the message template below requires variables in different format
+    $events = [];
+    $returnProperties = ['event_type_id', 'fee_label', 'start_date', 'end_date', 'is_show_location', 'title'];
+
+    //get all event details.
+    CRM_Core_DAO::commonRetrieveAll('CRM_Event_DAO_Event', 'id', $eventID, $events, $returnProperties);
+    $event = $events[$eventID];
+    unset($event['start_date']);
+    unset($event['end_date']);
+
+    $role = CRM_Event_PseudoConstant::participantRole();
+
+    if (is_array($participantRoles)) {
+      $selectedRoles = [];
+      foreach ($participantRoles as $roleId) {
+        $selectedRoles[] = $role[$roleId];
+      }
+      $event['participant_role'] = implode(', ', $selectedRoles);
+    }
+    else {
+      $event['participant_role'] = CRM_Utils_Array::value($participantRoles, $role);
+    }
+    $event['is_monetary'] = $isPaidEvent;
+
+    if ($receiptText) {
+      $event['confirm_email_text'] = $receiptText;
+    }
+    $this->assign('event', $event);
+    $this->assign('isShowLocation', $event['is_show_location']);
+    if (CRM_Utils_Array::value('is_show_location', $event) == 1) {
+      $locationParams = [
+        'entity_id' => $eventID,
+        'entity_table' => 'civicrm_event',
+      ];
+      $location = CRM_Core_BAO_Location::getValues($locationParams, TRUE);
+      $this->assign('location', $location);
+    }
+  }
+
+  /**
+   * Process the contribution.
+   *
+   * @param CRM_Core_Form $form
+   * @param array $params
+   * @param array $result
+   * @param int $contactID
+   * @param bool $pending
+   * @param array $paymentProcessor
+   *
+   * @return \CRM_Contribute_BAO_Contribution
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
+   */
+  public function processContribution(
+    &$form, $params, $result, $contactID,
+    $pending = FALSE,
+    $paymentProcessor = NULL
+  ) {
+    $transaction = new CRM_Core_Transaction();
+
+    $now = date('YmdHis');
+    $receiptDate = NULL;
+
+    if (!empty($form->_values['event']['is_email_confirm'])) {
+      $receiptDate = $now;
+    }
+
+    // CRM-20264: fetch CC type ID and number (last 4 digit) and assign it back to $params
+    CRM_Contribute_Form_AbstractEditPayment::formatCreditCardDetails($params);
+
+    $contribParams = [
+      'contact_id' => $contactID,
+      'financial_type_id' => !empty($form->_values['event']['financial_type_id']) ? $form->_values['event']['financial_type_id'] : $params['financial_type_id'],
+      'receive_date' => $now,
+      'total_amount' => $params['amount'],
+      'tax_amount' => $params['tax_amount'],
+      'amount_level' => $params['amount_level'],
+      'invoice_id' => $params['invoiceID'],
+      'currency' => $params['currencyID'],
+      'source' => !empty($params['participant_source']) ? $params['participant_source'] : $params['description'],
+      'is_pay_later' => CRM_Utils_Array::value('is_pay_later', $params, 0),
+      'campaign_id' => CRM_Utils_Array::value('campaign_id', $params),
+      'card_type_id' => CRM_Utils_Array::value('card_type_id', $params),
+      'pan_truncation' => CRM_Utils_Array::value('pan_truncation', $params),
+    ];
+
+    if ($paymentProcessor) {
+      $contribParams['payment_instrument_id'] = $paymentProcessor['payment_instrument_id'];
+      $contribParams['payment_processor'] = $paymentProcessor['id'];
+    }
+
+    if (!$pending && $result) {
+      $contribParams += [
+        'fee_amount' => CRM_Utils_Array::value('fee_amount', $result),
+        'trxn_id' => $result['trxn_id'],
+        'receipt_date' => $receiptDate,
+      ];
+    }
+
+    $allStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
+    $contribParams['contribution_status_id'] = array_search('Completed', $allStatuses);
+    if ($pending) {
+      $contribParams['contribution_status_id'] = array_search('Pending', $allStatuses);
+    }
+
+    $contribParams['is_test'] = 0;
+    if ($form->_action & CRM_Core_Action::PREVIEW || CRM_Utils_Array::value('mode', $params) == 'test') {
+      $contribParams['is_test'] = 1;
+    }
+
+    if (!empty($contribParams['invoice_id'])) {
+      $contribParams['id'] = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution',
+        $contribParams['invoice_id'],
+        'id',
+        'invoice_id'
+      );
+    }
+    $contribParams['revenue_recognition_date'] = $this->getRevenueRecognitionDate();
+
+    //create an contribution address
+    // The concept of contributeMode is deprecated. Elsewhere we use the function processBillingAddress() - although
+    // currently that is only inherited by back-office forms.
+    if ($form->_contributeMode != 'notify' && empty($params['is_pay_later'])) {
+      $contribParams['address_id'] = CRM_Contribute_BAO_Contribution::createAddress($params, $form->_bltID);
+    }
+
+    $contribParams['skipLineItem'] = 1;
+    $contribParams['skipCleanMoney'] = 1;
+    // create contribution record
+    $contribution = CRM_Contribute_BAO_Contribution::add($contribParams);
+    // CRM-11124
+    CRM_Event_BAO_Participant::createDiscountTrxn($form->_eventId, $contribParams, NULL, CRM_Price_BAO_PriceSet::parseFirstPriceSetValueIDFromParams($params));
+
+    // process soft credit / pcp pages
+    if (!empty($params['pcp_made_through_id'])) {
+      CRM_Contribute_BAO_ContributionSoft::formatSoftCreditParams($params, $form);
+      CRM_Contribute_BAO_ContributionSoft::processSoftContribution($params, $contribution);
+    }
+
+    $transaction->commit();
+
+    return $contribution;
+  }
+
+  /**
+   * Process the participant.
+   *
+   * @param CRM_Core_Form $form
+   * @param array $params
+   * @param int $contactID
+   *
+   * @return \CRM_Event_BAO_Participant
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function addParticipant(&$form, $params, $contactID) {
+    $transaction = new CRM_Core_Transaction();
+
+    $participantFields = CRM_Event_DAO_Participant::fields();
+    $participantParams = [
+      'id' => CRM_Utils_Array::value('participant_id', $params),
+      'contact_id' => $contactID,
+      'event_id' => $form->_eventId ? $form->_eventId : $params['event_id'],
+      'status_id' => CRM_Utils_Array::value('participant_status',
+        $params, 1
+      ),
+      'role_id' => CRM_Utils_Array::value('participant_role_id', $params) ?: CRM_Event_BAO_Participant::getDefaultRoleID(),
+      'register_date' => $params['register_date'],
+      'source' => CRM_Utils_String::ellipsify(
+        isset($params['participant_source']) ? CRM_Utils_Array::value('participant_source', $params) : CRM_Utils_Array::value('description', $params),
+        $participantFields['participant_source']['maxlength']
+      ),
+      'fee_level' => CRM_Utils_Array::value('amount_level', $params),
+      'is_pay_later' => CRM_Utils_Array::value('is_pay_later', $params, 0),
+      'fee_amount' => CRM_Utils_Array::value('fee_amount', $params),
+      'registered_by_id' => CRM_Utils_Array::value('registered_by_id', $params),
+      'discount_id' => CRM_Utils_Array::value('discount_id', $params),
+      'fee_currency' => CRM_Utils_Array::value('currencyID', $params),
+      'campaign_id' => CRM_Utils_Array::value('campaign_id', $params),
+    ];
+
+    if ($form->_action & CRM_Core_Action::PREVIEW || CRM_Utils_Array::value('mode', $params) == 'test') {
+      $participantParams['is_test'] = 1;
+    }
+    else {
+      $participantParams['is_test'] = 0;
+    }
+
+    if (!empty($form->_params['note'])) {
+      $participantParams['note'] = $form->_params['note'];
+    }
+    elseif (!empty($form->_params['participant_note'])) {
+      $participantParams['note'] = $form->_params['participant_note'];
+    }
+
+    // reuse id if one already exists for this one (can happen
+    // with back button being hit etc)
+    if (!$participantParams['id'] && !empty($params['contributionID'])) {
+      $pID = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_ParticipantPayment',
+        $params['contributionID'],
+        'participant_id',
+        'contribution_id'
+      );
+      $participantParams['id'] = $pID;
+    }
+    $participantParams['discount_id'] = CRM_Core_BAO_Discount::findSet($form->_eventId, 'civicrm_event');
+
+    if (!$participantParams['discount_id']) {
+      $participantParams['discount_id'] = "null";
+    }
+
+    $participant = CRM_Event_BAO_Participant::create($participantParams);
+
+    $transaction->commit();
+
+    return $participant;
+  }
+
+  /**
+   * Is a payment being made on an existing contribution.
+   *
+   * Note
+   * 1) ideally we should not permit this on this form! Perhaps we don't & this is just cruft.
+   * 2) _paymentID is the contribution id.
+   *
+   * @return bool
+   */
+  protected function isPaymentOnExistingContribution(): bool {
+    return ($this->getParticipantID() && $this->_action & CRM_Core_Action::UPDATE) && $this->_paymentId;
+  }
+
+  /**
+   * Get the value for a field relating to the event.
+   *
+   * @param string $fieldName
+   *
+   * @return mixed
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function getEventValue(string $fieldName) {
+    if (!isset($this->_event)) {
+      $this->_event = civicrm_api3('Event', 'getsingle', ['id' => $this->_eventId]);
+    }
+    return $this->_event[$fieldName];
+  }
+
+  /**
+   * Get a value from the existing participant record (applies to edits).
+   *
+   * @param string $fieldName
+   *
+   * @return array
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function getParticipantValue($fieldName) {
+    if (!$this->participantRecord) {
+      $this->participantRecord = civicrm_api3('Participant', 'getsingle', ['id' => $this->_id]);
+    }
+    return $this->participantRecord[$fieldName] ?? $this->participantRecord['participant_' . $fieldName];
+  }
+
+  /**
+   * Get id of participant being edited.
+   *
+   * @return int|null
+   */
+  protected function getParticipantID() {
+    return $this->_id ?? $this->_pId;
+  }
+
+  /**
+   * Get the value for the revenue recognition date field.
+   *
+   * @return string
+   *
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function getRevenueRecognitionDate() {
+    if (Civi::settings()->get('deferred_revenue_enabled')) {
+      $eventStartDate = $this->getEventValue('start_date');
+      if (strtotime($eventStartDate) > strtotime(date('Ymt'))) {
+        return date('Ymd', strtotime($eventStartDate));
+      }
+    }
+    return '';
   }
 
 }

@@ -40,22 +40,10 @@ class CRM_Core_Report_Excel {
 
     $config = CRM_Core_Config::singleton();
     $seperator = $config->fieldSeparator;
-    $enclosed = '"';
-    $escaped = $enclosed;
     $add_character = "\015\012";
 
-    $schema_insert = '';
-    foreach ($header as $field) {
-      $schema_insert .= $enclosed . str_replace($enclosed, $escaped . $enclosed, stripslashes($field)) . $enclosed;
-      $schema_insert .= $seperator;
-    }
-    // end while
-
     if ($outputHeader) {
-      // need to add PMA_exportOutputHandler functionality out here, rather than
-      // doing it the moronic way of assembling a buffer
-      $out = trim(substr($schema_insert, 0, -1)) . $add_character;
-      echo $out;
+      self::outputHeaderRow($header);
     }
 
     $fields_cnt = count($header);
@@ -70,13 +58,14 @@ class CRM_Core_Report_Excel {
         else {
           // loic1 : always enclose fields
           //$value = ereg_replace("\015(\012)?", "\012", $value);
+          // Convert  carriage return to line feed.
           $value = preg_replace("/\015(\012)?/", "\012", $value);
           if ((substr($value, 0, 1) == CRM_Core_DAO::VALUE_SEPARATOR) &&
             (substr($value, -1, 1) == CRM_Core_DAO::VALUE_SEPARATOR)
           ) {
 
             $strArray = explode(CRM_Core_DAO::VALUE_SEPARATOR, $value);
-
+            // Filter out empty value separated strings.
             foreach ($strArray as $key => $val) {
               if (trim($val) == '') {
                 unset($strArray[$key]);
@@ -87,7 +76,7 @@ class CRM_Core_Report_Excel {
             $value = &$str;
           }
 
-          $schema_insert .= $enclosed . str_replace($enclosed, $escaped . $enclosed, $value) . $enclosed;
+          $schema_insert .= '"' . str_replace('"', '""', $value) . '"';
         }
 
         if ($colNo < $fields_cnt - 1) {
@@ -100,6 +89,26 @@ class CRM_Core_Report_Excel {
       $out = $schema_insert . $add_character;
       echo $out;
     }
+  }
+
+  /**
+   * Output the header row for a csv file.
+   *
+   * @param array $header
+   *   Array of field names.
+   */
+  public static function outputHeaderRow($header) {
+    $schema_insert = '';
+    $separator = Civi::settings()->get('fieldSeparator');
+    foreach ($header as $field) {
+      $schema_insert .= '"' . str_replace('"', '""', stripslashes($field)) . '"';
+      $schema_insert .= $separator;
+    }
+    // end while
+    // need to add PMA_exportOutputHandler functionality out here, rather than
+    // doing it the moronic way of assembling a buffer
+    // We append a hex newline at the end.
+    echo trim(substr($schema_insert, 0, -1)) . "\015\012";
   }
 
   /**

@@ -282,11 +282,7 @@ class CRM_Core_I18n {
    * @return string
    */
   public static function getResourceDir() {
-    static $dir = NULL;
-    if ($dir === NULL) {
-      $dir = dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'l10n' . DIRECTORY_SEPARATOR;
-    }
-    return $dir;
+    return CRM_Utils_File::addTrailingSlash(\Civi::paths()->getPath('[civicrm.l10n]/.'));
   }
 
   /**
@@ -424,17 +420,7 @@ class CRM_Core_I18n {
 
     // do all wildcard translations first
 
-    // FIXME: Is there a constant we can reference instead of hardcoding en_US?
-    $replacementsLocale = $this->locale ? $this->locale : 'en_US';
-    if (!isset(Civi::$statics[__CLASS__]) || !array_key_exists($replacementsLocale, Civi::$statics[__CLASS__])) {
-      if (defined('CIVICRM_DSN') && !CRM_Core_Config::isUpgradeMode()) {
-        Civi::$statics[__CLASS__][$replacementsLocale] = CRM_Core_BAO_WordReplacement::getLocaleCustomStrings($replacementsLocale);
-      }
-      else {
-        Civi::$statics[__CLASS__][$replacementsLocale] = [];
-      }
-    }
-    $stringTable = Civi::$statics[__CLASS__][$replacementsLocale];
+    $stringTable = $this->getWordReplacements();
 
     $exactMatch = FALSE;
     if (isset($stringTable['enabled']['exactMatch'])) {
@@ -462,7 +448,7 @@ class CRM_Core_I18n {
       if (isset($count) && isset($plural)) {
 
         if ($this->_phpgettext) {
-          $text = $this->_phpgettext->ngettext($text, $plural, $count);
+          $text = $this->_phpgettext->ngettext($text, $plural, (int) $count);
         }
         else {
           // if the locale's not set, we do ngettext work by hand
@@ -739,6 +725,28 @@ class CRM_Core_I18n {
   public static function getLocale() {
     global $tsLocale;
     return $tsLocale ? $tsLocale : 'en_US';
+  }
+
+  /**
+   * @return array
+   *   Ex: $stringTable['enabled']['wildcardMatch']['foo'] = 'bar';
+   */
+  private function getWordReplacements() {
+    if (isset(Civi::$statics['testPreInstall'])) {
+      return [];
+    }
+
+    // FIXME: Is there a constant we can reference instead of hardcoding en_US?
+    $replacementsLocale = $this->locale ? $this->locale : 'en_US';
+    if ((!isset(Civi::$statics[__CLASS__]) || !array_key_exists($replacementsLocale, Civi::$statics[__CLASS__]))) {
+      if (defined('CIVICRM_DSN') && !CRM_Core_Config::isUpgradeMode()) {
+        Civi::$statics[__CLASS__][$replacementsLocale] = CRM_Core_BAO_WordReplacement::getLocaleCustomStrings($replacementsLocale);
+      }
+      else {
+        Civi::$statics[__CLASS__][$replacementsLocale] = [];
+      }
+    }
+    return Civi::$statics[__CLASS__][$replacementsLocale];
   }
 
 }

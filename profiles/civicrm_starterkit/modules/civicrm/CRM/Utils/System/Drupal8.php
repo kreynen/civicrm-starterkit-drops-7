@@ -761,7 +761,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
             if ($addLanguagePart && !empty($config['prefixes'][$language])) {
               $url .= $config['prefixes'][$language] . '/';
             }
-            if ($removeLanguagePart) {
+            if ($removeLanguagePart && !empty($config['prefixes'][$language])) {
               $url = str_replace("/" . $config['prefixes'][$language] . "/", '/', $url);
             }
           }
@@ -792,6 +792,15 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     }
 
     return $url;
+  }
+
+  /**
+   * Get role names
+   *
+   * @return array|null
+   */
+  public function getRoleNames() {
+    return user_role_names();
   }
 
 }

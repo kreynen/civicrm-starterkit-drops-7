@@ -196,10 +196,13 @@ class CRM_Core_Config extends CRM_Core_Config_MagicMerge {
   /**
    * Reset the serialized array and recompute.
    * use with care
+   *
+   * @deprecated
    */
   public function reset() {
-    $query = "UPDATE civicrm_domain SET config_backend = null";
-    CRM_Core_DAO::executeQuery($query);
+    // This is what it used to do. However, it hasn't meant anything since 4.6.
+    // $query = "UPDATE civicrm_domain SET config_backend = null";
+    // CRM_Core_DAO::executeQuery($query);
   }
 
   /**
@@ -242,7 +245,7 @@ class CRM_Core_Config extends CRM_Core_Config_MagicMerge {
       $domain = defined('CIVICRM_DOMAIN_ID') ? CIVICRM_DOMAIN_ID : 1;
     }
 
-    return $domain;
+    return (int) $domain;
   }
 
   /**

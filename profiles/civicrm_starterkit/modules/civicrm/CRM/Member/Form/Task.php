@@ -13,8 +13,6 @@
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
  */
 
 /**
@@ -36,6 +34,7 @@ class CRM_Member_Form_Task extends CRM_Core_Form_Task {
    * @param
    *
    * @return void
+   * @throws \CRM_Core_Exception
    */
   public function preProcess() {
     self::preProcessCommon($this);
@@ -43,6 +42,8 @@ class CRM_Member_Form_Task extends CRM_Core_Form_Task {
 
   /**
    * @param CRM_Core_Form $form
+   *
+   * @throws \CRM_Core_Exception
    */
   public static function preProcessCommon(&$form) {
     $form->_memberIds = [];
@@ -57,7 +58,7 @@ class CRM_Member_Form_Task extends CRM_Core_Form_Task {
     $form->assign('taskName', $tasks[$form->_task]);
 
     $ids = [];
-    if ($values['radio_ts'] == 'ts_sel') {
+    if ($values['radio_ts'] === 'ts_sel') {
       foreach ($values as $name => $value) {
         if (substr($name, 0, CRM_Core_Form::CB_PREFIX_LEN) == CRM_Core_Form::CB_PREFIX) {
           $ids[] = substr($name, CRM_Core_Form::CB_PREFIX_LEN);
@@ -99,7 +100,7 @@ class CRM_Member_Form_Task extends CRM_Core_Form_Task {
     }
 
     $searchFormName = strtolower($form->get('searchFormName'));
-    if ($searchFormName == 'search') {
+    if ($searchFormName === 'search') {
       $session->replaceUserContext(CRM_Utils_System::url('civicrm/member/search', $urlParams));
     }
     else {
@@ -117,32 +118,6 @@ class CRM_Member_Form_Task extends CRM_Core_Form_Task {
     $this->_contactIds = CRM_Core_DAO::getContactIDsFromComponent($this->_memberIds,
       'civicrm_membership'
     );
-  }
-
-  /**
-   * Simple shell that derived classes can call to add buttons to.
-   * the form with a customized title for the main Submit
-   *
-   * @param string $title
-   *   Title of the main button.
-   * @param string $nextType
-   * @param string $backType
-   * @param bool $submitOnce
-   *
-   * @return void
-   */
-  public function addDefaultButtons($title, $nextType = 'next', $backType = 'back', $submitOnce = FALSE) {
-    $this->addButtons([
-      [
-        'type' => $nextType,
-        'name' => $title,
-        'isDefault' => TRUE,
-      ],
-      [
-        'type' => $backType,
-        'name' => ts('Cancel'),
-      ],
-    ]);
   }
 
 }

@@ -25,6 +25,7 @@ use Civi\Api4\Event\Events;
 use Civi\Api4\Event\PostSelectQueryEvent;
 use Civi\Api4\Query\Api4SelectQuery;
 use Civi\Api4\Utils\ArrayInsertionUtil;
+use Civi\Api4\Utils\FormattingUtil;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
@@ -33,7 +34,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 class PostSelectQuerySubscriber implements EventSubscriberInterface {
 
   /**
-   * @inheritdoc
+   * @inheritDoc
    */
   public static function getSubscribedEvents() {
     return [
@@ -60,8 +61,7 @@ class PostSelectQuerySubscriber implements EventSubscriberInterface {
       return $results;
     }
 
-    $fieldSpec = $query->getApiFieldSpec();
-    $this->unserializeFields($results, $query->getEntity(), $fieldSpec);
+    FormattingUtil::formatOutputValues($results, $query->getApiFieldSpec(), $query->getEntity());
 
     // Group the selects to avoid queries for each field
     $groupedSelects = $this->getNtoManyJoinSelects($query);
@@ -75,7 +75,7 @@ class PostSelectQuerySubscriber implements EventSubscriberInterface {
       foreach ($results as &$primaryResult) {
         $baseId = $primaryResult['id'];
         $filtered = array_filter($joinResults, function ($res) use ($baseId) {
-          return ($res['_base_id'] === $baseId);
+          return ($res['_base_id'] == $baseId);
         });
         $filtered = array_values($filtered);
         ArrayInsertionUtil::insert($primaryResult, $joinPath, $filtered);
@@ -98,25 +98,7 @@ class PostSelectQuerySubscriber implements EventSubscriberInterface {
       $fields[array_pop($name)] = $field->toArray();
     }
     if ($fields) {
-      $this->unserializeFields($joinResults, NULL, $fields);
-    }
-  }
-
-  /**
-   * Unserialize values
-   *
-   * @param array $results
-   * @param string $entity
-   * @param array $fields
-   */
-  protected function unserializeFields(&$results, $entity, $fields = []) {
-    foreach ($results as &$result) {
-      foreach ($result as $field => &$value) {
-        if (!empty($fields[$field]['serialize']) && is_string($value)) {
-          $serializationType = $fields[$field]['serialize'];
-          $value = \CRM_Core_DAO::unSerializeField($value, $serializationType);
-        }
-      }
+      FormattingUtil::formatOutputValues($joinResults, $fields, $join->getEntity());
     }
   }
 
@@ -258,9 +240,13 @@ class PostSelectQuerySubscriber implements EventSubscriberInterface {
     }, $selects, array_keys($selects));
 
     $newSelect = sprintf('SELECT DISTINCT %s', implode(", ", $aliasedSelects));
-    $sql = str_replace("\n", ' ', $query->getQuery()->toSQL());
-    $originalSelect = substr($sql, 0, strpos($sql, ' FROM'));
-    $sql = str_replace($originalSelect, $newSelect, $sql);
+    $sql = $query->getQuery()->toSQL();
+    // Replace the "SELECT" clause
+    $sql = $newSelect . substr($sql, strpos($sql, "\nFROM"));
+
+    if (is_array($query->debugOutput)) {
+      $query->debugOutput['sql'][] = $sql;
+    }
 
     $relatedResults = [];
     $resultDAO = \CRM_Core_DAO::executeQuery($sql);

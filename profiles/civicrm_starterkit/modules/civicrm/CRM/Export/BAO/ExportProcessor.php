@@ -399,7 +399,7 @@ class CRM_Export_BAO_ExportProcessor {
     $this->setQueryOperator($queryOperator);
     $this->setRequestedFields($requestedFields);
     $this->setRelationshipTypes();
-    $this->setIsMergeSameHousehold($isMergeSameHousehold);
+    $this->setIsMergeSameHousehold($isMergeSameHousehold || $isMergeSameAddress);
     $this->setIsPostalableOnly($isPostalableOnly);
     $this->setIsMergeSameAddress($isMergeSameAddress);
     $this->setReturnProperties($this->determineReturnProperties());
@@ -754,7 +754,8 @@ class CRM_Export_BAO_ExportProcessor {
       // This will require a generalised handling cleanup
       return ts('Campaign ID');
     }
-    if ($this->isMergeSameHousehold() && $field === 'id') {
+    if ($this->isMergeSameHousehold() && !$this->isMergeSameAddress() && $field === 'id') {
+      // This is weird - even if we are merging households not every contact in the export is a household so this would not be accurate.
       return ts('Household ID');
     }
     elseif (isset($this->getQueryFields()[$field]['title'])) {
@@ -1431,7 +1432,7 @@ class CRM_Export_BAO_ExportProcessor {
     // in the DB it is an ID, but in the export, we retrive the display_name of the master record
     // also for current_employer, CRM-16939
     if ($columnName == 'master_id' || $columnName == 'current_employer') {
-      return "$fieldName varchar(128)";
+      return "`$fieldName` varchar(128)";
     }
 
     $queryFields = $this->getQueryFields();
@@ -1446,23 +1447,23 @@ class CRM_Export_BAO_ExportProcessor {
         case CRM_Utils_Type::T_INT:
         case CRM_Utils_Type::T_BOOLEAN:
           if (in_array(CRM_Utils_Array::value('data_type', $fieldSpec), ['Country', 'StateProvince', 'ContactReference'])) {
-            return "$fieldName varchar(255)";
+            return "`$fieldName` varchar(255)";
           }
-          return "$fieldName varchar(16)";
+          return "`$fieldName` varchar(16)";
 
         case CRM_Utils_Type::T_STRING:
           if (isset($queryFields[$columnName]['maxlength'])) {
-            return "$fieldName varchar({$queryFields[$columnName]['maxlength']})";
+            return "`$fieldName` varchar({$queryFields[$columnName]['maxlength']})";
           }
           else {
-            return "$fieldName varchar(255)";
+            return "`$fieldName` varchar(255)";
           }
 
         case CRM_Utils_Type::T_TEXT:
         case CRM_Utils_Type::T_LONGTEXT:
         case CRM_Utils_Type::T_BLOB:
         case CRM_Utils_Type::T_MEDIUMBLOB:
-          return "$fieldName longtext";
+          return "`$fieldName` longtext";
 
         case CRM_Utils_Type::T_FLOAT:
         case CRM_Utils_Type::T_ENUM:
@@ -1474,15 +1475,15 @@ class CRM_Export_BAO_ExportProcessor {
         case CRM_Utils_Type::T_URL:
         case CRM_Utils_Type::T_CCNUM:
         default:
-          return "$fieldName varchar(32)";
+          return "`$fieldName` varchar(32)";
       }
     }
     else {
       if (substr($fieldName, -3, 3) == '_id') {
-        return "$fieldName varchar(255)";
+        return "`$fieldName` varchar(255)";
       }
       elseif (substr($fieldName, -5, 5) == '_note') {
-        return "$fieldName text";
+        return "`$fieldName` text";
       }
       else {
         $changeFields = [
@@ -1492,7 +1493,7 @@ class CRM_Export_BAO_ExportProcessor {
         ];
 
         if (in_array($fieldName, $changeFields)) {
-          return "$fieldName text";
+          return "`$fieldName` text";
         }
         else {
           // set the sql columns for custom data
@@ -1502,20 +1503,20 @@ class CRM_Export_BAO_ExportProcessor {
               case 'String':
                 // May be option labels, which could be up to 512 characters
                 $length = max(512, CRM_Utils_Array::value('text_length', $queryFields[$columnName]));
-                return "$fieldName varchar($length)";
+                return "`$fieldName` varchar($length)";
 
               case 'Link':
-                return "$fieldName varchar(255)";
+                return "`$fieldName` varchar(255)";
 
               case 'Memo':
-                return "$fieldName text";
+                return "`$fieldName` text";
 
               default:
-                return "$fieldName varchar(255)";
+                return "`$fieldName` varchar(255)";
             }
           }
           else {
-            return "$fieldName text";
+            return "`$fieldName` text";
           }
         }
       }
@@ -1927,9 +1928,8 @@ class CRM_Export_BAO_ExportProcessor {
    * Build array for merging same addresses.
    *
    * @param string $sql
-   * @param bool $sharedAddress
    */
-  public function buildMasterCopyArray($sql, $sharedAddress = FALSE) {
+  public function buildMasterCopyArray($sql) {
 
     $parents = [];
     $dao = CRM_Core_DAO::executeQuery($sql);
@@ -1961,7 +1961,7 @@ class CRM_Export_BAO_ExportProcessor {
       }
       $parents[$copyID] = $masterID;
 
-      if (!$sharedAddress && !array_key_exists($copyID, $this->contactsToMerge[$masterID]['copy'])) {
+      if (!array_key_exists($copyID, $this->contactsToMerge[$masterID]['copy'])) {
         $copyPostalGreeting = $this->getContactPortionOfGreeting((int) $dao->copy_contact_id, (int) $dao->copy_postal_greeting_id, 'postal_greeting', $dao->copy_postal_greeting);
         if ($copyPostalGreeting) {
           $this->contactsToMerge[$masterID]['postalGreeting'] = "{$this->contactsToMerge[$masterID]['postalGreeting']}, {$copyPostalGreeting}";
@@ -1987,26 +1987,6 @@ class CRM_Export_BAO_ExportProcessor {
   public function mergeSameAddress() {
 
     $tableName = $this->getTemporaryTable();
-    // check if any records are present based on if they have used shared address feature,
-    // and not based on if city / state .. matches.
-    $sql = "
-SELECT    r1.id                 as copy_id,
-          r1.civicrm_primary_id as copy_contact_id,
-          r1.addressee          as copy_addressee,
-          r1.addressee_id       as copy_addressee_id,
-          r1.postal_greeting    as copy_postal_greeting,
-          r1.postal_greeting_id as copy_postal_greeting_id,
-          r2.id                 as master_id,
-          r2.civicrm_primary_id as master_contact_id,
-          r2.postal_greeting    as master_postal_greeting,
-          r2.postal_greeting_id as master_postal_greeting_id,
-          r2.addressee          as master_addressee,
-          r2.addressee_id       as master_addressee_id
-FROM      $tableName r1
-INNER JOIN civicrm_address adr ON r1.master_id   = adr.id
-INNER JOIN $tableName      r2  ON adr.contact_id = r2.civicrm_primary_id
-ORDER BY  r1.id";
-    $this->buildMasterCopyArray($sql, TRUE);
 
     // find all the records that have the same street address BUT not in a household
     // require match on city and state as well
@@ -2025,11 +2005,9 @@ SELECT    r1.id                 as master_id,
           r2.addressee_id       as copy_addressee_id
 FROM      $tableName r1
 LEFT JOIN $tableName r2 ON ( r1.street_address = r2.street_address AND
-               r1.city = r2.city AND
-               r1.state_province_id = r2.state_province_id )
-WHERE     ( r1.household_name IS NULL OR r1.household_name = '' )
-AND       ( r2.household_name IS NULL OR r2.household_name = '' )
-AND       ( r1.street_address != '' )
+          r1.city = r2.city AND
+          r1.state_province_id = r2.state_province_id )
+WHERE ( r1.street_address != '' )
 AND       r2.id > r1.id
 ORDER BY  r1.id
 ";

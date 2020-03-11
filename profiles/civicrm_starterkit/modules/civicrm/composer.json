@@ -33,6 +33,11 @@
     }
   },
   "include-path": ["vendor/tecnickcom"],
+  "config": {
+    "platform": {
+      "php": "7.0.10"
+    }
+  },
   "require": {
     "php": "~7.0",
     "dompdf/dompdf" : "0.8.*",
@@ -43,12 +48,12 @@
     "symfony/event-dispatcher": "^2.8.50 || ~3.0",
     "symfony/filesystem": "^2.8.50 || ~3.0",
     "symfony/process": "^2.8.50 || ~3.0",
-    "psr/log": "~1.1",
+    "psr/log": "~1.0",
     "symfony/finder": "^2.8.50 || ~3.0",
     "tecnickcom/tcpdf" : "6.2.*",
     "totten/ca-config": "~17.05",
     "zetacomponents/base": "1.9.*",
-    "zetacomponents/mail": "dev-master",
+    "zetacomponents/mail": "1.9.*",
     "marcj/topsort": "~1.1",
     "phpoffice/phpword": "^0.15.0",
     "pear/validate_finance_creditcard": "dev-master",
@@ -57,7 +62,7 @@
     "pear/net_smtp": "1.6.*",
     "pear/net_socket": "1.0.*",
     "pear/mail": "^1.4",
-    "civicrm/civicrm-setup": "~0.2.0",
+    "civicrm/civicrm-setup": "~0.4.0",
     "guzzlehttp/guzzle": "^6.3",
     "psr/simple-cache": "~1.0.1",
     "cweagans/composer-patches": "~1.0",
@@ -188,6 +193,10 @@
       "font-awesome": {
         "url": "https://github.com/FortAwesome/Font-Awesome/archive/v4.7.0.zip",
         "ignore": ["*/.*", "*.json", "src", "*.yml", "Gemfile", "Gemfile.lock", "*.md"]
+      },
+      "marked": {
+        "url": "https://github.com/markedjs/marked/archive/v0.8.0.zip",
+        "ignore": [".*", "*.json", "*.md", "Makefile", "*/*"]
       },
       "google-code-prettify": {
         "url": "https://github.com/tcollard/google-code-prettify/archive/v1.0.5.zip",

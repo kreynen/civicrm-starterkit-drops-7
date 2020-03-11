@@ -11,7 +11,7 @@
 {if $cancelAutoRenew}
   <div class="messages status no-popup">
     <div class="icon inform-icon"></div>
-    <p>{ts 1=$cancelAutoRenew}This membership is set to renew automatically {if $endDate}on {$endDate|crmDate}{/if}. You will need to cancel the auto-renew option if you want to modify the Membership Type or Membership Status. <a href="%1">Click here</a> if you want to cancel the automatic renewal option.{/ts}</p>
+    <p>{ts 1=$cancelAutoRenew}This membership is set to renew automatically {if $endDate}on {$endDate|crmDate}{/if}. You will need to cancel the auto-renew option if you want to modify the Membership Type or Membership Status: <a href="%1">Cancel auto-renew</a>{/ts}</p>
   </div>
 {/if}
 <div class="spacer"></div>
@@ -90,7 +90,7 @@
         <tr id="maxRelated" class="crm-membership-form-block-max_related">
           <td class="label">{$form.max_related.label}</td>
           <td>{$form.max_related.html}<br />
-            <span class="description">{ts}Maximum number of related memberships (leave blank for unlimited).{/ts}</span>
+            <span class="description">{ts}Maximum number of related memberships (leave blank for unlimited).{/ts} <span id="eligibleRelated"></span></span>
           </td>
         </tr>
         {if $action eq 1}
@@ -163,15 +163,25 @@
         {include file="CRM/Member/Form/MembershipCommon.tpl"}
         {if $emailExists and $isEmailEnabledForSite}
           <tr id="send-receipt" class="crm-membership-form-block-send_receipt">
-            <td class="label">{$form.send_receipt.label}</td><td>{$form.send_receipt.html}<br />
-            <span class="description">{ts 1=$emailExists}Automatically email a membership confirmation and receipt to %1? OR if the payment is from a different contact, this email will only go to them.{/ts}</span></td>
-            <span class="auto-renew-text">{ts}For auto-renewing memberships the emails are sent when each payment is received{/ts}</span>
+            <td class="label">{$form.send_receipt.label}</td>
+            <td>
+              {$form.send_receipt.html}<br />
+              <span class="description">
+                {ts 1=$emailExists}Automatically email a membership confirmation and receipt to %1? OR if the payment is from a different contact, this email will only go to them.{/ts}
+                <span class="auto-renew-text">{ts}For auto-renewing memberships the emails are sent when each payment is received{/ts}</span>
+              </span>
+            </td>
           </tr>
-          {elseif $context eq 'standalone' and $isEmailEnabledForSite}
+        {elseif $context eq 'standalone' and $isEmailEnabledForSite}
           <tr id="email-receipt" style="display:none;">
-            <td class="label">{$form.send_receipt.label}</td><td>{$form.send_receipt.html}<br />
-            <span class="description">{ts}Automatically email a membership confirmation and receipt to {/ts}<span id="email-address"></span>? {ts}OR if the payment is from a different contact, this email will only go to them.{/ts}</span></td>
-            <span class="auto-renew-text">{ts}For auto-renewing memberships the emails are sent when each payment is received{/ts}</span>
+            <td class="label">{$form.send_receipt.label}</td>
+            <td>
+              {$form.send_receipt.html}<br />
+              <span class="description">
+                {ts}Automatically email a membership confirmation and receipt to {/ts}<span id="email-address"></span>? {ts}OR if the payment is from a different contact, this email will only go to them.{/ts}
+                <span class="auto-renew-text">{ts}For auto-renewing memberships the emails are sent when each payment is received{/ts}</span>
+              </span>
+            </td>
           </tr>
         {/if}
         <tr id="fromEmail" style="display: none" class="crm-contactEmail-form-block-fromEmailAddress crm-email-element">
@@ -654,7 +664,7 @@
                 relatable = '{/literal}{ts escape='js' 1='%1'}%1 contacts are currently eligible to inherit this relationship.{/ts}{literal}';
                 relatable = ts(relatable, {1: result});
               }
-              cj('#max_related').siblings('.description').append(' ' + relatable);
+              cj('#eligibleRelated').text(relatable);
             }
           });
         }

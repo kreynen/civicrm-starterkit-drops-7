@@ -1086,7 +1086,7 @@ CREATE TABLE `civicrm_payment_processor_type` (
 
 
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Payment Processor Type ID',
-     `name` varchar(64) NOT NULL   COMMENT 'Payment Processor Name.',
+     `name` varchar(64) NOT NULL   COMMENT 'Payment Processor Type Name.',
      `title` varchar(127) NOT NULL   COMMENT 'Payment Processor Type Title.',
      `description` varchar(255)    COMMENT 'Payment Processor Description.',
      `is_active` tinyint   DEFAULT 1 COMMENT 'Is this processor active?',
@@ -1845,7 +1845,6 @@ CREATE TABLE `civicrm_domain` (
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Domain ID',
      `name` varchar(64)    COMMENT 'Name of Domain / Organization',
      `description` varchar(255)    COMMENT 'Description of Domain.',
-     `config_backend` text    COMMENT 'Backend configuration.',
      `version` varchar(32)    COMMENT 'The civicrm version this instance is running',
      `contact_id` int unsigned    COMMENT 'FK to Contact ID. This is specifically not an FK to avoid circular constraints',
      `locales` text    COMMENT 'list of locales supported by the current db state (NULL for single-lang install)',
@@ -1874,7 +1873,7 @@ CREATE TABLE `civicrm_email` (
      `contact_id` int unsigned    COMMENT 'FK to Contact ID',
      `location_type_id` int unsigned    COMMENT 'Which Location does this email belong to.',
      `email` varchar(254)    COMMENT 'Email address',
-     `is_primary` tinyint   DEFAULT 0 COMMENT 'Is this the primary?',
+     `is_primary` tinyint   DEFAULT 0 COMMENT 'Is this the primary email address',
      `is_billing` tinyint   DEFAULT 0 COMMENT 'Is this the billing?',
      `on_hold` int unsigned NOT NULL  DEFAULT 0 COMMENT 'Implicit FK to civicrm_option_value where option_group = email_on_hold.',
      `is_bulkmail` tinyint NOT NULL  DEFAULT 0 COMMENT 'Is this address for bulk mail ?',

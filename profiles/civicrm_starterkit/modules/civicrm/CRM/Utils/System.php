@@ -285,6 +285,43 @@ class CRM_Utils_System {
   }
 
   /**
+   * Generates an extern url.
+   *
+   * @param string $path
+   *   The extern path, such as "extern/url".
+   * @param string $query
+   *   A query string to append to the link.
+   * @param string $fragment
+   *   A fragment identifier (named anchor) to append to the link.
+   * @param bool $absolute
+   *   Whether to force the output to be an absolute link (beginning with a
+   *   URI-scheme such as 'http:').
+   * @param bool $isSSL
+   *   NULL to autodetect. TRUE to force to SSL.
+   *
+   * @return string rawencoded URL.
+   */
+  public static function externUrl($path = NULL, $query = NULL, $fragment = NULL, $absolute = TRUE, $isSSL = NULL) {
+    $query = self::makeQueryString($query);
+
+    $url = Civi::paths()->getUrl("[civicrm.root]/{$path}.php", $absolute ? 'absolute' : 'relative', $isSSL)
+      . ($query ? "?$query" : "")
+      . ($fragment ? "#$fragment" : "");
+
+    $parsedUrl = CRM_Utils_Url::parseUrl($url);
+    $event = \Civi\Core\Event\GenericHookEvent::create([
+      'url' => &$parsedUrl,
+      'path' => $path,
+      'query' => $query,
+      'fragment' => $fragment,
+      'absolute' => $absolute,
+      'isSSL' => $isSSL,
+    ]);
+    Civi::service('dispatcher')->dispatch('hook_civicrm_alterExternUrl', $event);
+    return urldecode(CRM_Utils_Url::unparseUrl($event->url));
+  }
+
+  /**
    * Path of the current page e.g. 'civicrm/contact/view'
    *
    * @return string|null
@@ -1443,6 +1480,9 @@ class CRM_Utils_System {
     // reset ACL cache
     CRM_ACL_BAO_Cache::resetCache();
 
+    // clear asset builder folder
+    \Civi::service('asset_builder')->clear(FALSE);
+
     // reset various static arrays used here
     CRM_Contact_BAO_Contact::$_importableFields = CRM_Contact_BAO_Contact::$_exportableFields
       = CRM_Contribute_BAO_Contribution::$_importableFields
@@ -1746,13 +1786,14 @@ class CRM_Utils_System {
     }
     else {
       $config = CRM_Core_Config::singleton();
+      $tsLocale = CRM_Core_I18n::getLocale();
       $vars = [
         '{ver}' => CRM_Utils_System::version(),
         '{uf}' => $config->userFramework,
         '{php}' => phpversion(),
         '{sid}' => self::getSiteID(),
         '{baseUrl}' => $config->userFrameworkBaseURL,
-        '{lang}' => $config->lcMessages,
+        '{lang}' => $tsLocale,
         '{co}' => $config->defaultContactCountry,
       ];
       return strtr($url, array_map('urlencode', $vars));

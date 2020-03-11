@@ -24,12 +24,9 @@ namespace Civi\Api4\Generic;
 use Civi\API\Exception\NotImplementedException;
 
 /**
- * Basic action for deleting or performing some other task with a set of records.  Ex:
+ * $ACTION one or more $ENTITIES.
  *
- * $myAction = new BasicBatchAction('Entity', 'action', function($item) {
- *   // Do something with $item
- *   $return $item;
- * });
+ * $ENTITIES are selected based on criteria specified in `where` parameter (required).
  *
  * @package Civi\Api4\Generic
  */
@@ -44,6 +41,13 @@ class BasicBatchAction extends AbstractBatchAction {
 
   /**
    * BasicBatchAction constructor.
+   *
+   * ```php
+   * $myAction = new BasicBatchAction($entityName, $actionName, function($item) {
+   *   // Do something with $item
+   *   $return $item;
+   * });
+   * ```
    *
    * @param string $entityName
    * @param string $actionName
@@ -84,6 +88,7 @@ class BasicBatchAction extends AbstractBatchAction {
    */
   protected function doTask($item) {
     if (is_callable($this->doer)) {
+      $this->addCallbackToDebugOutput($this->doer);
       return call_user_func($this->doer, $item, $this);
     }
     throw new NotImplementedException('Doer function not found for api4 ' . $this->getEntityName() . '::' . $this->getActionName());

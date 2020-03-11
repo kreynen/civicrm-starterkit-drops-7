@@ -5111,7 +5111,7 @@ VALUES
   (@option_group_id_acConRef, 'City'            , 5, 'city'          , NULL, 0, NULL, 5, NULL, 0, 0, 1, NULL, NULL, NULL),
   (@option_group_id_acConRef, 'State/Province'  , 6, 'state_province', NULL, 0, NULL, 6, NULL, 0, 0, 1, NULL, NULL, NULL),
   (@option_group_id_acConRef, 'Country'         , 7, 'country'       , NULL, 0, NULL, 7, NULL, 0, 0, 1, NULL, NULL, NULL),
-  (@option_group_id_acConRef, 'Postal Code'     , 8, 'country'       , NULL, 0, NULL, 8, NULL, 0, 0, 1, NULL, NULL, NULL),
+  (@option_group_id_acConRef, 'Postal Code'     , 8, 'postal_code'   , NULL, 0, NULL, 8, NULL, 0, 0, 1, NULL, NULL, NULL),
 
   (@option_group_id_adOpt, 'Street Address'    ,  1, 'street_address', NULL, 0, NULL,  1, NULL, 0, 0, 1, NULL, NULL, NULL),
   (@option_group_id_adOpt, 'Supplemental Address 1'  ,  2, 'supplemental_address_1', NULL, 0, NULL,  2, NULL, 0, 0, 1, NULL, NULL, NULL),
@@ -5283,6 +5283,7 @@ VALUES
   (@option_group_id_mp, 'Maildir', 2, 'Maildir', NULL, 0, NULL, 2, NULL, 0, 0, 1, NULL, NULL , NULL),
   (@option_group_id_mp, 'POP3',    3, 'POP3',    NULL, 0, NULL, 3, NULL, 0, 0, 1, NULL, NULL , NULL),
   (@option_group_id_mp, 'Localdir', 4, 'Localdir', NULL, 0, NULL, 4, NULL, 0, 0, 1, NULL, NULL , NULL),
+  (@option_group_id_mp, 'IMAP XOAUTH2', 5, 'IMAP_XOAUTH2', NULL, 0, NULL, 5, NULL, 0, 0, 0, NULL, NULL , NULL),
 
 -- priority
   (@option_group_id_priority, 'Urgent', 1, 'Urgent', NULL, 0, NULL, 1, NULL, 0, 0, 1, NULL, NULL, NULL),
@@ -5316,7 +5317,6 @@ VALUES
    (@option_group_id_website, 'Work',     1, 'Work',     NULL, 0, 1, 1, NULL, 0, 0, 1, NULL, NULL, NULL),
    (@option_group_id_website, 'Main',     2, 'Main',     NULL, 0, NULL, 2, NULL, 0, 0, 1, NULL, NULL, NULL),
    (@option_group_id_website, 'Facebook', 3, 'Facebook', NULL, 0, NULL, 3, NULL, 0, 0, 1, NULL, NULL, NULL),
-   (@option_group_id_website, 'Google+',  4, 'Google_',  NULL, 0, NULL, 4, NULL, 0, 0, 1, NULL, NULL, NULL),
    (@option_group_id_website, 'Instagram',  5, 'Instagram',  NULL, 0, NULL, 5, NULL, 0, 0, 1, NULL, NULL, NULL),
    (@option_group_id_website, 'LinkedIn',  6, 'LinkedIn',  NULL, 0, NULL, 6, NULL, 0, 0, 1, NULL, NULL, NULL),
    (@option_group_id_website, 'MySpace',  7, 'MySpace',  NULL, 0, NULL, 7, NULL, 0, 0, 1, NULL, NULL, NULL),
@@ -5501,17 +5501,17 @@ VALUES
    (@option_group_id_name_badge, 'Hanging Badge 3-3/4\" x 4-3\"/4', '{"paper-size":"a4","orientation":"portrait","font-name":"times","font-size":6,"font-style":"","NX":2,"NY":2,"metric":"mm","lMargin":10,"tMargin":28,"SpaceX":0,"SpaceY":0,"width":96,"height":121,"lPadding":5,"tPadding":5}', 'Hanging Badge 3-3/4" x 4-3"/4', NULL, 0, NULL, 4, NULL, 0, 0, 1, NULL, NULL, NULL),
 
 -- Mailing Label Formats
-  (@option_group_id_label, 'Avery 3475', '{"paper-size":"a4","orientation":"portrait","font-name":"helvetica","font-size":10,"font-style":"","metric":"mm","lMargin":0,"tMargin":5,"NX":3,"NY":8,"SpaceX":0,"SpaceY":0,"width":70,"height":36,"lPadding":5.08,"tPadding":5.08}',                   '3475',  'Avery', NULL, 0, 1,  NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery 5160', '{"paper-size":"letter","orientation":"portrait","font-name":"helvetica","font-size":8,"font-style":"","metric":"in","lMargin":0.21975,"tMargin":0.5,"NX":3,"NY":10,"SpaceX":0.14,"SpaceY":0,"width":2.5935,"height":1,"lPadding":0.20,"tPadding":0.20}', '5160',  'Avery', NULL, 0, 2,  NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery 5161', '{"paper-size":"letter","orientation":"portrait","font-name":"helvetica","font-size":8,"font-style":"","metric":"in","lMargin":0.175,"tMargin":0.5,"NX":2,"NY":10,"SpaceX":0.15625,"SpaceY":0,"width":4,"height":1,"lPadding":0.20,"tPadding":0.20}',     '5161',  'Avery', NULL, 0, 3,  NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery 5162', '{"paper-size":"letter","orientation":"portrait","font-name":"helvetica","font-size":8,"font-style":"","metric":"in","lMargin":0.1525,"tMargin":0.88,"NX":2,"NY":7,"SpaceX":0.195,"SpaceY":0,"width":4,"height":1.33,"lPadding":0.20,"tPadding":0.20}',   '5162',  'Avery', NULL, 0, 4,  NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery 5163', '{"paper-size":"letter","orientation":"portrait","font-name":"helvetica","font-size":8,"font-style":"","metric":"in","lMargin":0.18,"tMargin":0.5,"NX":2,"NY":5,"SpaceX":0.14,"SpaceY":0,"width":4,"height":2,"lPadding":0.20,"tPadding":0.20}',          '5163',  'Avery', NULL, 0, 5,  NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery 5164', '{"paper-size":"letter","orientation":"portrait","font-name":"helvetica","font-size":12,"font-style":"","metric":"in","lMargin":0.156,"tMargin":0.5,"NX":2,"NY":3,"SpaceX":0.1875,"SpaceY":0,"width":4,"height":3.33,"lPadding":0.20,"tPadding":0.20}',   '5164',  'Avery', NULL, 0, 6,  NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery 8600', '{"paper-size":"letter","orientation":"portrait","font-name":"helvetica","font-size":8,"font-style":"","metric":"mm","lMargin":7.1,"tMargin":19,"NX":3,"NY":10,"SpaceX":9.5,"SpaceY":3.1,"width":66.6,"height":25.4,"lPadding":5.08,"tPadding":5.08}',    '8600',  'Avery', NULL, 0, 7,  NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery L7160', '{"paper-size":"a4","orientation":"portrait","font-name":"helvetica","font-size":9,"font-style":"","metric":"in","lMargin":0.28,"tMargin":0.6,"NX":3,"NY":7,"SpaceX":0.1,"SpaceY":0,"width":2.5,"height":1.5,"lPadding":0.20,"tPadding":0.20}',          'L7160', 'Avery', NULL, 0, 8,  NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery L7161', '{"paper-size":"a4","orientation":"portrait","font-name":"helvetica","font-size":9,"font-style":"","metric":"in","lMargin":0.28,"tMargin":0.35,"NX":3,"NY":6,"SpaceX":0.1,"SpaceY":0,"width":2.5,"height":1.83,"lPadding":0.20,"tPadding":0.20}',        'L7161', 'Avery', NULL, 0, 9,  NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery L7162', '{"paper-size":"a4","orientation":"portrait","font-name":"helvetica","font-size":9,"font-style":"","metric":"in","lMargin":0.18,"tMargin":0.51,"NX":2,"NY":8,"SpaceX":0.1,"SpaceY":0,"width":3.9,"height":1.33,"lPadding":0.20,"tPadding":0.20}',        'L7162', 'Avery', NULL, 0, 10, NULL, 0, 1, 1, NULL, NULL, NULL),
-  (@option_group_id_label, 'Avery L7163', '{"paper-size":"a4","orientation":"portrait","font-name":"helvetica","font-size":9,"font-style":"","metric":"in","lMargin":0.18,"tMargin":0.6,"NX":2,"NY":7,"SpaceX":0.1,"SpaceY":0,"width":3.9,"height":1.5,"lPadding":0.20,"tPadding":0.20}',          'L7163', 'Avery', NULL, 0, 11, NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery 3475', '{"paper-size":"a4","orientation":"portrait","font-name":"dejavusans","font-size":10,"font-style":"","metric":"mm","lMargin":0,"tMargin":5,"NX":3,"NY":8,"SpaceX":0,"SpaceY":0,"width":70,"height":36,"lPadding":5.08,"tPadding":5.08}',                   '3475',  'Avery', NULL, 0, 1,  NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery 5160', '{"paper-size":"letter","orientation":"portrait","font-name":"dejavusans","font-size":8,"font-style":"","metric":"in","lMargin":0.21975,"tMargin":0.5,"NX":3,"NY":10,"SpaceX":0.14,"SpaceY":0,"width":2.5935,"height":1,"lPadding":0.20,"tPadding":0.20}', '5160',  'Avery', NULL, 0, 2,  NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery 5161', '{"paper-size":"letter","orientation":"portrait","font-name":"dejavusans","font-size":8,"font-style":"","metric":"in","lMargin":0.175,"tMargin":0.5,"NX":2,"NY":10,"SpaceX":0.15625,"SpaceY":0,"width":4,"height":1,"lPadding":0.20,"tPadding":0.20}',     '5161',  'Avery', NULL, 0, 3,  NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery 5162', '{"paper-size":"letter","orientation":"portrait","font-name":"dejavusans","font-size":8,"font-style":"","metric":"in","lMargin":0.1525,"tMargin":0.88,"NX":2,"NY":7,"SpaceX":0.195,"SpaceY":0,"width":4,"height":1.33,"lPadding":0.20,"tPadding":0.20}',   '5162',  'Avery', NULL, 0, 4,  NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery 5163', '{"paper-size":"letter","orientation":"portrait","font-name":"dejavusans","font-size":8,"font-style":"","metric":"in","lMargin":0.18,"tMargin":0.5,"NX":2,"NY":5,"SpaceX":0.14,"SpaceY":0,"width":4,"height":2,"lPadding":0.20,"tPadding":0.20}',          '5163',  'Avery', NULL, 0, 5,  NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery 5164', '{"paper-size":"letter","orientation":"portrait","font-name":"dejavusans","font-size":12,"font-style":"","metric":"in","lMargin":0.156,"tMargin":0.5,"NX":2,"NY":3,"SpaceX":0.1875,"SpaceY":0,"width":4,"height":3.33,"lPadding":0.20,"tPadding":0.20}',   '5164',  'Avery', NULL, 0, 6,  NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery 8600', '{"paper-size":"letter","orientation":"portrait","font-name":"dejavusans","font-size":8,"font-style":"","metric":"mm","lMargin":7.1,"tMargin":19,"NX":3,"NY":10,"SpaceX":9.5,"SpaceY":3.1,"width":66.6,"height":25.4,"lPadding":5.08,"tPadding":5.08}',    '8600',  'Avery', NULL, 0, 7,  NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery L7160', '{"paper-size":"a4","orientation":"portrait","font-name":"dejavusans","font-size":9,"font-style":"","metric":"in","lMargin":0.28,"tMargin":0.6,"NX":3,"NY":7,"SpaceX":0.1,"SpaceY":0,"width":2.5,"height":1.5,"lPadding":0.20,"tPadding":0.20}',          'L7160', 'Avery', NULL, 0, 8,  NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery L7161', '{"paper-size":"a4","orientation":"portrait","font-name":"dejavusans","font-size":9,"font-style":"","metric":"in","lMargin":0.28,"tMargin":0.35,"NX":3,"NY":6,"SpaceX":0.1,"SpaceY":0,"width":2.5,"height":1.83,"lPadding":0.20,"tPadding":0.20}',        'L7161', 'Avery', NULL, 0, 9,  NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery L7162', '{"paper-size":"a4","orientation":"portrait","font-name":"dejavusans","font-size":9,"font-style":"","metric":"in","lMargin":0.18,"tMargin":0.51,"NX":2,"NY":8,"SpaceX":0.1,"SpaceY":0,"width":3.9,"height":1.33,"lPadding":0.20,"tPadding":0.20}',        'L7162', 'Avery', NULL, 0, 10, NULL, 0, 1, 1, NULL, NULL, NULL),
+  (@option_group_id_label, 'Avery L7163', '{"paper-size":"a4","orientation":"portrait","font-name":"dejavusans","font-size":9,"font-style":"","metric":"in","lMargin":0.18,"tMargin":0.6,"NX":2,"NY":7,"SpaceX":0.1,"SpaceY":0,"width":3.9,"height":1.5,"lPadding":0.20,"tPadding":0.20}',          'L7163', 'Avery', NULL, 0, 11, NULL, 0, 1, 1, NULL, NULL, NULL),
 
 -- Communication Styles
   (@option_group_id_communication_style, 'Formal'  , 1, 'formal'  , NULL, 0, 1, 1, NULL, 0, 0, 1, NULL, NULL, NULL),
@@ -7011,6 +7011,7 @@ INSERT INTO civicrm_msg_template
 {ts}Contribution Information{/ts}
 
 ===========================================================
+{ts}Contributor{/ts}: {contact.display_name}
 {ts}Financial Type{/ts}: {$formValues.contributionType_name}
 {if $lineItem}
 {foreach from=$lineItem item=value key=priceset}
@@ -7156,6 +7157,14 @@ INSERT INTO civicrm_msg_template
       <th {$headerStyle}>
        {ts}Contribution Information{/ts}
       </th>
+     </tr>
+     <tr>
+      <td {$labelStyle}>
+       {ts}Contributor Name{/ts}
+      </td>
+      <td {$valueStyle}>
+       {contact.display_name}
+      </td>
      </tr>
      <tr>
       <td {$labelStyle}>
@@ -7446,6 +7455,7 @@ INSERT INTO civicrm_msg_template
 {ts}Contribution Information{/ts}
 
 ===========================================================
+{ts}Contributor{/ts}: {contact.display_name}
 {ts}Financial Type{/ts}: {$formValues.contributionType_name}
 {if $lineItem}
 {foreach from=$lineItem item=value key=priceset}
@@ -7591,6 +7601,14 @@ INSERT INTO civicrm_msg_template
       <th {$headerStyle}>
        {ts}Contribution Information{/ts}
       </th>
+     </tr>
+     <tr>
+      <td {$labelStyle}>
+       {ts}Contributor Name{/ts}
+      </td>
+      <td {$valueStyle}>
+       {contact.display_name}
+      </td>
      </tr>
      <tr>
       <td {$labelStyle}>
@@ -16756,7 +16774,7 @@ Click this link to go to a web page where you can confirm your registration onli
   {/if}
   {if $event.allow_selfcancelxfer }
   {ts}This event allows for{/ts}
-  {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participantID`&{contact.checksum}" h=0 a=1 fe=1}{/capture}
+  {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}" h=0 a=1 fe=1}{/capture}
        <a href="{$selfService}"> {ts}self service cancel or transfer{/ts}</a>
   {/if}
 
@@ -17026,7 +17044,7 @@ Click this link to go to a web page where you can confirm your registration onli
   {/if}
   {if $event.allow_selfcancelxfer }
   {ts}This event allows for{/ts}
-  {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participantID`&{contact.checksum}" h=0 a=1 fe=1}{/capture}
+  {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}" h=0 a=1 fe=1}{/capture}
        <a href="{$selfService}"> {ts}self service cancel or transfer{/ts}</a>
   {/if}
 
@@ -23927,4 +23945,4 @@ INSERT INTO `civicrm_report_instance`
     ( `domain_id`, `title`, `report_id`, `description`, `permission`, `form_values`)
 VALUES
     (  @domainID, 'Survey Details', 'survey/detail', 'Detailed report for canvassing, phone-banking, walk lists or other surveys.', 'access CiviReport', 'a:39:{s:6:"fields";a:2:{s:9:"sort_name";s:1:"1";s:6:"result";s:1:"1";}s:22:"assignee_contact_id_op";s:2:"eq";s:25:"assignee_contact_id_value";s:0:"";s:12:"sort_name_op";s:3:"has";s:15:"sort_name_value";s:0:"";s:17:"street_number_min";s:0:"";s:17:"street_number_max";s:0:"";s:16:"street_number_op";s:3:"lte";s:19:"street_number_value";s:0:"";s:14:"street_name_op";s:3:"has";s:17:"street_name_value";s:0:"";s:15:"postal_code_min";s:0:"";s:15:"postal_code_max";s:0:"";s:14:"postal_code_op";s:3:"lte";s:17:"postal_code_value";s:0:"";s:7:"city_op";s:3:"has";s:10:"city_value";s:0:"";s:20:"state_province_id_op";s:2:"in";s:23:"state_province_id_value";a:0:{}s:13:"country_id_op";s:2:"in";s:16:"country_id_value";a:0:{}s:12:"survey_id_op";s:2:"in";s:15:"survey_id_value";a:0:{}s:12:"status_id_op";s:2:"eq";s:15:"status_id_value";s:1:"1";s:11:"custom_1_op";s:2:"in";s:14:"custom_1_value";a:0:{}s:11:"custom_2_op";s:2:"in";s:14:"custom_2_value";a:0:{}s:17:"custom_3_relative";s:1:"0";s:13:"custom_3_from";s:0:"";s:11:"custom_3_to";s:0:"";s:11:"description";s:75:"Detailed report for canvassing, phone-banking, walk lists or other surveys.";s:13:"email_subject";s:0:"";s:8:"email_to";s:0:"";s:8:"email_cc";s:0:"";s:10:"permission";s:17:"access CiviReport";s:6:"groups";s:0:"";s:9:"domain_id";i:1;}');
-UPDATE civicrm_domain SET version = '5.22.1';
+UPDATE civicrm_domain SET version = '5.23.1';

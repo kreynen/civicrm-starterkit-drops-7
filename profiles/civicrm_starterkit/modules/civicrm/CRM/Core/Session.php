@@ -42,6 +42,13 @@ class CRM_Core_Session {
   protected $_session = NULL;
 
   /**
+   * Current php Session ID : needed to detect if the session is changed
+   *
+   * @var string
+   */
+  protected $sessionID;
+
+  /**
    * We only need one instance of this object. So we use the singleton
    * pattern and cache the instance in this variable
    *
@@ -88,6 +95,11 @@ class CRM_Core_Session {
    *   Is this a read operation, in this case, the session will not be touched.
    */
   public function initialize($isRead = FALSE) {
+    // remove $_SESSION reference if session is changed
+    if (($sid = session_id()) !== $this->sessionID) {
+      $this->_session = NULL;
+      $this->sessionID = $sid;
+    }
     // lets initialize the _session variable just before we need it
     // hopefully any bootstrapping code will actually load the session from the CMS
     if (!isset($this->_session)) {
@@ -96,17 +108,7 @@ class CRM_Core_Session {
         if ($isRead) {
           return;
         }
-        // FIXME: This belongs in CRM_Utils_System_*
-        if (CRM_Core_Config::singleton()->userSystem->is_drupal && function_exists('drupal_session_start')) {
-          // https://issues.civicrm.org/jira/browse/CRM-14356
-          if (!(isset($GLOBALS['lazy_session']) && $GLOBALS['lazy_session'] == TRUE)) {
-            drupal_session_start();
-          }
-          $_SESSION = [];
-        }
-        else {
-          session_start();
-        }
+        CRM_Core_Config::singleton()->userSystem->sessionStart();
       }
       $this->_session =& $_SESSION;
     }

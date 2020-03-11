@@ -27,7 +27,9 @@ use Civi\Api4\Utils\ActionUtil;
 use Civi\Api4\Utils\ReflectionUtils;
 
 /**
- * Get actions for an entity with a list of accepted params
+ * Get all API actions for the $ENTITY entity.
+ *
+ * Includes a list of accepted parameters for each action, descriptions and other documentation.
  */
 class GetActions extends BasicGetAction {
 
@@ -42,7 +44,7 @@ class GetActions extends BasicGetAction {
     foreach ($entityReflection->getMethods(\ReflectionMethod::IS_STATIC | \ReflectionMethod::IS_PUBLIC) as $method) {
       $actionName = $method->getName();
       if ($actionName != 'permissions' && $actionName[0] != '_') {
-        $this->loadAction($actionName);
+        $this->loadAction($actionName, $method);
       }
     }
     if (!$this->_actionsToGet || count($this->_actionsToGet) > count($this->_actions)) {
@@ -77,18 +79,29 @@ class GetActions extends BasicGetAction {
 
   /**
    * @param $actionName
+   * @param \ReflectionMethod $method
    */
-  private function loadAction($actionName) {
+  private function loadAction($actionName, $method = NULL) {
     try {
       if (!isset($this->_actions[$actionName]) && (!$this->_actionsToGet || in_array($actionName, $this->_actionsToGet))) {
         $action = ActionUtil::getAction($this->getEntityName(), $actionName);
         if (is_object($action)) {
           $this->_actions[$actionName] = ['name' => $actionName];
-          if ($this->_isFieldSelected('description') || $this->_isFieldSelected('comment')) {
-            $actionReflection = new \ReflectionClass($action);
-            $actionInfo = ReflectionUtils::getCodeDocs($actionReflection);
-            unset($actionInfo['method']);
-            $this->_actions[$actionName] += $actionInfo;
+          if ($this->_isFieldSelected('description', 'comment', 'see')) {
+            $vars = ['entity' => $this->getEntityName(), 'action' => $actionName];
+            // Docblock from action class
+            $actionDocs = ReflectionUtils::getCodeDocs($action->reflect(), NULL, $vars);
+            unset($actionDocs['method']);
+            // Docblock from action factory function in entity class. This takes precedence since most action classes are generic.
+            if ($method) {
+              $methodDocs = ReflectionUtils::getCodeDocs($method, 'Method', $vars);
+              // Allow method doc to inherit class doc
+              if (strpos($method->getDocComment(), '@inheritDoc') !== FALSE && !empty($methodDocs['comment']) && !empty($actionDocs['comment'])) {
+                $methodDocs['comment'] .= "\n\n" . $actionDocs['comment'];
+              }
+              $actionDocs = array_filter($methodDocs) + $actionDocs;
+            }
+            $this->_actions[$actionName] += $actionDocs;
           }
           if ($this->_isFieldSelected('params')) {
             $this->_actions[$actionName]['params'] = $action->getParamInfo();
@@ -112,18 +125,24 @@ class GetActions extends BasicGetAction {
     return [
       [
         'name' => 'name',
-        'data_type' => 'String',
+        'description' => 'Action name',
       ],
       [
         'name' => 'description',
-        'data_type' => 'String',
+        'description' => 'Description from docblock',
       ],
       [
         'name' => 'comment',
-        'data_type' => 'String',
+        'description' => 'Comments from docblock',
+      ],
+      [
+        'name' => 'see',
+        'data_type' => 'Array',
+        'description' => 'Any @see annotations from docblock',
       ],
       [
         'name' => 'params',
+        'description' => 'List of all accepted parameters',
         'data_type' => 'Array',
       ],
     ];

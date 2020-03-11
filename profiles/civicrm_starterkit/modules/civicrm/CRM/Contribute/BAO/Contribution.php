@@ -91,6 +91,9 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     if (empty($params)) {
       return NULL;
     }
+    if (!empty($ids)) {
+      CRM_Core_Error::deprecatedFunctionWarning('ids should not be passed into Contribution.add');
+    }
     //per http://wiki.civicrm.org/confluence/display/CRM/Database+layer we are moving away from $ids array
     $contributionID = CRM_Utils_Array::value('contribution', $ids, CRM_Utils_Array::value('id', $params));
     $action = $contributionID ? 'edit' : 'create';
@@ -128,13 +131,12 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     if (!$contributionID) {
       CRM_Core_DAO::setCreateDefaults($params, self::getDefaults());
 
-      if (empty($params['invoice_number'])) {
+      if (empty($params['invoice_number']) && CRM_Invoicing_Utils::isInvoicingEnabled()) {
         $nextContributionID = CRM_Core_DAO::singleValueQuery("SELECT COALESCE(MAX(id) + 1, 1) FROM civicrm_contribution");
         $params['invoice_number'] = self::getInvoiceNumber($nextContributionID);
       }
     }
 
-    $contributionStatus = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
     //if contribution is created with cancelled or refunded status, add credit note id
     // do the same for chargeback - this entered the code 'accidentally' but moving it to here
     // as part of cleanup maintains consistency.
@@ -143,7 +145,11 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
         $params['creditnote_id'] = self::createCreditNoteId();
       }
     }
-    if (empty($params['contribution_status_id'])) {
+    $contributionStatusID = $params['contribution_status_id'] ?? NULL;
+    if (CRM_Core_PseudoConstant::getName('CRM_Contribute_BAO_Contribution', 'contribution_status_id', (int) $contributionStatusID) === 'Partially paid' && empty($params['is_post_payment_create'])) {
+      CRM_Core_Error::deprecatedFunctionWarning('Setting status to partially paid other than by using Payment.create is deprecated and unreliable');
+    }
+    if (!$contributionStatusID) {
       // Since the fee amount is expecting this (later on) ensure it is always set.
       // It would only not be set for an update where it is unchanged.
       $params['contribution_status_id'] = civicrm_api3('Contribution', 'getvalue', [
@@ -151,6 +157,7 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
         'return' => 'contribution_status_id',
       ]);
     }
+    $contributionStatus = CRM_Core_PseudoConstant::getName('CRM_Contribute_BAO_Contribution', 'contribution_status_id', (int) $params['contribution_status_id']);
 
     if (!$contributionID
       && CRM_Utils_Array::value('membership_id', $params)
@@ -185,9 +192,10 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     if ($contributionID && $setPrevContribution) {
       $params['prevContribution'] = self::getOriginalContribution($contributionID);
     }
+    $previousContributionStatus = ($contributionID && !empty($params['prevContribution'])) ? CRM_Core_PseudoConstant::getName('CRM_Contribute_BAO_Contribution', 'contribution_status_id', (int) $params['prevContribution']->contribution_status_id) : NULL;
 
-    if ($contributionID && !empty($params['revenue_recognition_date']) && !empty($params['prevContribution'])
-      && !($contributionStatus[$params['prevContribution']->contribution_status_id] == 'Pending')
+    if ($contributionID && !empty($params['revenue_recognition_date'])
+      && !($previousContributionStatus === 'Pending')
       && !self::allowUpdateRevenueRecognitionDate($contributionID)
     ) {
       unset($params['revenue_recognition_date']);
@@ -234,7 +242,7 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     if (self::isUpdateToRecurringContribution($params)) {
       CRM_Contribute_BAO_ContributionRecur::updateOnNewPayment(
         (!empty($params['contribution_recur_id']) ? $params['contribution_recur_id'] : $params['prevContribution']->contribution_recur_id),
-        $contributionStatus[$params['contribution_status_id']],
+        $contributionStatus,
         CRM_Utils_Array::value('receive_date', $params)
       );
     }
@@ -489,7 +497,6 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
    * @throws \CiviCRM_API3_Exception
    */
   public static function create(&$params, $ids = []) {
-
     $dateFields = [
       'receive_date',
       'cancel_date',
@@ -506,7 +513,11 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     $transaction = new CRM_Core_Transaction();
 
     try {
-      $contribution = self::add($params, $ids);
+      if (!isset($params['id']) && isset($ids['contribution'])) {
+        CRM_Core_Error::deprecatedFunctionWarning('ids should not be used for contribution create');
+        $params['id'] = $ids['contribution'];
+      }
+      $contribution = self::add($params);
     }
     catch (CRM_Core_Exception $e) {
       $transaction->rollback();
@@ -944,7 +955,7 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
   }
 
   /**
-   * Get memberships realted to the contribution.
+   * Get memberships related to the contribution.
    *
    * @param int $contributionID
    *
@@ -2372,8 +2383,8 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
         $contributionParams[$field] = $params[$field];
       }
 
-      $ids = ['contribution' => $contributionId];
-      $contribution = CRM_Contribute_BAO_Contribution::create($contributionParams, $ids);
+      $contributionParams['id'] = $contributionId;
+      $contribution = CRM_Contribute_BAO_Contribution::create($contributionParams);
     }
 
     return $updateResult;
@@ -4167,7 +4178,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
 
     return (float) CRM_Utils_Money::subtractCurrencies(
       $contributionTotal,
-      CRM_Core_BAO_FinancialTrxn::getTotalPayments($contributionId, TRUE) ?: 0,
+      CRM_Core_BAO_FinancialTrxn::getTotalPayments($contributionId, TRUE),
       CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contributionId, 'currency')
     );
   }
@@ -4694,16 +4705,17 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    *
    * @return string
    *   Credit Note Id.
+   *
+   * @throws \CiviCRM_API3_Exception
    */
   public static function createCreditNoteId() {
-    $prefixValue = Civi::settings()->get('contribution_invoice_settings');
 
     $creditNoteNum = CRM_Core_DAO::singleValueQuery("SELECT count(creditnote_id) as creditnote_number FROM civicrm_contribution WHERE creditnote_id IS NOT NULL");
     $creditNoteId = NULL;
 
     do {
       $creditNoteNum++;
-      $creditNoteId = CRM_Utils_Array::value('credit_notes_prefix', $prefixValue) . "" . $creditNoteNum;
+      $creditNoteId = Civi::settings()->get('credit_notes_prefix') . '' . $creditNoteNum;
       $result = civicrm_api3('Contribution', 'getcount', [
         'sequential' => 1,
         'creditnote_id' => $creditNoteId,
@@ -4835,41 +4847,31 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    *
    * Replace with Order.create->Payment.create flow.
    *
-   * @param array $contributions
-   * @param string $contributionStatusId
+   * @param array $contribution
    *
    * @throws \CiviCRM_API3_Exception
    */
-  public static function addPayments($contributions, $contributionStatusId = NULL) {
+  public static function addPayments($contribution) {
     // get financial trxn which is a payment
     $ftSql = "SELECT ft.id, ft.total_amount
       FROM civicrm_financial_trxn ft
       INNER JOIN civicrm_entity_financial_trxn eft ON eft.financial_trxn_id = ft.id AND eft.entity_table = 'civicrm_contribution'
       WHERE eft.entity_id = %1 AND ft.is_payment = 1 ORDER BY ft.id DESC LIMIT 1";
-    $contributionStatus = CRM_Core_PseudoConstant::get('CRM_Contribute_DAO_Contribution', 'contribution_status_id', [
-      'labelColumn' => 'name',
-    ]);
-    foreach ($contributions as $contribution) {
-      if (!($contributionStatus[$contribution->contribution_status_id] == 'Partially paid'
-        || CRM_Utils_Array::value($contributionStatusId, $contributionStatus) == 'Partially paid')
-      ) {
-        continue;
-      }
-      $ftDao = CRM_Core_DAO::executeQuery($ftSql, [
-        1 => [
-          $contribution->id,
-          'Integer',
-        ],
-      ]);
-      $ftDao->fetch();
 
-      // store financial item Proportionaly.
-      $trxnParams = [
-        'total_amount' => $ftDao->total_amount,
-        'contribution_id' => $contribution->id,
-      ];
-      self::assignProportionalLineItems($trxnParams, $ftDao->id, $contribution->total_amount);
-    }
+    $ftDao = CRM_Core_DAO::executeQuery($ftSql, [
+      1 => [
+        $contribution->id,
+        'Integer',
+      ],
+    ]);
+    $ftDao->fetch();
+
+    // store financial item Proportionaly.
+    $trxnParams = [
+      'total_amount' => $ftDao->total_amount,
+      'contribution_id' => $contribution->id,
+    ];
+    self::assignProportionalLineItems($trxnParams, $ftDao->id, $contribution->total_amount);
   }
 
   /**
@@ -5063,21 +5065,13 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    *
    *
    * @param string $name
-   * @param bool $checkInvoicing
+   *
    * @return string
    *
    */
-  public static function checkContributeSettings($name = NULL, $checkInvoicing = FALSE) {
+  public static function checkContributeSettings($name) {
     $contributeSettings = Civi::settings()->get('contribution_invoice_settings');
-
-    if ($checkInvoicing && empty($contributeSettings['invoicing'])) {
-      return NULL;
-    }
-
-    if ($name) {
-      return CRM_Utils_Array::value($name, $contributeSettings);
-    }
-    return $contributeSettings;
+    return CRM_Utils_Array::value($name, $contributeSettings);
   }
 
   /**
@@ -5892,7 +5886,7 @@ LIMIT 1;";
    * @return string
    */
   public static function getInvoiceNumber($contributionID) {
-    if ($invoicePrefix = self::checkContributeSettings('invoice_prefix', TRUE)) {
+    if ($invoicePrefix = self::checkContributeSettings('invoice_prefix')) {
       return $invoicePrefix . $contributionID;
     }
 

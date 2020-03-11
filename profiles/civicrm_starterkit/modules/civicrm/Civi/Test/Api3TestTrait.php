@@ -4,6 +4,7 @@ namespace Civi\Test;
 
 use Civi\API\Exception\NotImplementedException;
 
+require_once 'api/v3/utils.php';
 /**
  * Class Api3TestTrait
  * @package Civi\Test
@@ -411,6 +412,10 @@ trait Api3TestTrait {
       case 'get':
         if ($options['return'] && $v3Action !== 'getcount') {
           $v4Params['select'] = array_keys($options['return']);
+          // Ensure id field is returned as v3 always expects it
+          if ($v4Entity != 'Setting' && !in_array('id', $v4Params['select'])) {
+            $v4Params['select'][] = 'id';
+          }
           // Convert join syntax
           foreach ($v4Params['select'] as &$select) {
             if (strstr($select, '_id.')) {
@@ -455,7 +460,7 @@ trait Api3TestTrait {
         break;
 
       case 'delete':
-        if (!empty($v3Params['id'])) {
+        if (isset($v3Params['id'])) {
           $v4Params['where'][] = ['id', '=', $v3Params['id']];
         }
         break;
@@ -527,7 +532,7 @@ trait Api3TestTrait {
       ];
     }
 
-    if (($v3Action == 'getsingle' || $v3Action == 'getvalue') && count($result) != 1) {
+    if (($v3Action == 'getsingle' || $v3Action == 'getvalue' || $v3Action == 'delete') && count($result) != 1) {
       return $onlySuccess ? 0 : [
         'is_error' => 1,
         'error_message' => "Expected one $v4Entity but found " . count($result),

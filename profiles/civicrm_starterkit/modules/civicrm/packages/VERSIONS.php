@@ -107,9 +107,8 @@
  * Contact_Vcard_Build           1.1.2      PHP 3          local changes
  * Contact_Vcard_Parse           1.32.0     PHP 3.0
  * Date                          1.4.7      BSD 3-cl.
- * DB                            1.7.13     PHP 3.0
- * DB_DataObject                 1.8.12     PHP 3          local changes
- * DB_Table                      1.5.6      BSD 3-cl.
+ * DB                            1.9.3      PHP 3.0
+ * DB_DataObject                 1.11.3     PHP 3          local changes
  * HTML_Common                   1.2.5      PHP 3
  * HTML_QuickForm                3.2.16     PHP 3          local changes, hierselect.php from a very old version (PHP 2)
  * HTML_QuickForm_advmultiselect 1.5.1      BSD 3-cl.      local changes
@@ -127,7 +126,6 @@
  * PEAR                          1.9.0      PHP 3.0
  * PHP_Beautifier                0.1.14     PHP 3.0
  * Services_Twilio               3.10.0     MIT
- * System_Command                1.0.6      PHP 2
  * Validate                      0.8.2      BSD 3-cl.
  * Validate_Finance              0.5.4      BSD 3-cl.
  * XML_RPC                       1.5.3      PHP 3

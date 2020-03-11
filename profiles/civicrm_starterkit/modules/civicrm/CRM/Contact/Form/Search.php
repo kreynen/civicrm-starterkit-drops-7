@@ -502,6 +502,8 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
 
   /**
    * Processing needed for buildForm and later.
+   *
+   * @throws \CRM_Core_Exception
    */
   public function preProcess() {
     // set the various class variables
@@ -530,7 +532,6 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
     /**
      * set the button names
      */
-    $this->_searchButtonName = $this->getButtonName('refresh');
     $this->_actionButtonName = $this->getButtonName('next', 'action');
 
     $this->assign('actionButtonName', $this->_actionButtonName);
@@ -599,7 +600,7 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
       }
 
       // fix for CRM-1907
-      if (isset($this->_ssID) && $this->_context != 'smog') {
+      if (isset($this->_ssID) && $this->_context !== 'smog') {
         // we only retrieve the saved search values if out current values are null
         $this->_formValues = CRM_Contact_BAO_SavedSearch::getFormValues($this->_ssID);
 
@@ -793,7 +794,7 @@ class CRM_Contact_Form_Search extends CRM_Core_Form_Search {
       return;
     }
     else {
-      if (array_key_exists($this->_searchButtonName, $_POST) ||
+      if (array_key_exists($this->getButtonName('refresh'), $_POST) ||
         ($this->_force && !$crmPID)
       ) {
         //reset the cache table for new search

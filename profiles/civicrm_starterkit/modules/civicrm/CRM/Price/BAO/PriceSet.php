@@ -661,23 +661,13 @@ WHERE  id = %1";
    * @param $lineItem
    *   Line item array to be altered.
    * @param int $priceSetID
+   *
+   * @todo $priceSetID is a pseudoparam for permit override - we should stop passing it where we
+   * don't specifically need it & find a better way where we do.
    */
   public static function processAmount($fields, &$params, &$lineItem, $priceSetID = NULL) {
     // using price set
     $totalPrice = $totalTax = 0;
-    // CRM-18701 Sometimes the amount in the price set is overridden by the amount on the form.
-    // This is notably the case with memberships and we need to put this amount
-    // on the line item rather than the calculated amount.
-    // This seems to only affect radio link items as that is the use case for the 'quick config'
-    // set up (which allows a free form field).
-    $amount_override = NULL;
-
-    if ($priceSetID) {
-      $priceFields = self::filterPriceFieldsFromParams($priceSetID, $params);
-      if (count($priceFields) == 1) {
-        $amount_override = CRM_Utils_Array::value('partial_payment_total', $params, CRM_Utils_Array::value('total_amount', $params));
-      }
-    }
     foreach ($fields as $id => $field) {
       if (empty($params["price_{$id}"]) ||
         (empty($params["price_{$id}"]) && $params["price_{$id}"] == NULL)
@@ -686,67 +676,7 @@ WHERE  id = %1";
         continue;
       }
 
-      switch ($field['html_type']) {
-        case 'Text':
-          $firstOption = reset($field['options']);
-          $params["price_{$id}"] = [$firstOption['id'] => $params["price_{$id}"]];
-          CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
-          $optionValueId = key($field['options']);
-
-          if (CRM_Utils_Array::value('name', $field['options'][$optionValueId]) == 'contribution_amount') {
-            $taxRates = CRM_Core_PseudoConstant::getTaxRates();
-            if (array_key_exists($params['financial_type_id'], $taxRates)) {
-              $field['options'][key($field['options'])]['tax_rate'] = $taxRates[$params['financial_type_id']];
-              $taxAmount = CRM_Contribute_BAO_Contribution_Utils::calculateTaxAmount($field['options'][$optionValueId]['amount'], $field['options'][$optionValueId]['tax_rate']);
-              $field['options'][$optionValueId]['tax_amount'] = round($taxAmount['tax_amount'], 2);
-            }
-          }
-          if (!empty($field['options'][$optionValueId]['tax_rate'])) {
-            $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
-          }
-          $totalPrice += $lineItem[$firstOption['id']]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[key($field['options'])]);
-          break;
-
-        case 'Radio':
-          //special case if user select -none-
-          if ($params["price_{$id}"] <= 0) {
-            break;
-          }
-          $params["price_{$id}"] = [$params["price_{$id}"] => 1];
-          $optionValueId = CRM_Utils_Array::key(1, $params["price_{$id}"]);
-
-          CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, $amount_override);
-          if (!empty($field['options'][$optionValueId]['tax_rate'])) {
-            $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
-            if ($amount_override) {
-              $lineItem[$optionValueId]['line_total'] = $lineItem[$optionValueId]['unit_price'] = CRM_Utils_Rule::cleanMoney($lineItem[$optionValueId]['line_total'] - $lineItem[$optionValueId]['tax_amount']);
-            }
-          }
-          $totalPrice += $lineItem[$optionValueId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionValueId]);
-          break;
-
-        case 'Select':
-          $params["price_{$id}"] = [$params["price_{$id}"] => 1];
-          $optionValueId = CRM_Utils_Array::key(1, $params["price_{$id}"]);
-
-          CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
-          if (!empty($field['options'][$optionValueId]['tax_rate'])) {
-            $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
-          }
-          $totalPrice += $lineItem[$optionValueId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionValueId]);
-          break;
-
-        case 'CheckBox':
-
-          CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
-          foreach ($params["price_{$id}"] as $optionId => $option) {
-            if (!empty($field['options'][$optionId]['tax_rate'])) {
-              $lineItem = self::setLineItem($field, $lineItem, $optionId, $totalTax);
-            }
-            $totalPrice += $lineItem[$optionId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionId]);
-          }
-          break;
-      }
+      list($params, $lineItem, $totalTax, $totalPrice) = self::getLine($params, $lineItem, $priceSetID, $field, $id, $totalPrice);
     }
 
     $amount_level = [];
@@ -769,7 +699,7 @@ WHERE  id = %1";
         // will get us by.
         // Crucially a test has been added so a better solution can be implemented later with some comfort.
         // @todo - stop setting amount level in this function & call the getAmountLevel function to retrieve it.
-        if ($values['label'] != ts('Contribution Amount')) {
+        if ($values['label'] !== ts('Contribution Amount')) {
           $amount_level[] = $values['label'] . ' - ' . (float) $values['qty'];
         }
       }
@@ -819,7 +749,7 @@ WHERE  id = %1";
         // We deliberately & specifically exclude contribution amount as it has a specific meaning.
         // ie. it represents the default price field for a contribution. Another approach would be not
         // to give it a label if we don't want it to show.
-        if ($field['label'] != ts('Contribution Amount')) {
+        if ($field['label'] !== ts('Contribution Amount')) {
           $amount_level[] = $field['label'] . $qtyString;
         }
       }
@@ -1747,6 +1677,98 @@ WHERE     ct.id = cp.financial_type_id AND
       }
     }
     return $usedBy;
+  }
+
+  /**
+   * Get the relevant line item.
+   *
+   * Note this is part of code being cleaned up / refactored & may change.
+   *
+   * @param array $params
+   * @param array $lineItem
+   * @param int $priceSetID
+   * @param array $field
+   * @param int $id
+   * @param float $totalPrice
+   *
+   * @return array
+   */
+  protected static function getLine(&$params, &$lineItem, $priceSetID, $field, $id, $totalPrice): array {
+    $totalTax = 0;
+    switch ($field['html_type']) {
+      case 'Text':
+        $firstOption = reset($field['options']);
+        $params["price_{$id}"] = [$firstOption['id'] => $params["price_{$id}"]];
+        CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
+        $optionValueId = key($field['options']);
+
+        if (CRM_Utils_Array::value('name', $field['options'][$optionValueId]) === 'contribution_amount') {
+          $taxRates = CRM_Core_PseudoConstant::getTaxRates();
+          if (array_key_exists($params['financial_type_id'], $taxRates)) {
+            $field['options'][key($field['options'])]['tax_rate'] = $taxRates[$params['financial_type_id']];
+            $taxAmount = CRM_Contribute_BAO_Contribution_Utils::calculateTaxAmount($field['options'][$optionValueId]['amount'], $field['options'][$optionValueId]['tax_rate']);
+            $field['options'][$optionValueId]['tax_amount'] = round($taxAmount['tax_amount'], 2);
+          }
+        }
+        if (!empty($field['options'][$optionValueId]['tax_rate'])) {
+          $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
+        }
+        $totalPrice += $lineItem[$firstOption['id']]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[key($field['options'])]);
+        break;
+
+      case 'Radio':
+        //special case if user select -none-
+        if ($params["price_{$id}"] <= 0) {
+          break;
+        }
+        $params["price_{$id}"] = [$params["price_{$id}"] => 1];
+        $optionValueId = CRM_Utils_Array::key(1, $params["price_{$id}"]);
+
+        // CRM-18701 Sometimes the amount in the price set is overridden by the amount on the form.
+        // This is notably the case with memberships and we need to put this amount
+        // on the line item rather than the calculated amount.
+        // This seems to only affect radio link items as that is the use case for the 'quick config'
+        // set up (which allows a free form field).
+        // @todo $priceSetID is a pseudoparam for permit override - we should stop passing it where we
+        // don't specifically need it & find a better way where we do.
+        $amount_override = NULL;
+
+        if ($priceSetID && count(self::filterPriceFieldsFromParams($priceSetID, $params)) === 1) {
+          $amount_override = CRM_Utils_Array::value('partial_payment_total', $params, CRM_Utils_Array::value('total_amount', $params));
+        }
+        CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, $amount_override);
+        if (!empty($field['options'][$optionValueId]['tax_rate'])) {
+          $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
+          if ($amount_override) {
+            $lineItem[$optionValueId]['line_total'] = $lineItem[$optionValueId]['unit_price'] = CRM_Utils_Rule::cleanMoney($lineItem[$optionValueId]['line_total'] - $lineItem[$optionValueId]['tax_amount']);
+          }
+        }
+        $totalPrice += $lineItem[$optionValueId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionValueId]);
+        break;
+
+      case 'Select':
+        $params["price_{$id}"] = [$params["price_{$id}"] => 1];
+        $optionValueId = CRM_Utils_Array::key(1, $params["price_{$id}"]);
+
+        CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
+        if (!empty($field['options'][$optionValueId]['tax_rate'])) {
+          $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
+        }
+        $totalPrice += $lineItem[$optionValueId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionValueId]);
+        break;
+
+      case 'CheckBox':
+
+        CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
+        foreach ($params["price_{$id}"] as $optionId => $option) {
+          if (!empty($field['options'][$optionId]['tax_rate'])) {
+            $lineItem = self::setLineItem($field, $lineItem, $optionId, $totalTax);
+          }
+          $totalPrice += $lineItem[$optionId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionId]);
+        }
+        break;
+    }
+    return [$params, $lineItem, $totalTax, $totalPrice];
   }
 
 }

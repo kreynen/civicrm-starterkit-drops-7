@@ -433,7 +433,7 @@ class CRM_Utils_String {
    *   the converted string
    */
   public static function htmlToText($html) {
-    require_once 'packages/html2text/rcube_html2text.php';
+    require_once 'html2text/rcube_html2text.php';
     $token_html = preg_replace('!\{([a-z_.]+)\}!i', 'token:{$1}', $html);
     $converter = new rcube_html2text($token_html);
     $token_text = $converter->get_text();
@@ -949,6 +949,25 @@ class CRM_Utils_String {
     }
     catch (UnserializeFailedException $e) {
       return FALSE;
+    }
+  }
+
+  /**
+   * Returns the plural form of an English word.
+   *
+   * @param string $str
+   * @return string
+   */
+  public static function pluralize($str) {
+    switch (substr($str, -1)) {
+      case 's':
+        return $str . 'es';
+
+      case 'y':
+        return substr($str, 0, -1) . 'ies';
+
+      default:
+        return $str . 's';
     }
   }
 

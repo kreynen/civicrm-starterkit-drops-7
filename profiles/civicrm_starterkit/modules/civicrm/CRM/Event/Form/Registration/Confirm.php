@@ -553,7 +553,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
             list($result, $value) = $this->processPayment($payment, $value);
           }
           else {
-            CRM_Core_Error::fatal($paymentObjError);
+            throw new CRM_Core_Exception($paymentObjError);
           }
         }
 
@@ -576,13 +576,12 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
           // if paid event add a contribution record
           //if primary participant contributing additional amount
           //append (multiple participants) to its fee level. CRM-4196.
-          $isAdditionalAmount = FALSE;
           if (count($params) > 1) {
-            $isAdditionalAmount = TRUE;
+            $value['amount_level'] .= ts(' (multiple participants)') . CRM_Core_DAO::VALUE_SEPARATOR;
           }
 
           //passing contribution id is already registered.
-          $contribution = self::processContribution($this, $value, $result, $contactID, $pending, $isAdditionalAmount, $this->_paymentProcessor);
+          $contribution = $this->processContribution($this, $value, $result, $contactID, $pending, $this->_paymentProcessor);
           $value['contributionID'] = $contribution->id;
           $value['contributionTypeID'] = $contribution->financial_type_id;
           $value['receive_date'] = $contribution->receive_date;
@@ -794,7 +793,7 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
           $this->processPayment($payment, $primaryParticipant);
         }
         else {
-          CRM_Core_Error::fatal($paymentObjError);
+          throw new CRM_Core_Exception($paymentObjError);
         }
       }
     }
@@ -904,7 +903,6 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
    * @param array $result
    * @param int $contactID
    * @param bool $pending
-   * @param bool $isAdditionalAmount
    * @param array $paymentProcessor
    *
    * @return \CRM_Contribute_BAO_Contribution
@@ -912,11 +910,12 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    */
-  public static function processContribution(
+  protected function processContribution(
     &$form, $params, $result, $contactID,
-    $pending = FALSE, $isAdditionalAmount = FALSE,
+    $pending = FALSE,
     $paymentProcessor = NULL
   ) {
+    // Note this used to be shared with the backoffice form & no longer is, some code may no longer be required.
     $transaction = new CRM_Core_Transaction();
 
     $now = date('YmdHis');
@@ -924,10 +923,6 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
 
     if (!empty($form->_values['event']['is_email_confirm'])) {
       $receiptDate = $now;
-    }
-    //CRM-4196
-    if ($isAdditionalAmount) {
-      $params['amount_level'] = $params['amount_level'] . ts(' (multiple participants)') . CRM_Core_DAO::VALUE_SEPARATOR;
     }
 
     // CRM-20264: fetch CC type ID and number (last 4 digit) and assign it back to $params

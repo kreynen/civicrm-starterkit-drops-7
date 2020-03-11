@@ -181,11 +181,10 @@ WHERE li.contribution_id = %1";
    * @param bool $isQtyZero
    * @param bool $relatedEntity
    *
-   * @param bool $invoice
    * @return array
    *   Array of line items
    */
-  public static function getLineItems($entityId, $entity = 'participant', $isQuick = FALSE, $isQtyZero = TRUE, $relatedEntity = FALSE, $invoice = FALSE) {
+  public static function getLineItems($entityId, $entity = 'participant', $isQuick = FALSE, $isQtyZero = TRUE, $relatedEntity = FALSE) {
     $whereClause = $fromClause = NULL;
     $selectClause = "
       SELECT    li.id,
@@ -218,17 +217,7 @@ WHERE li.contribution_id = %1";
       LEFT JOIN civicrm_line_item li ON ({$condition})
       LEFT JOIN civicrm_price_field_value pfv ON ( pfv.id = li.price_field_value_id )
       LEFT JOIN civicrm_price_field pf ON (pf.id = li.price_field_id )";
-    $whereClause = "
-      WHERE     %2.id = %1";
-
-    // CRM-16250 get additional participant's fee selection details only for invoice PDF (if any)
-    if ($entity == 'participant' && $invoice) {
-      $additionalParticipantIDs = CRM_Event_BAO_Participant::getAdditionalParticipantIds($entityId);
-      if (!empty($additionalParticipantIDs)) {
-        $whereClause = "WHERE %2.id IN (%1, " . implode(', ', $additionalParticipantIDs) . ")";
-      }
-    }
-
+    $whereClause = " WHERE     %2.id = %1";
     $orderByClause = " ORDER BY pf.weight, pfv.weight";
 
     if ($isQuick) {
@@ -402,7 +391,7 @@ WHERE li.contribution_id = %1";
    * Process price set and line items.
    *
    * @param int $entityId
-   * @param array $lineItem
+   * @param array $lineItems
    *   Line item array.
    * @param object $contributionDetails
    * @param string $entityTable
@@ -413,14 +402,14 @@ WHERE li.contribution_id = %1";
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    */
-  public static function processPriceSet($entityId, $lineItem, $contributionDetails = NULL, $entityTable = 'civicrm_contribution', $update = FALSE) {
-    if (!$entityId || !is_array($lineItem)
-      || CRM_Utils_System::isNull($lineItem)
+  public static function processPriceSet($entityId, $lineItems, $contributionDetails = NULL, $entityTable = 'civicrm_contribution', $update = FALSE) {
+    if (!$entityId || !is_array($lineItems)
+      || CRM_Utils_System::isNull($lineItems)
     ) {
       return;
     }
 
-    foreach ($lineItem as $priceSetId => &$values) {
+    foreach ($lineItems as $priceSetId => &$values) {
       if (!$priceSetId) {
         continue;
       }
@@ -456,18 +445,18 @@ WHERE li.contribution_id = %1";
         if (!empty($line['price_field_value_id']) && empty($line['financial_type_id'])) {
           $line['financial_type_id'] = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $line['price_field_value_id'], 'financial_type_id');
         }
-        $lineItems = CRM_Price_BAO_LineItem::create($line);
+        $createdLineItem = CRM_Price_BAO_LineItem::create($line);
         if (!$update && $contributionDetails) {
-          $financialItem = CRM_Financial_BAO_FinancialItem::add($lineItems, $contributionDetails);
+          $financialItem = CRM_Financial_BAO_FinancialItem::add($createdLineItem, $contributionDetails);
           $line['financial_item_id'] = $financialItem->id;
           if (!empty($line['tax_amount'])) {
-            CRM_Financial_BAO_FinancialItem::add($lineItems, $contributionDetails, TRUE);
+            CRM_Financial_BAO_FinancialItem::add($createdLineItem, $contributionDetails, TRUE);
           }
         }
       }
     }
     if (!$update && $contributionDetails) {
-      CRM_Core_BAO_FinancialTrxn::createDeferredTrxn($lineItem, $contributionDetails);
+      CRM_Core_BAO_FinancialTrxn::createDeferredTrxn($lineItems, $contributionDetails);
     }
   }
 
@@ -604,7 +593,7 @@ WHERE li.contribution_id = %1";
    *   These are per the way the form processes them - ie
    *   ['price_1' => 1, 'price_2' => 8]
    *   This would mean price field id 1, option 1 (or 1 unit if using is_enter_qty).
-   * @param float|NULL $overrideAmount
+   * @param float|null $overrideAmount
    *   Optional override of the amount.
    *
    * @param int|null $financialTypeID

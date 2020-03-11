@@ -161,24 +161,24 @@
     },
     {
         "name": "civicrm/civicrm-setup",
-        "version": "v0.2.0",
-        "version_normalized": "0.2.0.0",
+        "version": "v0.4.0",
+        "version_normalized": "0.4.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/civicrm/civicrm-setup.git",
-            "reference": "e7991aff516c3fff952bed8f90832804a134358a"
+            "reference": "8417d0c62b6e725ef7a49a75935995d0269cbbe8"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/civicrm/civicrm-setup/zipball/e7991aff516c3fff952bed8f90832804a134358a",
-            "reference": "e7991aff516c3fff952bed8f90832804a134358a",
+            "url": "https://api.github.com/repos/civicrm/civicrm-setup/zipball/8417d0c62b6e725ef7a49a75935995d0269cbbe8",
+            "reference": "8417d0c62b6e725ef7a49a75935995d0269cbbe8",
             "shasum": ""
         },
         "require": {
             "psr/log": "~1.0",
             "symfony/event-dispatcher": "^2.6.13 || ~3.0"
         },
-        "time": "2018-01-23T06:26:55+00:00",
+        "time": "2020-01-18T03:46:43+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
@@ -638,7 +638,8 @@
         "keywords": [
             "mimetype",
             "php"
-        ]
+        ],
+        "abandoned": true
     },
     {
         "name": "league/csv",
@@ -1742,27 +1743,27 @@
     },
     {
         "name": "psr/log",
-        "version": "1.1.0",
-        "version_normalized": "1.1.0.0",
+        "version": "1.1.2",
+        "version_normalized": "1.1.2.0",
         "source": {
             "type": "git",
             "url": "https://github.com/php-fig/log.git",
-            "reference": "6c001f1daafa3a3ac1d8ff69ee4db8e799a654dd"
+            "reference": "446d54b4cb6bf489fc9d75f55843658e6f25d801"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/php-fig/log/zipball/6c001f1daafa3a3ac1d8ff69ee4db8e799a654dd",
-            "reference": "6c001f1daafa3a3ac1d8ff69ee4db8e799a654dd",
+            "url": "https://api.github.com/repos/php-fig/log/zipball/446d54b4cb6bf489fc9d75f55843658e6f25d801",
+            "reference": "446d54b4cb6bf489fc9d75f55843658e6f25d801",
             "shasum": ""
         },
         "require": {
             "php": ">=5.3.0"
         },
-        "time": "2018-11-20T15:27:04+00:00",
+        "time": "2019-11-01T11:05:21+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
-                "dev-master": "1.0.x-dev"
+                "dev-master": "1.1.x-dev"
             }
         },
         "installation-source": "dist",
@@ -2624,7 +2625,8 @@
         "keywords": [
             "escaper",
             "zf2"
-        ]
+        ],
+        "abandoned": "laminas/laminas-escaper"
     },
     {
         "name": "zetacomponents/base",
@@ -2694,17 +2696,17 @@
     },
     {
         "name": "zetacomponents/mail",
-        "version": "dev-master",
-        "version_normalized": "9999999-dev",
+        "version": "1.9.1",
+        "version_normalized": "1.9.1.0",
         "source": {
             "type": "git",
             "url": "https://github.com/zetacomponents/Mail.git",
-            "reference": "b60e9a543f6c3d9a9ec74452d4ff5736a1c63a77"
+            "reference": "4dc71ccbcc8b67951a2efe47d3fcc2aeaa7f530d"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/zetacomponents/Mail/zipball/b60e9a543f6c3d9a9ec74452d4ff5736a1c63a77",
-            "reference": "b60e9a543f6c3d9a9ec74452d4ff5736a1c63a77",
+            "url": "https://api.github.com/repos/zetacomponents/Mail/zipball/4dc71ccbcc8b67951a2efe47d3fcc2aeaa7f530d",
+            "reference": "4dc71ccbcc8b67951a2efe47d3fcc2aeaa7f530d",
             "shasum": ""
         },
         "require": {
@@ -2713,14 +2715,14 @@
         "require-dev": {
             "zetacomponents/unit-test": "*"
         },
-        "time": "2019-02-13T11:33:09+00:00",
+        "time": "2020-01-17T11:18:01+00:00",
         "type": "library",
         "extra": {
             "patches_applied": {
                 "CiviCRM Custom Patches for ZetaCompoents mail": "tools/scripts/composer/patches/civicrm-custom-patches-zetacompoents-mail.patch"
             }
         },
-        "installation-source": "source",
+        "installation-source": "dist",
         "autoload": {
             "classmap": [
                 "src"
@@ -2762,13 +2764,13 @@
                 "name": "Alexandru Stanoi"
             },
             {
-                "name": "Christian Michel"
-            },
-            {
                 "name": "Sinisa Dukaric"
             },
             {
                 "name": "Mikko Koppanen"
+            },
+            {
+                "name": "Christian Michel"
             }
         ],
         "description": "The component allows you construct and/or parse Mail messages conforming to  the mail standard. It has support for attachments, multipart messages and HTML  mail. It also interfaces with SMTP to send mail or IMAP, POP3 or mbox to  retrieve e-mail.",
