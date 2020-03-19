@@ -13,7 +13,7 @@ projects[drupal][version] = "7.61"
 ; ====== CIVICRM RELATED =========
 
 libraries[civicrm][download][type] = get
-libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.23.1-drupal.tar.gz"
+libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.23.2-drupal.tar.gz"
 libraries[civicrm][destination] = modules
 libraries[civicrm][directory_name] = civicrm
 
@@ -70,6 +70,11 @@ libraries[civicrm][patch][smtpverify] = ./patches/smtp-disable-peer-verification
 ; https://lab.civicrm.org/dev/financial/issues/119
 ; @todo Remove in CiviCRM 5.25.0
 libraries[civicrm][patch][checkout] = https://patch-diff.githubusercontent.com/raw/civicrm/civicrm-core/pull/16692.patch
+
+; Fix address relationship in Views
+; https://lab.civicrm.org/dev/drupal/issues/110
+; @todo Remove once fix is applied officially
+libraries[civicrm][patch][address_rel] = ./patches/civicrm-drupal-110.patch
 
 ; === Modules ===
 
