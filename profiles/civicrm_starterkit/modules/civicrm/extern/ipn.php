@@ -47,10 +47,7 @@ require_once '../civicrm.config.php';
 
 /* Cache the real UF, override it with the SOAP environment */
 
-$config = CRM_Core_Config::singleton();
-
-CRM_Utils_System::loadBootStrap(array(), FALSE);
-
+CRM_Core_Config::singleton();
 $log = new CRM_Utils_SystemLogger();
 $log->alert('payment_notification processor_name=PayPal', $_REQUEST);
 $paypalIPN = new CRM_Core_Payment_PayPalProIPN($_REQUEST);

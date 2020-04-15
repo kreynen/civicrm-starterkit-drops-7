@@ -3,7 +3,7 @@
  +--------------------------------------------------------------------+
  | CiviCRM version 5                                                  |
  +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
+ | Copyright CiviCRM LLC (c) 2004-2020                                |
  +--------------------------------------------------------------------+
  | This file is a part of CiviCRM.                                    |
  |                                                                    |
@@ -308,37 +308,37 @@ if (isset($pantheon_conf)) {
  */
 if (isset($pantheon_conf)) {
   // Override the Temporary Files directory.
-  $civicrm_setting['Directory Preferences']['uploadDir'] = '[civicrm.private]/upload/';
+  $civicrm_setting['domain']['uploadDir'] = '[civicrm.private]/upload/';
 
   // Override the Custom Files Upload directory.
-  $civicrm_setting['Directory Preferences']['customFileUploadDir'] = '[civicrm.private]/custom/';
+  $civicrm_setting['domain']['customFileUploadDir'] = '[civicrm.private]/custom/';
 
   // Override the Images directory.
-  $civicrm_setting['Directory Preferences']['imageUploadDir'] = '[civicrm.files]/persist/contribute/';
+  $civicrm_setting['domain']['imageUploadDir'] = '[civicrm.files]/persist/contribute/';
 
   // Override the Image Upload URL (System Settings > Resource URLs)
-  $civicrm_setting['URL Preferences']['imageUploadURL'] = '[civicrm.files]/persist/contribute/';
+  $civicrm_setting['domain']['imageUploadURL'] = '[civicrm.files]/persist/contribute/';
 } else {
   // Override the Temporary Files directory.
-  $civicrm_setting['Directory Preferences']['uploadDir'] = '/path/to/upload-dir';
+  $civicrm_setting['domain']['uploadDir'] = '/path/to/upload-dir';
 
   // Override the Custom Files Upload directory.
-  $civicrm_setting['Directory Preferences']['customFileUploadDir'] = '/path/to/custom-dir';
+  $civicrm_setting['domain']['customFileUploadDir'] = '/path/to/custom-dir';
 
   // Override the Images directory.
-  $civicrm_setting['Directory Preferences']['imageUploadDir'] = '/path/to/image-upload-dir';
+  $civicrm_setting['domain']['imageUploadDir'] = '/path/to/image-upload-dir';
 
   // Override the Image Upload URL (System Settings > Resource URLs)
-  $civicrm_setting['URL Preferences']['imageUploadURL'] = 'http://example.com/example-image-upload-url';
+  $civicrm_setting['domain']['imageUploadURL'] = 'http://example.com/example-image-upload-url';
 }
 
 /**
  * Override the Resource URL
  */
 if (isset($pantheon_conf)) {
-  $civicrm_setting['URL Preferences']['userFrameworkResourceURL'] = '[civicrm.root]';
+  $civicrm_setting['domain']['userFrameworkResourceURL'] = '[civicrm.root]';
 } else {
-  $civicrm_setting['URL Preferences']['userFrameworkResourceURL'] = 'http://example.com/example-resource-url/';
+  $civicrm_setting['domain']['userFrameworkResourceURL'] = 'http://example.com/example-resource-url/';
 }
 
 /**
@@ -346,24 +346,24 @@ if (isset($pantheon_conf)) {
  */
 if (isset($pantheon_conf)) {
   // Override the Extensions directory.
-  $civicrm_setting['Directory Preferences']['extensionsDir'] = '[cms.root]/sites/all/extensions/';
+  $civicrm_setting['domain']['extensionsDir'] = '[cms.root]/sites/all/extensions/';
 
   // Override the Extensions Resource URL
-  $civicrm_setting['URL Preferences']['extensionsURL'] = '[cms.root]/sites/all/extensions';
+  $civicrm_setting['domain']['extensionsURL'] = '[cms.root]/sites/all/extensions';
 
   // Disable automatic download / installation of Extensions on live
   if (isset($pantheon_conf) && ($pantheon_conf['pantheon_environment'] == 'live')) {
-    $civicrm_setting['Extension Preferences']['ext_repo_url'] = false;
+    $civicrm_setting['domain']['ext_repo_url'] = false;
   }
 } else {
   // Override the Extensions directory.
-  $civicrm_setting['Directory Preferences']['extensionsDir'] = '/path/to/extensions-dir';
+  $civicrm_setting['domain']['extensionsDir'] = '/path/to/extensions-dir';
 
   // Override the Extensions Resource URL
-  $civicrm_setting['URL Preferences']['extensionsURL'] = 'http://example.com/pathtoextensiondir';
+  $civicrm_setting['domain']['extensionsURL'] = 'http://example.com/pathtoextensiondir';
 
   // Disable automatic download / installation of Extensions
-  $civicrm_setting['Extension Preferences']['ext_repo_url'] = false;
+  $civicrm_setting['domain']['ext_repo_url'] = false;
 }
 
 /**
@@ -371,16 +371,16 @@ if (isset($pantheon_conf)) {
  */
 if (isset($pantheon_conf)) {
   // Override the Custom Templates directory
-  $civicrm_setting['Directory Preferences']['customTemplateDir'] = '[cms.root]/sites/all/civicrm_custom/custom_templates/';
+  $civicrm_setting['domain']['customTemplateDir'] = '[cms.root]/sites/all/civicrm_custom/custom_templates/';
 
   // Override the Custom PHP directory
-  $civicrm_setting['Directory Preferences']['customPHPPathDir'] = '[cms.root]/sites/all/civicrm_custom/custom_php/';
+  $civicrm_setting['domain']['customPHPPathDir'] = '[cms.root]/sites/all/civicrm_custom/custom_php/';
 } else {
   // Override the Custom Templates directory
-  $civicrm_setting['Directory Preferences']['customTemplateDir'] = '/path/to/template-dir';
+  $civicrm_setting['domain']['customTemplateDir'] = '/path/to/template-dir';
 
   // Override the Custom PHP directory
-  $civicrm_setting['Directory Preferences']['customPHPPathDir'] = '/path/to/custom-php-dir';
+  $civicrm_setting['domain']['customPHPPathDir'] = '/path/to/custom-php-dir';
 }
 
 /**
@@ -389,16 +389,16 @@ if (isset($pantheon_conf)) {
 
 // Override the Custom CiviCRM CSS URL (OPTIONAL).
 if (isset($pantheon_conf)) {
-  // $civicrm_setting['URL Preferences']['customCSSURL'] = '[cms.root]/sites/all/themes/EXAMPLETHEME/css/civicrm.css';
+  // $civicrm_setting['domain']['customCSSURL'] = '[cms.root]/sites/all/themes/EXAMPLETHEME/css/civicrm.css';
 } else {
-  // $civicrm_setting['URL Preferences']['customCSSURL'] = 'http://example.com/example-css-url';
+  // $civicrm_setting['domain']['customCSSURL'] = 'http://example.com/example-css-url';
 }
 
 // Disable display of Community Messages on home dashboard (OPTIONAL).
-// $civicrm_setting['CiviCRM Preferences']['communityMessagesUrl'] = false;
+// $civicrm_setting['domain']['communityMessagesUrl'] = false;
 
 // set triggers to be managed offline per CRM-18212 (OPTIONAL).
-// $civicrm_setting['CiviCRM Preferences']['logging_no_trigger_permission'] = 1;
+// $civicrm_setting['domain']['logging_no_trigger_permission'] = 1;
 
 // Override the CMS root path defined by cmsRootPath.
 // define('CIVICRM_CMSDIR', '/path/to/install/root/');
@@ -408,7 +408,7 @@ if (isset($pantheon_conf)) {
 //   "asks": requests for donations or membership signup/renewal to CiviCRM
 //   "releases": major release announcements
 //   "events": announcements of local/national upcoming events
-// $civicrm_setting['CiviCRM Preferences']['communityMessagesUrl'] = 'https://alert.civicrm.org/alert?prot=1&ver={ver}&uf={uf}&sid={sid}&lang={lang}&co={co}&optout=offers,asks';
+// $civicrm_setting['domain']['communityMessagesUrl'] = 'https://alert.civicrm.org/alert?prot=1&ver={ver}&uf={uf}&sid={sid}&lang={lang}&co={co}&optout=offers,asks';
 
 
 /**

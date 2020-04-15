@@ -19,7 +19,7 @@
  * Class for configuring jobs.
  */
 class CRM_Admin_Form_Job extends CRM_Admin_Form {
-  protected $_id = NULL;
+  public $_id = NULL;
 
   public function preProcess() {
 
@@ -107,7 +107,7 @@ class CRM_Admin_Form_Job extends CRM_Admin_Form {
 
     /** @var \Civi\API\Kernel $apiKernel */
     $apiKernel = \Civi::service('civi_api_kernel');
-    $apiRequest = \Civi\API\Request::create($fields['api_entity'], $fields['api_action'], ['version' => 3], NULL);
+    $apiRequest = \Civi\API\Request::create($fields['api_entity'], $fields['api_action'], ['version' => 3]);
     try {
       $apiKernel->resolve($apiRequest);
     }

@@ -36,6 +36,7 @@ return array(
     'FontLib\\' => array($vendorDir . '/phenx/php-font-lib/src/FontLib'),
     'Dompdf\\' => array($vendorDir . '/dompdf/dompdf/src'),
     'Civi\\Cxn\\Rpc\\' => array($vendorDir . '/civicrm/civicrm-cxn-rpc/src'),
+    'Civi\\' => array($baseDir . '/setup/src'),
     'Cache\\TagInterop\\' => array($vendorDir . '/cache/tag-interop'),
     'Cache\\IntegrationTests\\' => array($vendorDir . '/cache/integration-tests/src'),
 );

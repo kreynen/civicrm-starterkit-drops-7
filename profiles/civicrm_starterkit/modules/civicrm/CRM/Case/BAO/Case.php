@@ -15,6 +15,7 @@
  * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
+
 /**
  * This class contains the functions for Case Management.
  */
@@ -284,7 +285,7 @@ WHERE civicrm_case.id = %1";
    *
    * @param int $activityId
    *
-   * @return int, case ID
+   * @return int|null, case ID
    */
   public static function getCaseIdByActivityId($activityId) {
     $originalId = CRM_Core_DAO::singleValueQuery(
@@ -593,7 +594,7 @@ HERESQL;
       );
 
       $phone = empty($case['phone']) ? '' : '<br /><span class="description">' . $case['phone'] . '</span>';
-      $casesList[$key]['contact_id'] = sprintf('<a href="%s">%s</a>%s<br /><span class="description">%s: %d</span>',
+      $casesList[$key]['sort_name'] = sprintf('<a href="%s">%s</a>%s<br /><span class="description">%s: %d</span>',
         CRM_Utils_System::url('civicrm/contact/view', ['cid' => $case['contact_id']]),
         $case['sort_name'],
         $phone,

@@ -394,31 +394,6 @@ class CRM_Activity_Selector_Activity extends CRM_Core_Selector_Base implements C
     foreach ($rows as $k => $row) {
       $row = &$rows[$k];
 
-      // DRAFTING: provide a facility for db-stored strings
-      // localize the built-in activity names for display
-      // (these are not enums, so we can't use any automagic here)
-      switch ($row['activity_type']) {
-        case 'Meeting':
-          $row['activity_type'] = ts('Meeting');
-          break;
-
-        case 'Phone Call':
-          $row['activity_type'] = ts('Phone Call');
-          break;
-
-        case 'Email':
-          $row['activity_type'] = ts('Email');
-          break;
-
-        case 'SMS':
-          $row['activity_type'] = ts('SMS');
-          break;
-
-        case 'Event':
-          $row['activity_type'] = ts('Event');
-          break;
-      }
-
       // add class to this row if overdue
       if (CRM_Utils_Date::overdue(CRM_Utils_Array::value('activity_date_time', $row))
         && CRM_Utils_Array::value('status_id', $row) == 1
@@ -459,7 +434,7 @@ class CRM_Activity_Selector_Activity extends CRM_Core_Selector_Base implements C
             'id' => $row['activity_id'],
             'cid' => $this->_contactId,
             'cxt' => $this->_context,
-            'caseid' => CRM_Utils_Array::value('case_id', $row),
+            'caseid' => isset($row['case_id']) ? current($row['case_id']) : NULL,
           ],
           ts('more'),
           FALSE,
@@ -508,7 +483,7 @@ class CRM_Activity_Selector_Activity extends CRM_Core_Selector_Base implements C
           'direction' => CRM_Utils_Sort::DONTCARE,
         ],
         [
-          'name' => ts('Added By'),
+          'name' => ts('Added by'),
           'sort' => 'source_contact_name',
           'direction' => CRM_Utils_Sort::DONTCARE,
         ],

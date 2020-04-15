@@ -1,13 +1,13 @@
 diff --git a/vendor/pear/net_smtp/Net/SMTP.php b/vendor/pear/net_smtp/Net/SMTP.php
-index b791ae0..74af44d 100644
+index 1256f47a5..e95d33ce4 100644
 --- a/vendor/pear/net_smtp/Net/SMTP.php
 +++ b/vendor/pear/net_smtp/Net/SMTP.php
-@@ -184,7 +184,7 @@ class Net_SMTP
-         $this->pipelining = $pipelining;
+@@ -188,7 +188,7 @@ class Net_SMTP
  
-         $this->_socket = new Net_Socket();
--        $this->_socket_options = $socket_options;
-+        $this->_socket_options = array('ssl' => array('verify_peer'=>false,'verify_peer_name'=>false,'allow_self_signed'=>true));
-         $this->_timeout = $timeout;
- 
-         /* Include the Auth_SASL package.  If the package is available, we 
+         $this->pipelining       = $pipelining;
+         $this->socket           = new Net_Socket();
+-        $this->socket_options   = $socket_options;
++        $this->socket_options   = array('ssl' => array('verify_peer'=>false,'verify_peer_name'=>false,'allow_self_signed'=>true));
+         $this->timeout          = $timeout;
+         $this->gssapi_principal = $gssapi_principal;
+         $this->gssapi_cname     = $gssapi_cname;

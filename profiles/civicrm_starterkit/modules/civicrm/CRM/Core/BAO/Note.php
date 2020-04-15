@@ -84,7 +84,7 @@ class CRM_Core_BAO_Note extends CRM_Core_DAO_Note {
 
     CRM_Utils_Hook::notePrivacy($noteValues);
 
-    if (!$noteValues['privacy']) {
+    if (empty($noteValues['privacy'])) {
       return FALSE;
     }
     elseif (isset($noteValues['notePrivacy_hidden'])) {
@@ -134,10 +134,6 @@ class CRM_Core_BAO_Note extends CRM_Core_DAO_Note {
     }
 
     $note = new CRM_Core_BAO_Note();
-
-    if (!isset($params['modified_date'])) {
-      $params['modified_date'] = date("Ymd");
-    }
 
     if (!isset($params['privacy'])) {
       $params['privacy'] = 0;

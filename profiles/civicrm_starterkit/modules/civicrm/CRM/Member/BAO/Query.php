@@ -505,8 +505,17 @@ class CRM_Member_BAO_Query extends CRM_Core_BAO_Query {
       'membership_join_date',
       'membership_start_date',
       'membership_end_date',
+      'membership_type_id',
+      'membership_status_id',
     ];
     $metadata = civicrm_api3('Membership', 'getfields', [])['values'];
+    // We should really have a unique name in the url but to reduce risk of regression just hacking
+    // here for now, since this is being done as an rc fix & the other is moderately risky.
+    // https://lab.civicrm.org/dev/user-interface/-/issues/14
+    $metadata['membership_status_id'] = $metadata['status_id'];
+    // It can't be autoadded due to ^^.
+    $metadata['membership_status_id']['is_pseudofield'] = TRUE;
+    unset($metadata['status_id']);
     return array_intersect_key($metadata, array_flip($fields));
   }
 
@@ -514,6 +523,8 @@ class CRM_Member_BAO_Query extends CRM_Core_BAO_Query {
    * Build the search form.
    *
    * @param CRM_Core_Form $form
+   *
+   * @throws \CiviCRM_API3_Exception
    */
   public static function buildSearchForm(&$form) {
     $form->addSearchFieldMetadata(['Membership' => self::getSearchFieldMetadata()]);
@@ -523,13 +534,6 @@ class CRM_Member_BAO_Query extends CRM_Core_BAO_Query {
       'id' => 'membership_status_id',
       'multiple' => 'multiple',
       'class' => 'crm-select2',
-    ]);
-
-    $form->addEntityRef('membership_type_id', ts('Membership Type'), [
-      'entity' => 'MembershipType',
-      'multiple' => TRUE,
-      'placeholder' => ts('- any -'),
-      'select' => ['minimumInputLength' => 0],
     ]);
 
     $form->addElement('text', 'member_source', ts('Source'));

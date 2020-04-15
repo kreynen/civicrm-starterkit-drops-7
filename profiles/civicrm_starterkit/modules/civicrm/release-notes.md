@@ -15,6 +15,53 @@ Other resources for identifying changes are:
     * https://github.com/civicrm/civicrm-joomla
     * https://github.com/civicrm/civicrm-wordpress
 
+## CiviCRM 5.24.2
+
+Released April 9, 2020
+
+- **[Synopsis](release-notes/5.24.2.md#synopsis)**
+- **[Bugs resolved](release-notes/5.24.2.md#bugs)**
+- **[Credits](release-notes/5.24.2.md#credits)**
+- **[Feedback](release-notes/5.24.2.md#feedback)**
+
+## CiviCRM 5.24.1
+
+Released April 4, 2020
+
+- **[Synopsis](release-notes/5.24.1.md#synopsis)**
+- **[Bugs resolved](release-notes/5.24.1.md#bugs)**
+- **[Credits](release-notes/5.24.1.md#credits)**
+- **[Feedback](release-notes/5.24.1.md#feedback)**
+
+## CiviCRM 5.24.0
+
+Released April 1, 2020
+
+- **[Synopsis](release-notes/5.24.0.md#synopsis)**
+- **[Features](release-notes/5.24.0.md#features)**
+- **[Bugs resolved](release-notes/5.24.0.md#bugs)**
+- **[Miscellany](release-notes/5.24.0.md#misc)**
+- **[Credits](release-notes/5.24.0.md#credits)**
+- **[Feedback](release-notes/5.24.0.md#feedback)**
+
+## CiviCRM 5.23.4
+
+Released March 24, 2020
+
+- **[Synopsis](release-notes/5.23.4.md#synopsis)**
+- **[Bugs resolved](release-notes/5.23.4.md#bugs)**
+- **[Credits](release-notes/5.23.4.md#credits)**
+- **[Feedback](release-notes/5.23.4.md#feedback)**
+
+## CiviCRM 5.23.3
+
+Released March 16, 2020
+
+- **[Synopsis](release-notes/5.23.3.md#synopsis)**
+- **[Bugs resolved](release-notes/5.23.3.md#bugs)**
+- **[Credits](release-notes/5.23.3.md#credits)**
+- **[Feedback](release-notes/5.23.3.md#feedback)**
+
 ## CiviCRM 5.23.2
 
 Released March 13, 2020

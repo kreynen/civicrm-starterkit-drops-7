@@ -161,7 +161,7 @@ class CRM_Extension_Mapper {
    * @param bool $fresh
    *
    * @throws CRM_Extension_Exception
-   * @throws Exception
+   *
    * @return CRM_Extension_Info
    */
   public function keyToInfo($key, $fresh = FALSE) {
@@ -171,10 +171,11 @@ class CRM_Extension_Mapper {
       }
       catch (CRM_Extension_Exception $e) {
         // file has more detailed info, but we'll fallback to DB if it's missing -- DB has enough info to uninstall
-        $this->infos[$key] = CRM_Extension_System::singleton()->getManager()->createInfoFromDB($key);
-        if (!$this->infos[$key]) {
+        $dbInfo = CRM_Extension_System::singleton()->getManager()->createInfoFromDB($key);
+        if (!$dbInfo) {
           throw $e;
         }
+        $this->infos[$key] = $dbInfo;
       }
     }
     return $this->infos[$key];
@@ -236,9 +237,11 @@ class CRM_Extension_Mapper {
    *
    * @return string
    *   url for resources in this extension
+   *
+   * @throws \CRM_Extension_Exception_MissingException
    */
   public function keyToUrl($key) {
-    if ($key == 'civicrm') {
+    if ($key === 'civicrm') {
       // CRM-12130 Workaround: If the domain's config_backend is NULL at the start of the request,
       // then the Mapper is wrongly constructed with an empty value for $this->civicrmUrl.
       if (empty($this->civicrmUrl)) {
@@ -339,6 +342,8 @@ class CRM_Extension_Mapper {
    *
    * @return array
    *   (string $extKey => string $baseUrl)
+   *
+   * @throws \CRM_Extension_Exception_MissingException
    */
   public function getActiveModuleUrls() {
     // TODO optimization/caching
@@ -347,7 +352,12 @@ class CRM_Extension_Mapper {
     foreach ($this->getModules() as $module) {
       /** @var $module CRM_Core_Module */
       if ($module->is_active) {
-        $urls[$module->name] = $this->keyToUrl($module->name);
+        try {
+          $urls[$module->name] = $this->keyToUrl($module->name);
+        }
+        catch (CRM_Extension_Exception_MissingException $e) {
+          CRM_Core_Session::setStatus(ts('An enabled extension is missing from the extensions directory') . ':' . $module->name);
+        }
       }
     }
     return $urls;
@@ -389,6 +399,42 @@ class CRM_Extension_Mapper {
   }
 
   /**
+   * Get a list of extensions which match a given tag.
+   *
+   * @param string $tag
+   *   Ex: 'foo'
+   * @return array
+   *   Array(string $key).
+   *   Ex: array("org.foo.bar").
+   */
+  public function getKeysByTag($tag) {
+    $allTags = $this->getAllTags();
+    return $allTags[$tag] ?? [];
+  }
+
+  /**
+   * Get a list of extension tags.
+   *
+   * @return array
+   *   Ex: ['form-building' => ['org.civicrm.afform-gui', 'org.civicrm.afform-html']]
+   */
+  public function getAllTags() {
+    $tags = Civi::cache('short')->get('extension_tags', NULL);
+    if ($tags !== NULL) {
+      return $tags;
+    }
+
+    $tags = [];
+    $allInfos = $this->getAllInfos();
+    foreach ($allInfos as $key => $info) {
+      foreach ($info->tags as $tag) {
+        $tags[$tag][] = $key;
+      }
+    }
+    return $tags;
+  }
+
+  /**
    * @return array
    *   Ex: $result['org.civicrm.foobar'] = new CRM_Extension_Info(...).
    * @throws \CRM_Extension_Exception
@@ -396,7 +442,16 @@ class CRM_Extension_Mapper {
    */
   public function getAllInfos() {
     foreach ($this->container->getKeys() as $key) {
-      $this->keyToInfo($key);
+      try {
+        $this->keyToInfo($key);
+      }
+      catch (CRM_Extension_Exception_ParseException $e) {
+        CRM_Core_Session::setStatus(ts('Parse error in extension: %1', [
+          1 => $e->getMessage(),
+        ]), '', 'error');
+        CRM_Core_Error::debug_log_message("Parse error in extension: " . $e->getMessage());
+        continue;
+      }
     }
     return $this->infos;
   }

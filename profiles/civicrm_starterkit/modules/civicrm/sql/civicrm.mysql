@@ -794,9 +794,8 @@ CREATE TABLE `civicrm_saved_search` (
      `form_values` text    COMMENT 'Submitted form values for this search',
      `mapping_id` int unsigned    COMMENT 'Foreign key to civicrm_mapping used for saved search-builder searches.',
      `search_custom_id` int unsigned    COMMENT 'Foreign key to civicrm_option value table used for saved custom searches.',
-     `where_clause` text    COMMENT 'the sql where clause if a saved search acl',
-     `select_tables` text    COMMENT 'the tables to be included in a select data',
-     `where_tables` text    COMMENT 'the tables to be included in the count statement' 
+     `api_entity` varchar(255)    COMMENT 'Entity name for API based search',
+     `api_params` text    COMMENT 'Parameters for API based search' 
 ,
         PRIMARY KEY (`id`)
  
@@ -2191,7 +2190,7 @@ CREATE TABLE `civicrm_note` (
      `entity_id` int unsigned NOT NULL   COMMENT 'Foreign key to the referenced item.',
      `note` text    COMMENT 'Note and/or Comment.',
      `contact_id` int unsigned    COMMENT 'FK to Contact ID creator',
-     `modified_date` date    COMMENT 'When was this note last modified/edited',
+     `modified_date` timestamp   DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'When was this note last modified/edited',
      `subject` varchar(255)    COMMENT 'subject of note description',
      `privacy` varchar(255)    COMMENT 'Foreign Key to Note Privacy Level (which is an option value pair and hence an implicit FK)' 
 ,

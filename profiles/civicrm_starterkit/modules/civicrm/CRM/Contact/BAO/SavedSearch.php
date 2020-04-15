@@ -208,9 +208,17 @@ class CRM_Contact_BAO_SavedSearch extends CRM_Contact_DAO_SavedSearch {
    * @throws \CiviCRM_API3_Exception
    */
   public static function getSearchParams($id) {
+    $savedSearch = \Civi\Api4\SavedSearch::get()
+      ->setCheckPermissions(FALSE)
+      ->addWhere('id', '=', $id)
+      ->execute()
+      ->first();
+    if ($savedSearch['api_entity']) {
+      return $savedSearch;
+    }
     $fv = self::getFormValues($id);
     //check if the saved search has mapping id
-    if (CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_SavedSearch', $id, 'mapping_id')) {
+    if ($savedSearch['mapping_id']) {
       return CRM_Core_BAO_Mapping::formattedFields($fv);
     }
     elseif (!empty($fv['customSearchID'])) {
@@ -336,20 +344,7 @@ LEFT JOIN civicrm_email ON (contact_a.id = civicrm_email.contact_id AND civicrm_
    */
   public static function create(&$params) {
     $savedSearch = new CRM_Contact_DAO_SavedSearch();
-    if (isset($params['formValues']) &&
-      !empty($params['formValues'])
-    ) {
-      $savedSearch->form_values = serialize($params['formValues']);
-    }
-    else {
-      $savedSearch->form_values = NULL;
-    }
-
-    $savedSearch->is_active = CRM_Utils_Array::value('is_active', $params, 1);
-    $savedSearch->mapping_id = CRM_Utils_Array::value('mapping_id', $params, 'null');
-    $savedSearch->custom_search_id = CRM_Utils_Array::value('custom_search_id', $params, 'null');
-    $savedSearch->id = CRM_Utils_Array::value('id', $params, NULL);
-
+    $savedSearch->copyValues($params);
     $savedSearch->save();
 
     return $savedSearch;

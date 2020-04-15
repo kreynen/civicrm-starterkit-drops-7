@@ -1,10 +1,8 @@
 The following patches have been applied to this project:
 - pantheon-settings-starterkit-55.patch
 - cron.patch
-- extern-cms-bootstrap.patch
 - ipn.patch
 - ipnStd.patch
-- civicrm-pr15410-cloud-friendly-extensions-mapper.patch
 - installer-baseurl.patch
 - ignore-timezone-on-install-47-2130213.patch
 - settings_location-for-profiles.patch

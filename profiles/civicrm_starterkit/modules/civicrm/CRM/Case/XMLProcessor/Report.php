@@ -28,25 +28,6 @@ class CRM_Case_XMLProcessor_Report extends CRM_Case_XMLProcessor {
   public function __construct() {
   }
 
-  /**
-   * @param int $clientID
-   * @param int $caseID
-   * @param string $activitySetName
-   * @param array $params
-   *
-   * @return mixed
-   */
-  public function run($clientID, $caseID, $activitySetName, $params) {
-    $contents = self::getCaseReport($clientID,
-      $caseID,
-      $activitySetName,
-      $params,
-      $this
-    );
-
-    return CRM_Case_Audit_Audit::run($contents, $clientID, $caseID);
-  }
-
   public function getRedactionRules() {
     foreach (array(
       'redactionStringRules',
@@ -131,7 +112,7 @@ class CRM_Case_XMLProcessor_Report extends CRM_Case_XMLProcessor {
       foreach ($activitySetsXML->ActivitySet as $activitySetXML) {
         if ((string ) $activitySetXML->name == $activitySetName) {
           $activityTypes = array();
-          $allActivityTypes = &$this->allActivityTypes();
+          $allActivityTypes = CRM_Case_PseudoConstant::caseActivityType(TRUE, TRUE);
           foreach ($activitySetXML->ActivityTypes as $activityTypesXML) {
             foreach ($activityTypesXML as $activityTypeXML) {
               $activityTypeName = (string ) $activityTypeXML->name;
@@ -752,7 +733,7 @@ LIMIT  1
     $case = $form->caseInfo($clientID, $caseID);
     $template->assign_by_ref('case', $case);
 
-    if ($params['include_activities'] == 1) {
+    if (CRM_Utils_Array::value('include_activities', $params) == 1) {
       $template->assign('includeActivities', 'All');
     }
     else {

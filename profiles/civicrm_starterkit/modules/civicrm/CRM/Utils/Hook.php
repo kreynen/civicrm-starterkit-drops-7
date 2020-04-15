@@ -160,7 +160,7 @@ abstract class CRM_Utils_Hook {
     // Instead of not calling any hooks we only call those we know to be frequently important - if a particular extension wanted
     // to avoid this they could do an early return on CRM_Core_Config::singleton()->isUpgradeMode
     // Futther discussion is happening at https://lab.civicrm.org/dev/core/issues/1460
-    $upgradeFriendlyHooks = ['civicrm_alterSettingsFolders', 'civicrm_alterSettingsMetaData', 'civicrm_triggerInfo', 'civicrm_alterLogTables', 'civicrm_container', 'civicrm_permission', 'civicrm_managed'];
+    $upgradeFriendlyHooks = ['civicrm_alterSettingsFolders', 'civicrm_alterSettingsMetaData', 'civicrm_triggerInfo', 'civicrm_alterLogTables', 'civicrm_container', 'civicrm_permission', 'civicrm_managed', 'civicrm_config'];
     if (CRM_Core_Config::singleton()->isUpgradeMode() && !in_array($fnSuffix, $upgradeFriendlyHooks)) {
       return;
     }
@@ -2628,6 +2628,20 @@ abstract class CRM_Utils_Hook {
       $IPNData, self::$_nullObject, self::$_nullObject,
       self::$_nullObject, self::$_nullObject, self::$_nullObject,
       'civicrm_postIPNProcess'
+    );
+  }
+
+  /**
+   * Allow extensions to modify the array of acceptable fields to be included on profiles
+   * @param array $fields
+   *   format is [Entity => array of DAO fields]
+   * @return mixed
+   */
+  public static function alterUFFields(&$fields) {
+    return self::singleton()->invoke(['fields'],
+      $fields, self::$_nullObject, self::$_nullObject,
+      self::$_nullObject, self::$_nullObject, self::$_nullObject,
+      'civicrm_alterUFFields'
     );
   }
 

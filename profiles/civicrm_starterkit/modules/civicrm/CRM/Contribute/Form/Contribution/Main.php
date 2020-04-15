@@ -320,17 +320,11 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
       $this->add('text', 'total_amount', ts('Total Amount'), ['readonly' => TRUE], FALSE);
     }
     $pps = $this->getProcessors();
-
-    if (count($pps) > 1) {
-      $this->addRadio('payment_processor_id', ts('Payment Method'), $pps,
-        NULL, "&nbsp;"
-      );
-    }
-    elseif (!empty($pps)) {
-      $key = array_keys($pps);
-      $key = array_pop($key);
-      $this->addElement('hidden', 'payment_processor_id', $key);
-      if ($key === 0) {
+    $this->addPaymentProcessorFieldsToForm();
+    if (!empty($pps) && count($pps) === 1) {
+      $ppKeys = array_keys($pps);
+      $currentPP = array_pop($ppKeys);
+      if ($currentPP === 0) {
         $this->assign('is_pay_later', $this->_values['is_pay_later']);
         $this->assign('pay_later_text', $this->getPayLaterLabel());
       }

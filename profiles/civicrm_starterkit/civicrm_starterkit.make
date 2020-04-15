@@ -13,7 +13,7 @@ projects[drupal][version] = "7.61"
 ; ====== CIVICRM RELATED =========
 
 libraries[civicrm][download][type] = get
-libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.23.2-drupal.tar.gz"
+libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.24.2-drupal.tar.gz"
 libraries[civicrm][destination] = modules
 libraries[civicrm][directory_name] = civicrm
 
@@ -25,16 +25,9 @@ libraries[civicrm][patch][pantheonsettings] = ./patches/pantheon-settings-starte
 ; Matches settings in CiviCRM core for extern/*.
 libraries[civicrm][patch][cron] = ./patches/cron.patch
 
-; IPN: bootstrap Drupal
-libraries[civicrm][patch][externbootstrap] = ./patches/extern-cms-bootstrap.patch
-
 ; IPN: Separate Paypal Pro and Standard into separate calls [deprecated]
 libraries[civicrm][patch][ipn] = ./patches/ipn.patch
 libraries[civicrm][patch][ipnstd] = ./patches/ipnStd.patch
-
-; May be necessary where extension, etc paths are cached but Pantheon changes binding
-; https://lab.civicrm.org/dev/cloud-native/issues/21
-libraries[civicrm][patch][cloud-21] = ./patches/civicrm-pr15410-cloud-friendly-extensions-mapper.patch
 
 ; === Installer ===
 
@@ -73,7 +66,7 @@ libraries[civicrm][patch][checkout] = https://patch-diff.githubusercontent.com/r
 
 ; Fix address relationship in Views
 ; https://lab.civicrm.org/dev/drupal/issues/110
-; @todo Remove once fix is applied officially
+; @todo Remove in CiviCRM 5.25.0
 libraries[civicrm][patch][address_rel] = ./patches/civicrm-drupal-110.patch
 
 ; === Modules ===

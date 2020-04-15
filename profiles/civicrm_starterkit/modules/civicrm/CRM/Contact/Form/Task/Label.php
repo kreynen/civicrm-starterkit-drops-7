@@ -91,9 +91,11 @@ class CRM_Contact_Form_Task_Label extends CRM_Contact_Form_Task {
 
   /**
    * Process the form after the input has been submitted and validated.
+   *
+   * @param array|NULL $params
    */
-  public function postProcess() {
-    $fv = $this->controller->exportValues($this->_name);
+  public function postProcess($params = NULL) {
+    $fv = $params ?: $this->controller->exportValues($this->_name);
     $config = CRM_Core_Config::singleton();
     $locName = NULL;
     //get the address format sequence from the config file
@@ -163,13 +165,14 @@ class CRM_Contact_Form_Task_Label extends CRM_Contact_Form_Task {
       $location = ['location' => ["{$locName}" => $address]];
       $returnProperties = array_merge($returnProperties, $location);
       $params[] = ['location_type', '=', [1 => $fv['location_type_id']], 0, 0];
+      $primaryLocationOnly = FALSE;
     }
     else {
       $returnProperties = array_merge($returnProperties, $address);
+      $primaryLocationOnly = TRUE;
     }
 
     $rows = [];
-
     foreach ($this->_contactIds as $key => $contactID) {
       $params[] = [
         CRM_Core_Form::CB_PREFIX . $contactID,
@@ -198,8 +201,7 @@ class CRM_Contact_Form_Task_Label extends CRM_Contact_Form_Task {
     //get the total number of contacts to fetch from database.
     $numberofContacts = count($this->_contactIds);
     $query = new CRM_Contact_BAO_Query($params, $returnProperties);
-    $details = $query->apiQuery($params, $returnProperties, NULL, NULL, 0, $numberofContacts);
-
+    $details = $query->apiQuery($params, $returnProperties, NULL, NULL, 0, $numberofContacts, TRUE, FALSE, TRUE, CRM_Contact_BAO_Query::MODE_CONTACTS, NULL, $primaryLocationOnly);
     $messageToken = CRM_Utils_Token::getTokens($mailingFormat);
 
     // also get all token values
@@ -331,6 +333,10 @@ class CRM_Contact_Form_Task_Label extends CRM_Contact_Form_Task {
         $formatted = implode("\n", $lines);
       }
       $rows[$id] = [$formatted];
+    }
+
+    if (!empty($fv['is_unit_testing'])) {
+      return $rows;
     }
 
     //call function to create labels

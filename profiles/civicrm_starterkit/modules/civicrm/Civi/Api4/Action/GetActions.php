@@ -23,7 +23,6 @@ namespace Civi\Api4\Action;
 
 use Civi\API\Exception\NotImplementedException;
 use Civi\Api4\Generic\BasicGetAction;
-use Civi\Api4\Utils\ActionUtil;
 use Civi\Api4\Utils\ReflectionUtils;
 
 /**
@@ -67,7 +66,7 @@ class GetActions extends BasicGetAction {
     if (is_dir($dir)) {
       foreach (glob("$dir/*.php") as $file) {
         $matches = [];
-        preg_match('/(\w*).php/', $file, $matches);
+        preg_match('/(\w*)\.php$/', $file, $matches);
         $actionName = array_pop($matches);
         $actionClass = new \ReflectionClass('\\Civi\\Api4\\Action\\' . $this->_entityName . '\\' . $actionName);
         if ($actionClass->isInstantiable() && $actionClass->isSubclassOf('\\Civi\\Api4\\Generic\\AbstractAction')) {
@@ -84,7 +83,7 @@ class GetActions extends BasicGetAction {
   private function loadAction($actionName, $method = NULL) {
     try {
       if (!isset($this->_actions[$actionName]) && (!$this->_actionsToGet || in_array($actionName, $this->_actionsToGet))) {
-        $action = ActionUtil::getAction($this->getEntityName(), $actionName);
+        $action = \Civi\API\Request::create($this->getEntityName(), $actionName, ['version' => 4]);
         if (is_object($action)) {
           $this->_actions[$actionName] = ['name' => $actionName];
           if ($this->_isFieldSelected('description', 'comment', 'see')) {

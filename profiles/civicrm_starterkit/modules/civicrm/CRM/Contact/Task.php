@@ -160,7 +160,7 @@ class CRM_Contact_Task extends CRM_Core_Task {
       }
 
       if (CRM_Contact_BAO_ContactType::isActive('Individual')) {
-        $label = CRM_Contact_BAO_ContactType::getLabel('individual');
+        $label = CRM_Contact_BAO_ContactType::getLabel('Individual');
         self::$_tasks[self::INDIVIDUAL_CONTACTS] = array(
           'title' => ts('Add relationship - to %1',
             array(1 => $label)
@@ -170,7 +170,7 @@ class CRM_Contact_Task extends CRM_Core_Task {
       }
 
       if (CRM_Contact_BAO_ContactType::isActive('Household')) {
-        $label = CRM_Contact_BAO_ContactType::getLabel('household');
+        $label = CRM_Contact_BAO_ContactType::getLabel('Household');
         self::$_tasks[self::HOUSEHOLD_CONTACTS] = array(
           'title' => ts('Add relationship - to %1',
             array(1 => $label)
@@ -180,7 +180,7 @@ class CRM_Contact_Task extends CRM_Core_Task {
       }
 
       if (CRM_Contact_BAO_ContactType::isActive('Organization')) {
-        $label = CRM_Contact_BAO_ContactType::getLabel('organization');
+        $label = CRM_Contact_BAO_ContactType::getLabel('Organization');
         self::$_tasks[self::ORGANIZATION_CONTACTS] = array(
           'title' => ts('Add relationship - to %1',
             array(1 => $label)
@@ -239,7 +239,7 @@ class CRM_Contact_Task extends CRM_Core_Task {
 
       if (CRM_Core_Permission::access('CiviCase')) {
         self::$_tasks[self::ADD_TO_CASE] = array(
-          'title' => 'Add to case as role',
+          'title' => ts('Add to case as role'),
           'class' => 'CRM_Case_Form_AddToCaseAsRole',
           'result' => FALSE,
         );
