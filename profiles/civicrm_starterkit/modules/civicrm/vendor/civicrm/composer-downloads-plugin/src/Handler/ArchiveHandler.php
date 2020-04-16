@@ -38,6 +38,20 @@ class ArchiveHandler extends BaseHandler
             DIRECTORY_SEPARATOR . $file;
     }
 
+    public function createTrackingData()
+    {
+        $meta = parent::createTrackingData();
+        $meta['ignore'] = $this->findIgnores();
+        return $meta;
+    }
+
+
+    public function getChecksum() {
+        $ignore = empty($this->extraFile['ignore']) ? [] : array_values($this->extraFile['ignore']);
+        sort($ignore);
+        return hash('sha256', parent::getChecksum() . serialize($ignore));
+    }
+
     /**
      * @return string[]|NULL
      *   List of files to exclude. Use '**' to match subdirectories.

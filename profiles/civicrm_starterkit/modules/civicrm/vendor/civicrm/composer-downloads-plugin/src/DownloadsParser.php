@@ -37,12 +37,14 @@ class DownloadsParser
             foreach ((array) $extra['downloads'] as $id => $extraFile) {
                 if ($id === '*') continue;
 
-                $vars = ['{$id}' => $id];
                 $extraFile = array_merge($defaults, $extraFile);
                 $extraFile['id'] = $id;
                 foreach (['url', 'path'] as $prop) {
                     if (isset($extraFile[$prop])) {
-                        $extraFile[$prop] = strtr($extraFile[$prop], $vars);
+                        $extraFile[$prop] = strtr($extraFile[$prop], [
+                            '{$id}' => $extraFile['id'],
+                            '{$version}' => isset($extraFile['version']) ? $extraFile['version'] : '',
+                        ]);
                     }
                 }
 

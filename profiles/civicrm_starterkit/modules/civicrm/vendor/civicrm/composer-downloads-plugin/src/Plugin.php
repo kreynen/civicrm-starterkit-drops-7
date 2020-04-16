@@ -104,7 +104,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
             if (file_exists($targetPath) && file_exists($trackingFile)) {
                 $meta = @json_decode(file_get_contents($trackingFile), 1);
-                if ($meta['url'] === $extraFilePkg->getDistUrl()) {
+                if (isset($meta['checksum']) && $meta['checksum'] === $extraFileHandler->getChecksum()) {
                     $this->io->write(sprintf("<info>Skip extra file <comment>%s</comment></info>", $extraFilePkg->getName()), TRUE, IOInterface::VERY_VERBOSE);
                     continue;
                 }

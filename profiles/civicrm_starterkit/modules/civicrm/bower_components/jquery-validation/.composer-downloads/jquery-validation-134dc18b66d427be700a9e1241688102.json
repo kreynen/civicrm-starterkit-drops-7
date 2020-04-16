@@ -1,4 +1,13 @@
 {
     "name": "civicrm/civicrm-core:jquery-validation",
-    "url": "https://github.com/jquery-validation/jquery-validation/archive/1.13.1.zip"
+    "url": "https://github.com/jquery-validation/jquery-validation/archive/1.13.1.zip",
+    "checksum": "674d447514392228eae53e2c56ae4ddb293c4276786adabc4242a843fc49a471",
+    "ignore": [
+        ".*",
+        "node_modules",
+        "bower_components",
+        "test",
+        "demo",
+        "lib"
+    ]
 }
