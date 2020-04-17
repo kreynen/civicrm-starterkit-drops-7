@@ -69,9 +69,10 @@ if (!defined('CIVICRM_UF')) {
 */
 if (!empty($_SERVER['PRESSFLOW_SETTINGS'])) {
   $env = json_decode($_SERVER['PRESSFLOW_SETTINGS'], TRUE);
-  if (!empty($env['conf']['pantheon_binding'])) {
+  if (!empty($env['conf']['pantheon_environment'])) {
     $pantheon_db = $env['databases']['default']['default'];
     $pantheon_conf = $env['conf'];
+    $pantheon_root = $_ENV['HOME'] . ($_ENV['HOME'] !== '/' ? '/' : '');
 
     // Database Username and Password
     $pantheon_db_string = $pantheon_db['driver'] . '://' . $pantheon_db['username'] . ':' . $pantheon_db['password'] . '@';
@@ -205,7 +206,7 @@ if (!defined('CIVICRM_LOGGING_DSN')) {
 global $civicrm_root;
 
 if (isset($pantheon_conf)) {
-  $civicrm_root = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/code/profiles/civicrm_starterkit/modules/civicrm';
+  $civicrm_root = $pantheon_root . 'code/profiles/civicrm_starterkit/modules/civicrm';
 }
 else {
   $civicrm_root = '/full/path/to/modules/civicrm';
@@ -269,10 +270,10 @@ if (!defined('CIVICRM_UF_BASEURL')) {
  */
 global $civicrm_paths;
 if (isset($pantheon_conf)) {
-  $civicrm_paths['civicrm.files']['path'] = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/files/civicrm';
+  $civicrm_paths['civicrm.files']['path'] = $pantheon_root . 'files/civicrm';
   $civicrm_paths['civicrm.files']['url'] = CIVICRM_UF_BASEURL . 'sites/default/files/civicrm/';
 
-  $civicrm_paths['civicrm.private']['path'] = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/files/private/civicrm';
+  $civicrm_paths['civicrm.private']['path'] = $pantheon_root . '/files/private/civicrm';
   $civicrm_paths['civicrm.private']['url'] = CIVICRM_UF_BASEURL . 'sites/default/files/private/civicrm/';
 } else {
   $civicrm_paths['civicrm.files']['path'] = 'path/to/files/civicrm';
