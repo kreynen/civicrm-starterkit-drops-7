@@ -273,7 +273,7 @@ if (isset($pantheon_conf)) {
   $civicrm_paths['civicrm.files']['path'] = $pantheon_root . 'files/civicrm';
   $civicrm_paths['civicrm.files']['url'] = CIVICRM_UF_BASEURL . 'sites/default/files/civicrm/';
 
-  $civicrm_paths['civicrm.private']['path'] = $pantheon_root . '/files/private/civicrm';
+  $civicrm_paths['civicrm.private']['path'] = $pantheon_root . 'files/private/civicrm';
   $civicrm_paths['civicrm.private']['url'] = CIVICRM_UF_BASEURL . 'sites/default/files/private/civicrm/';
 } else {
   $civicrm_paths['civicrm.files']['path'] = 'path/to/files/civicrm';
