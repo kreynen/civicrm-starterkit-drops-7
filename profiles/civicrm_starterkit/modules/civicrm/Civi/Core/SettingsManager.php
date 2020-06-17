@@ -221,7 +221,7 @@ class SettingsManager {
       ]);
       $defaults = [];
       foreach ($specs as $key => $spec) {
-        $defaults[$key] = \CRM_Utils_Array::value('default', $spec);
+        $defaults[$key] = $spec['default'] ?? NULL;
       }
       \CRM_Utils_Array::extend($defaults, self::getSystemDefaults($entity));
       $this->cache->set($cacheKey, $defaults);
@@ -291,7 +291,7 @@ class SettingsManager {
 
     if (is_array($civicrm_setting)) {
       foreach ($civicrm_setting as $oldGroup => $values) {
-        $newGroup = isset($rewriteGroups[$oldGroup]) ? $rewriteGroups[$oldGroup] : 'domain';
+        $newGroup = $rewriteGroups[$oldGroup] ?? 'domain';
         $result[$newGroup] = array_merge($result[$newGroup], $values);
       }
     }

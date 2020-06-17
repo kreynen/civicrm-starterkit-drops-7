@@ -52,16 +52,13 @@ class CRM_Contact_Form_Edit_CustomData {
    *   Reference to the form object.
    */
   public static function buildQuickForm(&$form) {
-    if (!empty($form->_submitValues)) {
-      if ($customValueCount = CRM_Utils_Array::value('hidden_custom_group_count', $form->_submitValues)) {
-        if (is_array($customValueCount)) {
-          if (array_key_exists(0, $customValueCount)) {
-            unset($customValueCount[0]);
-          }
-          $form->_customValueCount = $customValueCount;
-          $form->assign('customValueCount', $customValueCount);
-        }
+    $customValueCount = $form->_submitValues['hidden_custom_group_count'] ?? NULL;
+    if (is_array($customValueCount)) {
+      if (array_key_exists(0, $customValueCount)) {
+        unset($customValueCount[0]);
       }
+      $form->_customValueCount = $customValueCount;
+      $form->assign('customValueCount', $customValueCount);
     }
     CRM_Custom_Form_CustomData::buildQuickForm($form);
 
@@ -71,7 +68,7 @@ class CRM_Contact_Form_Edit_CustomData {
       $contactSubType = $_POST['contact_sub_type'];
     }
     else {
-      $contactSubType = CRM_Utils_Array::value('contact_sub_type', $form->_values);
+      $contactSubType = $form->_values['contact_sub_type'] ?? NULL;
     }
     $form->assign('contactType', $form->_contactType);
     $form->assign('contactSubType', $contactSubType);

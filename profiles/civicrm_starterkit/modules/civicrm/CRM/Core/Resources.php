@@ -23,8 +23,6 @@ use Civi\Core\Event\GenericHookEvent;
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
  */
 class CRM_Core_Resources {
   const DEFAULT_WEIGHT = 0;
@@ -53,7 +51,6 @@ class CRM_Core_Resources {
    * @var array
    */
   protected $settings = [];
-  protected $addedSettings = FALSE;
 
   /**
    * Setting factories.
@@ -79,6 +76,15 @@ class CRM_Core_Resources {
    * @var array
    */
   protected $addedCoreStyles = [];
+
+  /**
+   * Added settings.
+   *
+   * Format is ($regionName => bool).
+   *
+   * @var array
+   */
+  protected $addedSettings = [];
 
   /**
    * A value to append to JS/CSS URLs to coerce cache resets.
@@ -257,12 +263,15 @@ class CRM_Core_Resources {
    * @param string $nameSpace
    *   Usually the name of your extension.
    * @param array $vars
+   * @param string $region
+   *   The region to add settings to (eg. for payment processors usually billing-block)
+   *
    * @return CRM_Core_Resources
    */
-  public function addVars($nameSpace, $vars) {
+  public function addVars($nameSpace, $vars, $region = NULL) {
     $existing = CRM_Utils_Array::value($nameSpace, CRM_Utils_Array::value('vars', $this->settings), []);
     $vars = $this->mergeSettings($existing, $vars);
-    $this->addSetting(['vars' => [$nameSpace => $vars]]);
+    $this->addSetting(['vars' => [$nameSpace => $vars]], $region);
     return $this;
   }
 
@@ -272,21 +281,28 @@ class CRM_Core_Resources {
    * Extensions and components should generally use addVars instead.
    *
    * @param array $settings
+   * @param string $region
+   *   The region to add settings to (eg. for payment processors usually billing-block)
+   *
    * @return CRM_Core_Resources
    */
-  public function addSetting($settings) {
-    $this->settings = $this->mergeSettings($this->settings, $settings);
-    if (!$this->addedSettings) {
+  public function addSetting($settings, $region = NULL) {
+    if (!$region) {
       $region = self::isAjaxMode() ? 'ajax-snippet' : 'html-header';
-      $resources = $this;
-      CRM_Core_Region::instance($region)->add([
-        'callback' => function (&$snippet, &$html) use ($resources) {
-          $html .= "\n" . $resources->renderSetting();
-        },
-        'weight' => -100000,
-      ]);
-      $this->addedSettings = TRUE;
     }
+    $this->settings = $this->mergeSettings($this->settings, $settings);
+    if (isset($this->addedSettings[$region])) {
+      return $this;
+    }
+    $resources = $this;
+    $settingsResource = [
+      'callback' => function (&$snippet, &$html) use ($resources, $region) {
+        $html .= "\n" . $resources->renderSetting($region);
+      },
+      'weight' => -100000,
+    ];
+    CRM_Core_Region::instance($region)->add($settingsResource);
+    $this->addedSettings[$region] = TRUE;
     return $this;
   }
 
@@ -337,9 +353,9 @@ class CRM_Core_Resources {
    *
    * @return string
    */
-  public function renderSetting() {
+  public function renderSetting($region = NULL) {
     // On a standard page request we construct the CRM object from scratch
-    if (!self::isAjaxMode()) {
+    if (($region === 'html-header') || !self::isAjaxMode()) {
       $js = 'var CRM = ' . json_encode($this->getSettings()) . ';';
     }
     // For an ajax request we append to it
@@ -727,6 +743,7 @@ class CRM_Core_Resources {
       "bower_components/datatables/media/js/jquery.dataTables.min.js",
       "bower_components/datatables/media/css/jquery.dataTables.min.css",
       "bower_components/jquery-validation/dist/jquery.validate.min.js",
+      "bower_components/jquery-validation/dist/additional-methods.min.js",
       "packages/jquery/plugins/jquery.ui.datepicker.validation.min.js",
       "js/Common.js",
       "js/crm.datepicker.js",
@@ -847,7 +864,7 @@ class CRM_Core_Resources {
     ) {
       return TRUE;
     }
-    list($arg0, $arg1) = array_pad(explode('/', CRM_Utils_System::getUrlPath()), 2, '');
+    list($arg0, $arg1) = array_pad(explode('/', CRM_Utils_System::currentPath()), 2, '');
     return ($arg0 === 'civicrm' && in_array($arg1, ['ajax', 'angularprofiles', 'asset']));
   }
 

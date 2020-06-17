@@ -93,7 +93,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
       $contribFields = CRM_Contribute_BAO_Contribution::getContributionFields();
 
       // remove component related fields
-      foreach ($this->_fields as $name => $dontCare) {
+      foreach ($this->_fields as $name => $fieldInfo) {
         //don't set custom data Used for Contribution (CRM-1344)
         if (substr($name, 0, 7) == 'custom_') {
           $id = substr($name, 7);
@@ -105,7 +105,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
         elseif (array_key_exists($name, $contribFields) || (substr($name, 0, 11) == 'membership_') || (substr($name, 0, 13) == 'contribution_')) {
           continue;
         }
-        $fields[$name] = 1;
+        $fields[$name] = $fieldInfo;
       }
 
       if (!empty($fields)) {
@@ -205,7 +205,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
         $selectedCurrentMemTypes = [];
         foreach ($this->_priceSet['fields'] as $key => $val) {
           foreach ($val['options'] as $keys => $values) {
-            $opMemTypeId = CRM_Utils_Array::value('membership_type_id', $values);
+            $opMemTypeId = $values['membership_type_id'] ?? NULL;
             $priceFieldName = 'price_' . $values['price_field_id'];
             $priceFieldValue = CRM_Price_BAO_PriceSet::getPriceFieldValueFromURL($this, $priceFieldName);
             if (!empty($priceFieldValue)) {
@@ -241,7 +241,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
     if (!empty($this->_fields)) {
       //load default campaign from page.
       if (array_key_exists('contribution_campaign_id', $this->_fields)) {
-        $this->_defaults['contribution_campaign_id'] = CRM_Utils_Array::value('campaign_id', $this->_values);
+        $this->_defaults['contribution_campaign_id'] = $this->_values['campaign_id'] ?? NULL;
       }
 
       //set custom field defaults
@@ -479,7 +479,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
     if (!($allAreBillingModeProcessors && !$this->_values['is_pay_later'])) {
       $submitButton = [
         'type' => 'upload',
-        'name' => CRM_Utils_Array::value('is_confirm_enabled', $this->_values) ? ts('Confirm Contribution') : ts('Contribute'),
+        'name' => !empty($this->_values['is_confirm_enabled']) ? ts('Review your contribution') : ts('Contribute'),
         'spacing' => '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;',
         'isDefault' => TRUE,
       ];
@@ -528,7 +528,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
       $form->add('hidden', 'frequency_interval', 1);
     }
 
-    $frUnits = CRM_Utils_Array::value('recur_frequency_unit', $form->_values);
+    $frUnits = $form->_values['recur_frequency_unit'] ?? NULL;
     if (empty($frUnits) &&
       $className == 'CRM_Contribute_Form_Contribution'
     ) {
@@ -602,7 +602,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
         $self->_useForMember
       )
     ) {
-      $isTest = ($self->_action & CRM_Core_Action::PREVIEW) ? TRUE : FALSE;
+      $isTest = $self->_action & CRM_Core_Action::PREVIEW;
       $lifeMember = CRM_Member_BAO_Membership::getAllContactMembership($self->_membershipContactID, $isTest, TRUE);
 
       $membershipOrgDetails = CRM_Member_BAO_MembershipType::getMembershipTypeOrganization();
@@ -639,8 +639,8 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
           }
           elseif (!empty($fields["price_{$priceField->id}"])) {
             $otherAmountVal = CRM_Utils_Rule::cleanMoney($fields["price_{$priceField->id}"]);
-            $min = CRM_Utils_Array::value('min_amount', $self->_values);
-            $max = CRM_Utils_Array::value('max_amount', $self->_values);
+            $min = $self->_values['min_amount'] ?? NULL;
+            $max = $self->_values['max_amount'] ?? NULL;
             if ($min && $otherAmountVal < $min) {
               $errors["price_{$priceField->id}"] = ts('Contribution amount must be at least %1',
                 [1 => $min]
@@ -675,7 +675,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
         );
 
         foreach ($self->_values['fee'] as $fieldKey => $fieldValue) {
-          if ($fieldValue['html_type'] != 'Text' && CRM_Utils_Array::value('price_' . $fieldKey, $fields)) {
+          if ($fieldValue['html_type'] != 'Text' && !empty($fields['price_' . $fieldKey])) {
             if (!is_array($fields['price_' . $fieldKey]) && isset($fieldValue['options'][$fields['price_' . $fieldKey]])) {
               if (array_key_exists('membership_type_id', $fieldValue['options'][$fields['price_' . $fieldKey]])
                 && in_array($fieldValue['options'][$fields['price_' . $fieldKey]]['membership_type_id'], $currentMemberships)
@@ -852,7 +852,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
       (int) $self->_paymentProcessor['billing_mode'] & CRM_Core_Payment::BILLING_MODE_BUTTON
     ) {
       if (!empty($fields[$self->_expressButtonName . '_x']) || !empty($fields[$self->_expressButtonName . '_y']) ||
-        CRM_Utils_Array::value($self->_expressButtonName, $fields)
+        !empty($fields[$self->_expressButtonName])
       ) {
         return $errors;
       }
@@ -954,15 +954,15 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
     }
     else {
       if (!empty($formValues['amount'])) {
-        $amountID = CRM_Utils_Array::value('amount', $params);
+        $amountID = $params['amount'] ?? NULL;
 
         if ($amountID) {
           // @todo - stop setting amount level in this function & call the CRM_Price_BAO_PriceSet::getAmountLevel
           // function to get correct amount level consistently. Remove setting of the amount level in
           // CRM_Price_BAO_PriceSet::processAmount. Extend the unit tests in CRM_Price_BAO_PriceSetTest
           // to cover all variants.
-          $params['amount_level'] = CRM_Utils_Array::value('label', $formValues[$amountID]);
-          $amount = CRM_Utils_Array::value('value', $formValues[$amountID]);
+          $params['amount_level'] = $formValues[$amountID]['label'] ?? NULL;
+          $amount = $formValues[$amountID]['value'] ?? NULL;
         }
       }
     }
@@ -1019,7 +1019,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
           if (($selectedPriceOptionID = CRM_Utils_Array::value("price_{$priceField->id}", $params)) != FALSE && $selectedPriceOptionID > 0) {
             switch ($priceField->name) {
               case 'membership_amount':
-                $this->_params['selectMembership'] = $params['selectMembership'] = CRM_Utils_Array::value('membership_type_id', $priceOptions[$selectedPriceOptionID]);
+                $this->_params['selectMembership'] = $params['selectMembership'] = $priceOptions[$selectedPriceOptionID]['membership_type_id'] ?? NULL;
                 $this->set('selectMembership', $params['selectMembership']);
 
               case 'contribution_amount':
@@ -1028,12 +1028,12 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
                     ($priceField->name == 'membership_amount' &&
                       CRM_Utils_Array::value('is_separate_payment', $this->_membershipBlock) == 0)
                 ) {
-                  $this->_values['amount'] = CRM_Utils_Array::value('amount', $priceOptions[$selectedPriceOptionID]);
+                  $this->_values['amount'] = $priceOptions[$selectedPriceOptionID]['amount'] ?? NULL;
                 }
-                $this->_values[$selectedPriceOptionID]['value'] = CRM_Utils_Array::value('amount', $priceOptions[$selectedPriceOptionID]);
-                $this->_values[$selectedPriceOptionID]['label'] = CRM_Utils_Array::value('label', $priceOptions[$selectedPriceOptionID]);
-                $this->_values[$selectedPriceOptionID]['amount_id'] = CRM_Utils_Array::value('id', $priceOptions[$selectedPriceOptionID]);
-                $this->_values[$selectedPriceOptionID]['weight'] = CRM_Utils_Array::value('weight', $priceOptions[$selectedPriceOptionID]);
+                $this->_values[$selectedPriceOptionID]['value'] = $priceOptions[$selectedPriceOptionID]['amount'] ?? NULL;
+                $this->_values[$selectedPriceOptionID]['label'] = $priceOptions[$selectedPriceOptionID]['label'] ?? NULL;
+                $this->_values[$selectedPriceOptionID]['amount_id'] = $priceOptions[$selectedPriceOptionID]['id'] ?? NULL;
+                $this->_values[$selectedPriceOptionID]['weight'] = $priceOptions[$selectedPriceOptionID]['weight'] ?? NULL;
                 break;
 
               case 'other_amount':
@@ -1104,7 +1104,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
             $params['price_' . $key] = CRM_Utils_Rule::cleanMoney($params['price_' . $key]);
             if ($params['price_' . $key] != 0) {
               foreach ($val['options'] as $optionKey => & $options) {
-                $options['amount'] = CRM_Utils_Array::value('price_' . $key, $params);
+                $options['amount'] = $params['price_' . $key] ?? NULL;
                 break;
               }
             }

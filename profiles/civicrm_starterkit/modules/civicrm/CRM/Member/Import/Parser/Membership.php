@@ -524,7 +524,7 @@ class CRM_Member_Import_Parser_Membership extends CRM_Member_Import_Parser {
           $formatted
         );
         if (empty($formatted['status_id'])) {
-          $formatted['status_id'] = CRM_Utils_Array::value('id', $calcStatus);
+          $formatted['status_id'] = $calcStatus['id'] ?? NULL;
         }
         elseif (empty($formatted['member_is_override'])) {
           if (empty($calcStatus)) {
@@ -630,25 +630,8 @@ class CRM_Member_Import_Parser_Membership extends CRM_Member_Import_Parser {
       if ($customFieldID = CRM_Core_BAO_CustomField::getKeyID($key)) {
         $values[$key] = $value;
         $type = $customFields[$customFieldID]['html_type'];
-        if ($type == 'CheckBox' || $type == 'Multi-Select') {
-          $mulValues = explode(',', $value);
-          $customOption = CRM_Core_BAO_CustomOption::getCustomOption($customFieldID, TRUE);
-          $values[$key] = [];
-          foreach ($mulValues as $v1) {
-            foreach ($customOption as $customValueID => $customLabel) {
-              $customValue = $customLabel['value'];
-              if ((strtolower($customLabel['label']) == strtolower(trim($v1))) ||
-                (strtolower($customValue) == strtolower(trim($v1)))
-              ) {
-                if ($type == 'CheckBox') {
-                  $values[$key][$customValue] = 1;
-                }
-                else {
-                  $values[$key][] = $customValue;
-                }
-              }
-            }
-          }
+        if (CRM_Core_BAO_CustomField::isSerialized($customFields[$customFieldID])) {
+          $values[$key] = self::unserializeCustomValue($customFieldID, $value, $type);
         }
       }
 
@@ -670,7 +653,7 @@ class CRM_Member_Import_Parser_Membership extends CRM_Member_Import_Parser {
           break;
 
         case 'membership_type_id':
-          if (!CRM_Utils_Array::value($value, CRM_Member_PseudoConstant::membershipType())) {
+          if (!array_key_exists($value, CRM_Member_PseudoConstant::membershipType())) {
             throw new Exception('Invalid Membership Type Id');
           }
           $values[$key] = $value;

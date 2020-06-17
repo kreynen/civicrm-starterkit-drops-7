@@ -39,7 +39,7 @@ class CRM_Price_BAO_PriceFieldValue extends CRM_Price_DAO_PriceFieldValue {
     $fieldValueBAO->copyValues($params);
 
     // CRM-16189
-    $priceFieldID = CRM_Utils_Array::value('price_field_id', $params);
+    $priceFieldID = $params['price_field_id'] ?? NULL;
 
     $id = CRM_Utils_Array::value('id', $ids, CRM_Utils_Array::value('id', $params));
 
@@ -73,7 +73,7 @@ class CRM_Price_BAO_PriceFieldValue extends CRM_Price_DAO_PriceFieldValue {
    * @throws \CRM_Core_Exception
    */
   public static function create(&$params, $ids = []) {
-    $id = CRM_Utils_Array::value('id', $params, CRM_Utils_Array::value('id', $ids));
+    $id = $params['id'] ?? $ids['id'] ?? NULL;
     if (!is_array($params) || empty($params)) {
       return NULL;
     }
@@ -102,7 +102,7 @@ class CRM_Price_BAO_PriceFieldValue extends CRM_Price_DAO_PriceFieldValue {
       }
     }
 
-    $financialType = CRM_Utils_Array::value('financial_type_id', $params, NULL);
+    $financialType = $params['financial_type_id'] ?? NULL;
     if (!$financialType && $id) {
       $financialType = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $id, 'financial_type_id', 'id');
     }
@@ -157,7 +157,7 @@ class CRM_Price_BAO_PriceFieldValue extends CRM_Price_DAO_PriceFieldValue {
    *
    */
   public static function getValues($fieldId, &$values, $orderBy = 'weight', $isActive = FALSE, $admin = FALSE) {
-    $sql = "SELECT cs.id FROM civicrm_price_set cs INNER JOIN civicrm_price_field cp ON cp.price_set_id = cs.id 
+    $sql = "SELECT cs.id FROM civicrm_price_set cs INNER JOIN civicrm_price_field cp ON cp.price_set_id = cs.id
               WHERE cs.name IN ('default_contribution_amount', 'default_membership_type_amount') AND cp.id = {$fieldId} ";
     $setId = CRM_Core_DAO::singleValueQuery($sql);
     $fieldValueDAO = new CRM_Price_DAO_PriceFieldValue();

@@ -326,6 +326,7 @@ FROM   civicrm_prevnext_cache pn
    * @return array
    */
   public static function convertSetItemValues($sqlValues) {
+    CRM_Core_Error::deprecatedFunctionWarning('Deprecated function');
     $closingBrace = strpos($sqlValues, ')') - strlen($sqlValues);
     $valueArray = array_map('trim', explode(', ', substr($sqlValues, strpos($sqlValues, '(') + 1, $closingBrace - 1)));
     foreach ($valueArray as $key => &$value) {
@@ -338,6 +339,8 @@ FROM   civicrm_prevnext_cache pn
   }
 
   /**
+   * @deprecated
+   *
    * @param array|string $entity_table
    * @param int $entity_id1
    * @param int $entity_id2
@@ -345,6 +348,7 @@ FROM   civicrm_prevnext_cache pn
    * @param string $data
    */
   public static function setItem($entity_table = NULL, $entity_id1 = NULL, $entity_id2 = NULL, $cacheKey = NULL, $data = NULL) {
+    CRM_Core_Error::deprecatedFunctionWarning('Deprecated function');
     // If entity table is an array we are passing in an older format where this function only had 1 param $values. We put a deprecation warning.
     if (!empty($entity_table) && is_array($entity_table)) {
       Civi::log()->warning('Deprecated code path. Values should not be set this is going away in the future in favour of specific function params for each column.', array('civi.tag' => 'deprecated'));
@@ -459,7 +463,13 @@ WHERE (pn.cachekey $op %1 OR pn.cachekey $op %2)
     }
   }
 
+  /**
+   * Old function to clean up he cache.
+   *
+   * @deprecated.
+   */
   public static function cleanupCache() {
+    CRM_Core_Error::deprecatedFunctionWarning('Deprecated function');
     Civi::service('prevnext')->cleanup();
   }
 
@@ -473,6 +483,7 @@ WHERE (pn.cachekey $op %1 OR pn.cachekey $op %2)
    * @see CRM_Core_PrevNextCache_Sql::getSelection()
    */
   public static function getSelection($cacheKey, $action = 'get') {
+    CRM_Core_Error::deprecatedFunctionWarning('Deprecated function');
     return Civi::service('prevnext')->getSelection($cacheKey, $action);
   }
 
@@ -530,6 +541,8 @@ WHERE (pn.cachekey $op %1 OR pn.cachekey $op %2)
    * @param array $fieldDef
    * @param int $counter
    *   The globally-unique ID of the test object.
+   *
+   * @throws \CRM_Core_Exception
    */
   protected function assignTestValue($fieldName, &$fieldDef, $counter) {
     if ($fieldName === 'cachekey') {

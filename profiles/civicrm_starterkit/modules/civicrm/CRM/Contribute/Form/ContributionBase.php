@@ -200,7 +200,7 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
    * @return bool
    */
   public function isQuickConfig() {
-    return isset(self::$_quickConfig) ? self::$_quickConfig : FALSE;
+    return self::$_quickConfig ?? FALSE;
   }
 
   /**
@@ -316,8 +316,8 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
       $this->assignBillingType();
 
       // check for is_monetary status
-      $isMonetary = CRM_Utils_Array::value('is_monetary', $this->_values);
-      $isPayLater = CRM_Utils_Array::value('is_pay_later', $this->_values);
+      $isMonetary = $this->_values['is_monetary'] ?? NULL;
+      $isPayLater = $this->_values['is_pay_later'] ?? NULL;
       if (!empty($this->_ccid)) {
         $this->_values['financial_type_id'] = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution',
           $this->_ccid,
@@ -382,10 +382,10 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
       $pledgeBlock = CRM_Pledge_BAO_PledgeBlock::getPledgeBlock($this->_id);
 
       if ($pledgeBlock) {
-        $this->_values['pledge_block_id'] = CRM_Utils_Array::value('id', $pledgeBlock);
-        $this->_values['max_reminders'] = CRM_Utils_Array::value('max_reminders', $pledgeBlock);
-        $this->_values['initial_reminder_day'] = CRM_Utils_Array::value('initial_reminder_day', $pledgeBlock);
-        $this->_values['additional_reminder_day'] = CRM_Utils_Array::value('additional_reminder_day', $pledgeBlock);
+        $this->_values['pledge_block_id'] = $pledgeBlock['id'] ?? NULL;
+        $this->_values['max_reminders'] = $pledgeBlock['max_reminders'] ?? NULL;
+        $this->_values['initial_reminder_day'] = $pledgeBlock['initial_reminder_day'] ?? NULL;
+        $this->_values['additional_reminder_day'] = $pledgeBlock['additional_reminder_day'] ?? NULL;
 
         //set pledge id in values
         $pledgeId = CRM_Utils_Request::retrieve('pledgeId', 'Positive', $this);
@@ -481,8 +481,8 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
     }
 
     // check if billing block is required for pay later
-    if (CRM_Utils_Array::value('is_pay_later', $this->_values)) {
-      $this->_isBillingAddressRequiredForPayLater = CRM_Utils_Array::value('is_billing_required', $this->_values);
+    if (!empty($this->_values['is_pay_later'])) {
+      $this->_isBillingAddressRequiredForPayLater = $this->_values['is_billing_required'] ?? NULL;
       $this->assign('isBillingAddressRequiredForPayLater', $this->_isBillingAddressRequiredForPayLater);
     }
   }
@@ -656,14 +656,14 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
             $field['data_type'] == 'File' || ($viewOnly && $field['name'] == 'image_URL')
           ) {
             //retrieve file value from submitted values on basis of $profileContactType
-            $fileValue = CRM_Utils_Array::value($key, $this->_params);
+            $fileValue = $this->_params[$key] ?? NULL;
             if (!empty($profileContactType) && !empty($this->_params[$profileContactType])) {
-              $fileValue = CRM_Utils_Array::value($key, $this->_params[$profileContactType]);
+              $fileValue = $this->_params[$profileContactType][$key] ?? NULL;
             }
 
             if ($fileValue) {
-              $path = CRM_Utils_Array::value('name', $fileValue);
-              $fileType = CRM_Utils_Array::value('type', $fileValue);
+              $path = $fileValue['name'] ?? NULL;
+              $fileType = $fileValue['type'] ?? NULL;
               $fileValue = CRM_Utils_File::getFileURL($path, $fileType);
             }
 
@@ -951,7 +951,7 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
 
         $form->assign('fieldSetTitle', CRM_Core_BAO_UFGroup::getTitle($form->_values['onbehalf_profile_id']));
 
-        if (CRM_Utils_Array::value('is_for_organization', $form->_values)) {
+        if (!empty($form->_values['is_for_organization'])) {
           if ($form->_values['is_for_organization'] == 2) {
             $form->assign('onBehalfRequired', TRUE);
           }
@@ -1149,12 +1149,12 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
       $this->_currentMemberships = [];
 
       $membershipTypeIds = $membershipTypes = $radio = [];
-      $membershipPriceset = (!empty($this->_priceSetId) && $this->_useForMember) ? TRUE : FALSE;
+      $membershipPriceset = (!empty($this->_priceSetId) && $this->_useForMember);
 
       $allowAutoRenewMembership = $autoRenewOption = FALSE;
       $autoRenewMembershipTypeOptions = [];
 
-      $separateMembershipPayment = CRM_Utils_Array::value('is_separate_payment', $this->_membershipBlock);
+      $separateMembershipPayment = $this->_membershipBlock['is_separate_payment'] ?? NULL;
 
       if ($membershipPriceset) {
         foreach ($this->_priceSet['fields'] as $pField) {
@@ -1225,7 +1225,8 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
 
             if ($allowAutoRenewOpt) {
               $javascriptMethod = ['onclick' => "return showHideAutoRenew( this.value );"];
-              $autoRenewMembershipTypeOptions["autoRenewMembershipType_{$value}"] = (int) $memType['auto_renew'] * CRM_Utils_Array::value($value, CRM_Utils_Array::value('auto_renew', $this->_membershipBlock));
+              $isAvailableAutoRenew = $this->_membershipBlock['auto_renew'][$value] ?? 1;
+              $autoRenewMembershipTypeOptions["autoRenewMembershipType_{$value}"] = (int) $memType['auto_renew'] * $isAvailableAutoRenew;
               $allowAutoRenewMembership = TRUE;
             }
             else {
@@ -1283,7 +1284,7 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
       $this->assign('allowAutoRenewMembership', $allowAutoRenewMembership);
       $this->assign('autoRenewMembershipTypeOptions', json_encode($autoRenewMembershipTypeOptions));
       //give preference to user submitted auto_renew value.
-      $takeUserSubmittedAutoRenew = (!empty($_POST) || $this->isSubmitted()) ? TRUE : FALSE;
+      $takeUserSubmittedAutoRenew = (!empty($_POST) || $this->isSubmitted());
       $this->assign('takeUserSubmittedAutoRenew', $takeUserSubmittedAutoRenew);
 
       // Assign autorenew option (0:hide,1:optional,2:required) so we can use it in confirmation etc.
@@ -1346,7 +1347,7 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
    * Arguably the form should start to build $this->_params in the pre-process main page & use that array consistently throughout.
    */
   protected function setRecurringMembershipParams() {
-    $selectedMembershipTypeID = CRM_Utils_Array::value('selectMembership', $this->_params);
+    $selectedMembershipTypeID = $this->_params['selectMembership'] ?? NULL;
     if ($selectedMembershipTypeID) {
       // @todo the price_x fields will ALWAYS allow us to determine the membership - so we should ignore
       // 'selectMembership' and calculate from the price_x fields so we have one method that always works
@@ -1362,7 +1363,7 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
     }
     if ((!empty($this->_params['selectMembership']) || !empty($this->_params['priceSetId']))
       && !empty($this->_paymentProcessor['is_recur']) &&
-      CRM_Utils_Array::value('auto_renew', $this->_params)
+      !empty($this->_params['auto_renew'])
       && empty($this->_params['is_recur']) && empty($this->_params['frequency_interval'])
     ) {
 

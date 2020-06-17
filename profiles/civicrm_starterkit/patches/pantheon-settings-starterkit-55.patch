@@ -1,54 +1,53 @@
 diff --git a/templates/CRM/common/civicrm.settings.php.template b/templates/CRM/common/civicrm.settings.php.template
-index 34aaafe59d..9ef54a2fec 100644
+index a89b04864..12c0069de 100644
 --- a/templates/CRM/common/civicrm.settings.php.template
 +++ b/templates/CRM/common/civicrm.settings.php.template
-@@ -59,7 +59,26 @@ if (!defined('CIVICRM_UF')) {
+@@ -59,10 +59,25 @@ if (!defined('CIVICRM_UF')) {
      define('CIVICRM_UF', getenv('CIVICRM_UF'));
    }
    else {
 -    define('CIVICRM_UF', '%%cms%%');
 +    define('CIVICRM_UF', 'Drupal');
-+  }
-+}
-+
+   }
+ }
+ 
 +/**
 +* Pantheon:
 +* Populate needed variables based on the Pantheon environment.
 +*/
-+if (!empty($_SERVER['PRESSFLOW_SETTINGS'])) {
-+  $env = json_decode($_SERVER['PRESSFLOW_SETTINGS'], TRUE);
-+  if (!empty($env['conf']['pantheon_binding'])) {
-+    $pantheon_db = $env['databases']['default']['default'];
-+    $pantheon_conf = $env['conf'];
++if (!empty($_ENV['PANTHEON_SITE'])) {
++  $pantheon_home = $_ENV['HOME'] . ($_ENV['HOME'] !== '/' ? '/' : '');
 +
-+    // Database Username and Password
-+    $pantheon_db_string = $pantheon_db['driver'] . '://' . $pantheon_db['username'] . ':' . $pantheon_db['password'] . '@';
-+    // Host
-+    $pantheon_db_string .= 'dbserver.' . $pantheon_conf['pantheon_environment'] . '.' . $pantheon_conf['pantheon_site_uuid'] . '.drush.in' . ':' . $pantheon_db['port'];
-+    // Database
-+    $pantheon_db_string .= '/' . $pantheon_db['database'] . '?new_link=true';
-   }
- }
- 
-@@ -73,7 +92,11 @@ if (!defined('CIVICRM_UF')) {
++  // Database Username and Password
++  $pantheon_db = 'mysql://' . $_ENV['DB_USER'] . ':' . $_ENV['DB_PASSWORD'] . '@';
++  // Host
++  $pantheon_db .= 'dbserver.' . $_ENV['PANTHEON_ENVIRONMENT'] . '.' . $_ENV['PANTHEON_SITE'] . '.drush.in' . ':' . $_ENV['DB_PORT'];
++  // Database
++  $pantheon_db .= '/' . $_ENV['DB_NAME'] . '?new_link=true';
++}
++
+ /**
+  * Content Management System (CMS) Datasource:
+  *
+@@ -73,7 +88,11 @@ if (!defined('CIVICRM_UF')) {
   *      define( 'CIVICRM_UF_DSN', 'mysql://cms_db_username:cms_db_password@db_server/cms_database?new_link=true');
   */
  if (!defined('CIVICRM_UF_DSN') && CIVICRM_UF !== 'UnitTests') {
 -  define( 'CIVICRM_UF_DSN'           , 'mysql://%%CMSdbUser%%:%%CMSdbPass%%@%%CMSdbHost%%/%%CMSdbName%%?new_link=true');
-+  if (isset($pantheon_conf)) {
-+    define('CIVICRM_UF_DSN', $pantheon_db_string);
++  if (isset($_ENV['PANTHEON_SITE'])) {
++    define('CIVICRM_UF_DSN', $pantheon_db);
 +  } else {
 +    define( 'CIVICRM_UF_DSN', 'mysql://cms_db_username:cms_db_password@db_server/cms_database?new_link=true');
 +  }
  }
  
  // %%extraSettings%%
-@@ -105,8 +128,11 @@ if (!defined('CIVICRM_DSN')) {
+@@ -105,8 +124,11 @@ if (!defined('CIVICRM_DSN')) {
    if (CIVICRM_UF === 'UnitTests' && isset($GLOBALS['_CV']['TEST_DB_DSN'])) {
      define('CIVICRM_DSN', $GLOBALS['_CV']['TEST_DB_DSN']);
    }
-+  if (isset($pantheon_conf)) {
-+    define('CIVICRM_DSN', $pantheon_db_string);
++  if (isset($_ENV['PANTHEON_SITE'])) {
++    define('CIVICRM_DSN', $pantheon_db);
 +  }
    else {
 -    define('CIVICRM_DSN', 'mysql://%%dbUser%%:%%dbPass%%@%%dbHost%%/%%dbName%%?new_link=true');
@@ -56,22 +55,23 @@ index 34aaafe59d..9ef54a2fec 100644
    }
  }
  
-@@ -178,9 +204,20 @@ if (!defined('CIVICRM_LOGGING_DSN')) {
+@@ -176,11 +198,20 @@ if (!defined('CIVICRM_LOGGING_DSN')) {
+  *
+  */
  
- global $civicrm_root;
- 
--$civicrm_root = '%%crmRoot%%';
-+if (isset($pantheon_conf)) {
-+  $civicrm_root = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/code/profiles/civicrm_starterkit/modules/civicrm';
+-global $civicrm_root;
++if (isset($_ENV['PANTHEON_SITE'])) {
++  $civicrm_root = $pantheon_home . 'code/profiles/civicrm_starterkit/modules/civicrm';
 +}
 +else {
 +  $civicrm_root = '/full/path/to/modules/civicrm';
 +}
-+
+ 
+-$civicrm_root = '%%crmRoot%%';
  if (!defined('CIVICRM_TEMPLATE_COMPILEDIR')) {
 -  define( 'CIVICRM_TEMPLATE_COMPILEDIR', '%%templateCompileDir%%');
-+  if (isset($pantheon_conf)) {
-+    define('CIVICRM_TEMPLATE_COMPILEDIR', '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/tmp/civicrm/templates_c/');
++  if (isset($_ENV['PANTHEON_SITE'])) {
++    define('CIVICRM_TEMPLATE_COMPILEDIR', $pantheon_home . 'tmp/civicrm/templates_c/');
 +  }
 +  else {
 +    define( 'CIVICRM_TEMPLATE_COMPILEDIR', '/full/path/to/files/private/civicrm/templates_c');
@@ -79,7 +79,17 @@ index 34aaafe59d..9ef54a2fec 100644
  }
  
  /**
-@@ -216,7 +253,33 @@ if (!defined('CIVICRM_TEMPLATE_COMPILEDIR')) {
+@@ -194,6 +225,9 @@ if (!defined('CIVICRM_TEMPLATE_COMPILEDIR')) {
+  * https://lab.civicrm.org/dev/core/issues/1073
+  *
+  */
++if (isset($_ENV['PANTHEON_SITE']) && $_ENV['PANTHEON_ENVIRONMENT'] == 'live') {
++  define( 'CIVICRM_TEMPLATE_COMPILE_CHECK', FALSE);
++}
+ //if (!defined('CIVICRM_TEMPLATE_COMPILE_CHECK')) {
+ //  define( 'CIVICRM_TEMPLATE_COMPILE_CHECK', FALSE);
+ //}
+@@ -231,7 +265,32 @@ if (!defined('CIVICRM_TEMPLATE_COMPILEDIR')) {
   *
   */
  if (!defined('CIVICRM_UF_BASEURL')) {
@@ -98,12 +108,11 @@ index 34aaafe59d..9ef54a2fec 100644
 + * Set [civicrm.files] and [civicrm.private] since Pantheon provides a files/private
 + * directory instead of using Apache to set permissions on directories.
 + */
-+global $civicrm_paths;
-+if (isset($pantheon_conf)) {
-+  $civicrm_paths['civicrm.files']['path'] = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/files/civicrm';
++if (isset($_ENV['PANTHEON_SITE'])) {
++  $civicrm_paths['civicrm.files']['path'] = $pantheon_home . 'files/civicrm';
 +  $civicrm_paths['civicrm.files']['url'] = CIVICRM_UF_BASEURL . 'sites/default/files/civicrm/';
 +
-+  $civicrm_paths['civicrm.private']['path'] = '/srv/bindings/' . $pantheon_conf['pantheon_binding'] . '/files/private/civicrm';
++  $civicrm_paths['civicrm.private']['path'] = $pantheon_home . 'files/private/civicrm';
 +  $civicrm_paths['civicrm.private']['url'] = CIVICRM_UF_BASEURL . 'sites/default/files/private/civicrm/';
 +} else {
 +  $civicrm_paths['civicrm.files']['path'] = 'path/to/files/civicrm';
@@ -114,7 +123,7 @@ index 34aaafe59d..9ef54a2fec 100644
  }
  
  /**
-@@ -225,54 +288,112 @@ if (!defined('CIVICRM_UF_BASEURL')) {
+@@ -240,54 +299,112 @@ if (!defined('CIVICRM_UF_BASEURL')) {
   * Uncomment and edit the below as appropriate.
   */
  
@@ -123,7 +132,7 @@ index 34aaafe59d..9ef54a2fec 100644
 +/**
 + * Override File directories and URLs.
 + */
-+if (isset($pantheon_conf)) {
++if (isset($_ENV['PANTHEON_SITE'])) {
 +  // Override the Temporary Files directory.
 +  $civicrm_setting['domain']['uploadDir'] = '[civicrm.private]/upload/';
  
@@ -166,7 +175,7 @@ index 34aaafe59d..9ef54a2fec 100644
 +/**
 + * Override the Resource URL
 + */
-+if (isset($pantheon_conf)) {
++if (isset($_ENV['PANTHEON_SITE'])) {
 +  $civicrm_setting['domain']['userFrameworkResourceURL'] = '[civicrm.root]';
 +} else {
 +  $civicrm_setting['domain']['userFrameworkResourceURL'] = 'http://example.com/example-resource-url/';
@@ -177,7 +186,7 @@ index 34aaafe59d..9ef54a2fec 100644
 +/**
 + * Extensions
 + */
-+if (isset($pantheon_conf)) {
++if (isset($_ENV['PANTHEON_SITE'])) {
 +  // Override the Extensions directory.
 +  $civicrm_setting['domain']['extensionsDir'] = '[cms.root]/sites/all/extensions/';
 +
@@ -185,7 +194,7 @@ index 34aaafe59d..9ef54a2fec 100644
 +  $civicrm_setting['domain']['extensionsURL'] = '[cms.root]/sites/all/extensions';
 +
 +  // Disable automatic download / installation of Extensions on live
-+  if (isset($pantheon_conf) && ($pantheon_conf['pantheon_environment'] == 'live')) {
++  if (isset($_ENV['PANTHEON_SITE']) && ($_ENV['PANTHEON_ENVIRONMENT'] == 'live')) {
 +    $civicrm_setting['domain']['ext_repo_url'] = false;
 +  }
 +} else {
@@ -202,7 +211,7 @@ index 34aaafe59d..9ef54a2fec 100644
 +/**
 + * Custom Template and PHP files.
 + */
-+if (isset($pantheon_conf)) {
++if (isset($_ENV['PANTHEON_SITE'])) {
 +  // Override the Custom Templates directory
 +  $civicrm_setting['domain']['customTemplateDir'] = '[cms.root]/sites/all/civicrm_custom/custom_templates/';
 +
@@ -225,7 +234,7 @@ index 34aaafe59d..9ef54a2fec 100644
 - // Disable display of Community Messages on home dashboard
 - // $civicrm_setting['domain']['communityMessagesUrl'] = false;
 +// Override the Custom CiviCRM CSS URL (OPTIONAL).
-+if (isset($pantheon_conf)) {
++if (isset($_ENV['PANTHEON_SITE'])) {
 +  // $civicrm_setting['domain']['customCSSURL'] = '[cms.root]/sites/all/themes/EXAMPLETHEME/css/civicrm.css';
 +} else {
 +  // $civicrm_setting['domain']['customCSSURL'] = 'http://example.com/example-css-url';
@@ -261,7 +270,7 @@ index 34aaafe59d..9ef54a2fec 100644
  
  
  /**
-@@ -300,8 +421,14 @@ if (!defined('CIVICRM_MAIL_SMARTY')) {
+@@ -315,8 +432,14 @@ if (!defined('CIVICRM_MAIL_SMARTY')) {
   * The CIVICRM_MAIL_LOG is a debug option which disables MTA (mail transport agent) interaction.
   * You must disable CIVICRM_MAIL_LOG before CiviCRM will talk to your MTA.
   */
@@ -269,16 +278,16 @@ index 34aaafe59d..9ef54a2fec 100644
 -// define( 'CIVICRM_MAIL_LOG', '%%templateCompileDir%%/mail.log');
 +
 +// Pantheon: if it's not the live site then send all emails to a log file
-+if (isset($pantheon_conf) && $pantheon_conf['pantheon_environment'] != 'live') {
++if (isset($_ENV['PANTHEON_SITE']) && $_ENV['PANTHEON_ENVIRONMENT'] != 'live') {
 +  define('CIVICRM_MAIL_LOG', '[civicrm.private]/ConfigAndLog/mail.log');
 +}
 +
-+// if (!isset($pantheon_conf) && !defined('CIVICRM_MAIL_LOG')) {
++// if (!isset($_ENV['PANTHEON_SITE']) && !defined('CIVICRM_MAIL_LOG')) {
 +//   define( 'CIVICRM_MAIL_LOG', '/full/path/to/files/civicrm/ConfigAndLog/mail.log');
  // }
  
  /**
-@@ -324,7 +451,14 @@ if (!defined('CIVICRM_DOMAIN_ID')) {
+@@ -339,7 +462,14 @@ if (!defined('CIVICRM_DOMAIN_ID')) {
   * NB: defining a value for environment here prevents it from being set
   * via the browser.
   */
@@ -294,7 +303,7 @@ index 34aaafe59d..9ef54a2fec 100644
  
  /**
   * Settings to enable external caching using a cache server.  This is an
-@@ -350,59 +484,73 @@ if (!defined('CIVICRM_DOMAIN_ID')) {
+@@ -365,59 +495,72 @@ if (!defined('CIVICRM_DOMAIN_ID')) {
   * To not use any caching (not recommended), use a value of 'NoCache'
   *
   */
@@ -308,14 +317,13 @@ index 34aaafe59d..9ef54a2fec 100644
 - */
 -if (!defined('CIVICRM_DB_CACHE_HOST')) {
 -  define('CIVICRM_DB_CACHE_HOST', 'localhost');
-+if (isset($pantheon_conf['redis_client_host']) && !empty($pantheon_conf['redis_client_host'])) {
++if (!empty($_ENV['PANTHEON_SITE'] && !empty($_ENV['CACHE_HOST']))) {
 +  define('CIVICRM_DB_CACHE_CLASS', 'Redis');
-+  define('CIVICRM_DB_CACHE_HOST', $pantheon_conf['redis_client_host']);
-+  define('CIVICRM_DB_CACHE_PORT', $pantheon_conf['redis_client_port']);
-+  define('CIVICRM_DB_CACHE_PASSWORD', $pantheon_conf['redis_client_password']);
++  define('CIVICRM_DB_CACHE_HOST', $_ENV['CACHE_HOST']);
++  define('CIVICRM_DB_CACHE_PORT', $_ENV['CACHE_PORT']);
++  define('CIVICRM_DB_CACHE_PASSWORD', $_ENV['CACHE_PASSWORD']);
 +  define('CIVICRM_DB_CACHE_TIMEOUT', 3600);
 +  define('CIVICRM_DB_CACHE_PREFIX', 'pantheon-redis-civicrm:');
-+
  }
 +else {
  
@@ -413,3 +421,12 @@ index 34aaafe59d..9ef54a2fec 100644
  
  /**
   * The cache system traditionally allowed a wide range of cache-keys, but some
+@@ -476,7 +619,7 @@ define('CIVICRM_DEADLOCK_RETRIES', 3);
+  * Specify whether the CRM_Core_BAO_Cache should use the legacy
+  * direct-to-SQL-mode or the interim PSR-16 adapter.
+  */
+-// define('CIVICRM_BAO_CACHE_ADAPTER', 'CRM_Core_BAO_Cache_Psr16');
++define('CIVICRM_BAO_CACHE_ADAPTER', 'CRM_Core_BAO_Cache_Psr16');
+ 
+ if (CIVICRM_UF === 'UnitTests') {
+   if (!defined('CIVICRM_CONTAINER_CACHE')) define('CIVICRM_CONTAINER_CACHE', 'auto');

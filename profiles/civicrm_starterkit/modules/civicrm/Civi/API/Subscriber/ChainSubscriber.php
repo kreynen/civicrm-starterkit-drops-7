@@ -40,7 +40,7 @@ class ChainSubscriber implements EventSubscriberInterface {
    */
   public static function getSubscribedEvents() {
     return [
-      Events::RESPOND => ['onApiRespond', Events::W_EARLY],
+      'civi.api.respond' => ['onApiRespond', Events::W_EARLY],
     ];
   }
 
@@ -54,7 +54,7 @@ class ChainSubscriber implements EventSubscriberInterface {
     $apiRequest = $event->getApiRequest();
     if ($apiRequest['version'] < 4) {
       $result = $event->getResponse();
-      if (\CRM_Utils_Array::value('is_error', $result, 0) == 0) {
+      if (is_array($result) && empty($result['is_error'])) {
         $this->callNestedApi($event->getApiKernel(), $apiRequest['params'], $result, $apiRequest['action'], $apiRequest['entity'], $apiRequest['version']);
         $event->setResponse($result);
       }
@@ -106,7 +106,7 @@ class ChainSubscriber implements EventSubscriberInterface {
 
         $subaction = empty($subAPI[2]) ? $action : $subAPI[2];
         $subParams = [
-          'debug' => \CRM_Utils_Array::value('debug', $params),
+          'debug' => $params['debug'] ?? NULL,
         ];
         $subEntity = _civicrm_api_get_entity_name_from_camel($subAPI[1]);
 

@@ -17,9 +17,7 @@
 class CRM_Report_Form_Activity extends CRM_Report_Form {
   protected $_selectAliasesTotal = [];
 
-  protected $_customGroupExtends = [
-    'Activity',
-  ];
+  protected $_customGroupExtends = ['Activity'];
 
   protected $_nonDisplayFields = [];
 
@@ -38,6 +36,8 @@ class CRM_Report_Form_Activity extends CRM_Report_Form {
 
   /**
    * Class constructor.
+   *
+   * @throws \CRM_Core_Exception
    */
   public function __construct() {
     // There could be multiple contacts. We not clear on which contact id to display.
@@ -46,14 +46,10 @@ class CRM_Report_Form_Activity extends CRM_Report_Form {
     // if navigated from count link of activity summary reports.
     $this->_resetDateFilter = CRM_Utils_Request::retrieve('resetDateFilter', 'Boolean');
 
-    $config = CRM_Core_Config::singleton();
-    $campaignEnabled = in_array("CiviCampaign", $config->enableComponents);
-    $caseEnabled = in_array("CiviCase", $config->enableComponents);
-    if ($campaignEnabled) {
-      $this->engagementLevels = CRM_Campaign_PseudoConstant::engagementLevel();
-    }
-
     $components = CRM_Core_Component::getEnabledComponents();
+    $campaignEnabled = !empty($components['CiviCampaign']);
+    $caseEnabled = !empty($components['CiviCase']);
+
     foreach ($components as $componentName => $componentInfo) {
       // CRM-19201: Add support for reporting CiviCampaign activities
       // For CiviCase, "access all cases and activities" is required here
@@ -312,6 +308,10 @@ class CRM_Report_Form_Activity extends CRM_Report_Form {
         'operatorType' => CRM_Report_Form::OP_SELECT,
         'options' => ['0' => ts('No'), '1' => ts('Yes')],
       ];
+      $this->_columns['civicrm_case_activity'] = [
+        'dao' => 'CRM_Case_DAO_CaseActivity',
+        'fields' => [],
+      ];
     }
 
     if ($campaignEnabled) {
@@ -328,7 +328,7 @@ class CRM_Report_Form_Activity extends CRM_Report_Form {
       ];
       // If we have campaigns enabled, add those elements to both the fields, filters.
       $this->addCampaignFields('civicrm_activity');
-
+      $this->engagementLevels = $campaignEnabled ? CRM_Campaign_PseudoConstant::engagementLevel() : [];
       if (!empty($this->engagementLevels)) {
         $this->_columns['civicrm_activity']['fields']['engagement_level'] = [
           'title' => ts('Engagement Index'),
@@ -349,22 +349,16 @@ class CRM_Report_Form_Activity extends CRM_Report_Form {
     parent::__construct();
   }
 
-  public function preProcess() {
-    // Is "Include Case Activities" selected?  If yes, include the case_id as a hidden column
-    $formToUse = $this->noController ? NULL : $this;
-    $includeCaseActivities = CRM_Utils_Request::retrieve('include_case_activities_value', 'Boolean', $formToUse);
-    if (!empty($includeCaseActivities)) {
-      $this->_columns['civicrm_case_activity'] = [
-        'dao' => 'CRM_Case_DAO_CaseActivity',
-        'fields' => [
-          'case_id' => [
-            'no_display' => TRUE,
-            'required' => TRUE,
-          ],
-        ],
-      ];
-    }
-    parent::preProcess();
+  protected static function addCaseActivityColumns($columns) {
+    $columns['civicrm_case_activity']['fields'] = [
+      'case_id' => [
+        'title' => ts('Case ID'),
+        'required' => TRUE,
+        'dbAlias' => $columns['civicrm_case_activity']['alias'] . '.case_id',
+        'type' => CRM_Utils_Type::T_INT,
+      ],
+    ];
+    return $columns;
   }
 
   /**
@@ -536,15 +530,15 @@ class CRM_Report_Form_Activity extends CRM_Report_Form {
             continue;
           }
           if (CRM_Utils_Array::value('type', $field) & CRM_Utils_Type::T_DATE) {
-            $relative = CRM_Utils_Array::value("{$fieldName}_relative", $this->_params);
-            $from = CRM_Utils_Array::value("{$fieldName}_from", $this->_params);
-            $to = CRM_Utils_Array::value("{$fieldName}_to", $this->_params);
+            $relative = $this->_params["{$fieldName}_relative"] ?? NULL;
+            $from = $this->_params["{$fieldName}_from"] ?? NULL;
+            $to = $this->_params["{$fieldName}_to"] ?? NULL;
 
-            $clause = $this->dateClause($field['name'], $relative, $from, $to, $field['type']);
+            $clause = $this->dateClause($field['dbAlias'], $relative, $from, $to, $field['type']);
           }
           else {
-            $op = CRM_Utils_Array::value("{$fieldName}_op", $this->_params);
-            if ($op && !($fieldName == "contact_{$recordType}" && ($op != 'nnll' || $op != 'nll'))) {
+            $op = $this->_params["{$fieldName}_op"] ?? NULL;
+            if ($op && !($fieldName === "contact_{$recordType}" && ($op === 'nnll' || $op === 'nll'))) {
               $clause = $this->whereClause($field,
                 $op,
                 CRM_Utils_Array::value("{$fieldName}_value", $this->_params),
@@ -572,8 +566,7 @@ class CRM_Report_Form_Activity extends CRM_Report_Form {
               1
             ) {
               // get current user
-              $session = CRM_Core_Session::singleton();
-              if ($contactID = $session->get('userID')) {
+              if ($contactID = CRM_Core_Session::getLoggedInContactID()) {
                 $clause = "{$this->_aliases['civicrm_activity_contact']}.activity_id IN
                            (SELECT activity_id FROM civicrm_activity_contact WHERE contact_id = {$contactID})";
               }
@@ -615,6 +608,8 @@ class CRM_Report_Form_Activity extends CRM_Report_Form {
    * Build ACL clause.
    *
    * @param string $tableAlias
+   *
+   * @throws \CRM_Core_Exception
    */
   public function buildACLClause($tableAlias = 'contact_a') {
     //override for ACL( Since Contact may be source
@@ -625,8 +620,7 @@ class CRM_Report_Form_Activity extends CRM_Report_Form {
       return;
     }
 
-    $session = CRM_Core_Session::singleton();
-    $contactID = $session->get('userID');
+    $contactID = CRM_Core_Session::getLoggedInContactID();
     if (!$contactID) {
       $contactID = 0;
     }
@@ -733,6 +727,10 @@ GROUP BY civicrm_activity_id $having {$this->_orderBy}";
       }
     }
 
+    if (!empty($this->_params['include_case_activities_value'])) {
+      $this->_columns = self::addCaseActivityColumns($this->_columns);
+    }
+
     // @todo - all this temp table stuff is here because pre 4.4 the activity contact
     // form did not exist.
     // Fixing the way the construct method declares them will make all this redundant.
@@ -830,24 +828,13 @@ GROUP BY civicrm_activity_id $having {$this->_orderBy}";
     return $sql;
   }
 
-  public function postProcess() {
-    //reset value of activity_date
+  /**
+   * Override parent to reset value of activity_date.
+   */
+  public function beginPostProcessCommon() {
     if (!empty($this->_resetDateFilter)) {
-      $this->_formValues["activity_date_time_relative"] = NULL;
+      $this->_formValues['activity_date_time_relative'] = NULL;
     }
-
-    $this->beginPostProcess();
-    $sql = $this->buildQuery(TRUE);
-    $this->buildRows($sql, $rows);
-
-    // format result set.
-    $this->formatDisplay($rows);
-
-    // assign variables to templates
-    $this->doTemplateAssignment($rows);
-
-    // do print / pdf / instance stuff if needed
-    $this->endPostProcess($rows);
   }
 
   /**
@@ -858,6 +845,8 @@ GROUP BY civicrm_activity_id $having {$this->_orderBy}";
    *
    * @param array $rows
    *   Rows generated by SQL, with an array for each row.
+   *
+   * @throws \CRM_Core_Exception
    */
   public function alterDisplay(&$rows) {
     $entryFound = FALSE;

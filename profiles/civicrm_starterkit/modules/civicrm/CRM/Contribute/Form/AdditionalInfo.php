@@ -171,7 +171,7 @@ class CRM_Contribute_Form_AdditionalInfo {
    */
   public static function processPremium($params, $contributionID, $premiumID = NULL, $options = []) {
     $selectedProductID = $params['product_name'][0];
-    $selectedProductOptionID = CRM_Utils_Array::value(1, $params['product_name']);
+    $selectedProductOptionID = $params['product_name'][1] ?? NULL;
 
     $dao = new CRM_Contribute_DAO_ContributionProduct();
     $dao->contribution_id = $contributionID;
@@ -186,7 +186,7 @@ class CRM_Contribute_Form_AdditionalInfo {
 
     $productDetails = [];
     CRM_Contribute_BAO_Product::retrieve($premiumParams, $productDetails);
-    $dao->financial_type_id = CRM_Utils_Array::value('financial_type_id', $productDetails);
+    $dao->financial_type_id = $productDetails['financial_type_id'] ?? NULL;
     if (!empty($options[$selectedProductID])) {
       $dao->product_option = $options[$selectedProductID][$selectedProductOptionID];
     }
@@ -207,9 +207,9 @@ class CRM_Contribute_Form_AdditionalInfo {
     //CRM-11106
     if ($premiumID == NULL || $isDeleted) {
       $premiumParams = [
-        'cost' => CRM_Utils_Array::value('cost', $productDetails),
-        'currency' => CRM_Utils_Array::value('currency', $productDetails),
-        'financial_type_id' => CRM_Utils_Array::value('financial_type_id', $productDetails),
+        'cost' => $productDetails['cost'] ?? NULL,
+        'currency' => $productDetails['currency'] ?? NULL,
+        'financial_type_id' => $productDetails['financial_type_id'] ?? NULL,
         'contributionId' => $contributionID,
       ];
       if ($isDeleted) {
@@ -268,7 +268,7 @@ class CRM_Contribute_Form_AdditionalInfo {
       'contribution_page_id',
     ];
     foreach ($fields as $f) {
-      $formatted[$f] = CRM_Utils_Array::value($f, $params);
+      $formatted[$f] = $params[$f] ?? NULL;
     }
 
     if (!empty($params['thankyou_date']) && !CRM_Utils_System::isNull($params['thankyou_date'])) {
@@ -282,16 +282,8 @@ class CRM_Contribute_Form_AdditionalInfo {
       $params['receipt_date'] = $formatted['receipt_date'] = date('YmdHis');
     }
 
-    //special case to handle if all checkboxes are unchecked
-    $customFields = CRM_Core_BAO_CustomField::getFields('Contribution',
-      FALSE,
-      FALSE,
-      CRM_Utils_Array::value('financial_type_id',
-        $params
-      )
-    );
     $formatted['custom'] = CRM_Core_BAO_CustomField::postProcess($params,
-      CRM_Utils_Array::value('id', $params, NULL),
+       $params['id'] ?? NULL,
       'Contribution'
     );
   }
@@ -307,6 +299,7 @@ class CRM_Contribute_Form_AdditionalInfo {
    *   is it credit card contribution.
    *
    * @return array
+   * @throws \CRM_Core_Exception
    */
   public static function emailReceipt(&$form, &$params, $ccContribution = FALSE) {
     $form->assign('receiptType', 'contribution');
@@ -368,7 +361,7 @@ class CRM_Contribute_Form_AdditionalInfo {
 
       $date = CRM_Utils_Date::format($params['credit_card_exp_date']);
       $date = CRM_Utils_Date::mysqlToIso($date);
-      $form->assign('credit_card_type', CRM_Utils_Array::value('credit_card_type', $params));
+      $form->assign('credit_card_type', $params['credit_card_type'] ?? NULL);
       $form->assign('credit_card_exp_date', $date);
       $form->assign('credit_card_number',
         CRM_Utils_System::mungeCreditCard($params['credit_card_number'])
@@ -437,7 +430,7 @@ class CRM_Contribute_Form_AdditionalInfo {
     $taxAmt = $template->get_template_vars('dataArray');
     $eventTaxAmt = $template->get_template_vars('totalTaxAmount');
     $prefixValue = Civi::settings()->get('contribution_invoice_settings');
-    $invoicing = CRM_Utils_Array::value('invoicing', $prefixValue);
+    $invoicing = $prefixValue['invoicing'] ?? NULL;
     if ((!empty($taxAmt) || isset($eventTaxAmt)) && (isset($invoicing) && isset($prefixValue['is_email_pdf']))) {
       $isEmailPdf = TRUE;
     }

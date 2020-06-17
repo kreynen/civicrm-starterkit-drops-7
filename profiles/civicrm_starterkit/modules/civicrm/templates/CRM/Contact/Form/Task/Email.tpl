@@ -23,7 +23,7 @@
     <tr class="crm-contactEmail-form-block-recipient">
        <td class="label">{if $single eq false}{ts}Recipient(s){/ts}{else}{$form.to.label}{/if}</td>
        <td>
-         {$form.to.html}{if $noEmails eq true}&nbsp;&nbsp;{$form.emailAddress.html}{/if}
+         {$form.to.html}
        </td>
     </tr>
     <tr class="crm-contactEmail-form-block-cc_id" {if !$form.cc_id.value}style="display:none;"{/if}>
@@ -125,12 +125,9 @@ CRM.$(function($) {
 
   {/literal}
   var toContact = {if $toContact}{$toContact}{else}''{/if},
-    ccContact = {if $ccContact}{$ccContact}{else}''{/if},
-    bccContact = {if $bccContact}{$bccContact}{else}''{/if};
+    ccContact = {if $ccContact}{$ccContact}{else}''{/if};
   {literal}
   emailSelect('#to', toContact);
-  emailSelect('#cc_id', ccContact);
-  emailSelect('#bcc_id', bccContact);
 });
 
 

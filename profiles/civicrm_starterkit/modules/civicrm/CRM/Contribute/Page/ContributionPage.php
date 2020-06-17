@@ -245,7 +245,7 @@ class CRM_Contribute_Page_ContributionPage extends CRM_Core_Page {
           'name' => ts('Cumulative'),
           'title' => ts('Cumulative'),
           'url' => $urlString,
-          'qs' => "{$urlParams}&receive_date_low=&receive_date_high=$now",
+          'qs' => "{$urlParams}",
           'uniqueName' => 'cumulative',
         ),
       );
@@ -530,7 +530,7 @@ ORDER BY is_active desc, title asc
       );
 
       //show campaigns on selector.
-      $contribution[$dao->id]['campaign'] = CRM_Utils_Array::value($dao->campaign_id, $allCampaigns);
+      $contribution[$dao->id]['campaign'] = $allCampaigns[$dao->campaign_id] ?? NULL;
     }
 
     if (isset($contribution)) {
@@ -689,7 +689,7 @@ ORDER BY UPPER(LEFT(title, 1))
     // build the formatted configure links.
     $formattedConfLinks = self::configureActionLinks();
     foreach ($formattedConfLinks as $act => & $link) {
-      $sectionName = CRM_Utils_Array::value('uniqueName', $link);
+      $sectionName = $link['uniqueName'] ?? NULL;
       if (!$sectionName) {
         continue;
       }

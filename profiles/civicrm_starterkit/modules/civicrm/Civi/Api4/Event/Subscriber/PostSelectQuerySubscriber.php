@@ -110,11 +110,10 @@ class PostSelectQuerySubscriber implements EventSubscriberInterface {
    * @return array
    */
   private function getNtoManyJoinSelects(Api4SelectQuery $query) {
-    $fkAliases = $query->getFkSelectAliases();
     $joinedDotSelects = array_filter(
       $query->getSelect(),
-      function ($select) use ($fkAliases, $query) {
-        return isset($fkAliases[$select]) && array_filter($query->getPathJoinTypes($select));
+      function ($select) use ($query) {
+        return strpos($select, '.') && array_filter($query->getPathJoinTypes($select));
       }
     );
 
@@ -211,7 +210,7 @@ class PostSelectQuerySubscriber implements EventSubscriberInterface {
     $selectFields = [];
 
     foreach ($selects as $select) {
-      $selectAlias = $query->getFkSelectAliases()[$select];
+      $selectAlias = str_replace('`', '', $query->getField($select)['sql_name']);
       $fieldAlias = substr($select, strrpos($select, '.') + 1);
       $selectFields[$fieldAlias] = $selectAlias;
     }

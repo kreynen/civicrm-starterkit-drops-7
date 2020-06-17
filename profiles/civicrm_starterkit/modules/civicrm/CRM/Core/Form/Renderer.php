@@ -13,8 +13,6 @@
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
  */
 
 require_once 'HTML/QuickForm/Renderer/ArraySmarty.php';
@@ -172,7 +170,7 @@ class CRM_Core_Form_Renderer extends HTML_QuickForm_Renderer_ArraySmarty {
       if ($type == 'text' || $type == 'password') {
         $size = $element->getAttribute('size');
         if (!empty($size)) {
-          $class = CRM_Utils_Array::value($size, self::$_sizeMapper);
+          $class = self::$_sizeMapper[$size] ?? NULL;
         }
       }
     }

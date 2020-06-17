@@ -85,7 +85,7 @@ class CRM_Contribute_BAO_Contribution_Utils {
 
     if ($isPaymentTransaction) {
       $contributionParams = [
-        'id' => CRM_Utils_Array::value('contribution_id', $paymentParams),
+        'id' => $paymentParams['contribution_id'] ?? NULL,
         'contact_id' => $contactID,
         'is_test' => $isTest,
         'source' => CRM_Utils_Array::value('source', $paymentParams, CRM_Utils_Array::value('description', $paymentParams)),
@@ -146,7 +146,7 @@ class CRM_Contribute_BAO_Contribution_Utils {
         $paymentParams['source'] = $paymentParams['contribution_source'];
       }
 
-      if (CRM_Utils_Array::value('is_recur', $form->_params) && $contribution->contribution_recur_id) {
+      if (!empty($form->_params['is_recur']) && $contribution->contribution_recur_id) {
         $paymentParams['contributionRecurID'] = $contribution->contribution_recur_id;
       }
       if (isset($paymentParams['contribution_source'])) {
@@ -237,7 +237,7 @@ class CRM_Contribute_BAO_Contribution_Utils {
    * @return bool
    */
   protected static function isPaymentTransaction($form) {
-    return ($form->_amount >= 0.0) ? TRUE : FALSE;
+    return $form->_amount >= 0.0;
   }
 
   /**
@@ -473,26 +473,14 @@ LIMIT 1
    *   Amount of field.
    * @param float $taxRate
    *   Tax rate of selected financial account for field.
-   * @param bool $ugWeDoNotKnowIfItNeedsCleaning_Help
-   *   This should ALWAYS BE FALSE and then be removed. A 'clean' money string uses a standardised format
-   *   such as '1000.99' for one thousand $/Euro/CUR and ninety nine cents/units.
-   *   However, we are in the habit of not necessarily doing that so need to grandfather in
-   *   the new expectation.
    *
    * @return array
    *   array of tax amount
    *
    */
-  public static function calculateTaxAmount($amount, $taxRate, $ugWeDoNotKnowIfItNeedsCleaning_Help = FALSE) {
-    $taxAmount = [];
-    if ($ugWeDoNotKnowIfItNeedsCleaning_Help) {
-      Civi::log()->warning('Deprecated function, make sure money is in usable format before calling this.', ['civi.tag' => 'deprecated']);
-      $amount = CRM_Utils_Rule::cleanMoney($amount);
-    }
-    // There can not be any rounding at this stage - as this is prior to quantity multiplication
-    $taxAmount['tax_amount'] = ($taxRate / 100) * $amount;
-
-    return $taxAmount;
+  public static function calculateTaxAmount($amount, $taxRate) {
+    // There can not be any rounding at this stage - as it should be done at point of display.
+    return ['tax_amount' => ($taxRate / 100) * $amount];
   }
 
   /**
@@ -574,7 +562,7 @@ LIMIT 1
     }
     else {
       $contributionStatus = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $id, 'contribution_status_id');
-      $name = CRM_Utils_Array::value($contributionStatus, $statusNames);
+      $name = $statusNames[$contributionStatus] ?? NULL;
       switch ($name) {
         case 'Completed':
           // [CRM-17498] Removing unsupported status change options.

@@ -27,10 +27,10 @@ class CRM_Case_Form_Activity_LinkCases {
    */
   public static function preProcess(&$form) {
     if (empty($form->_caseId)) {
-      CRM_Core_Error::fatal(ts('Case Id not found.'));
+      CRM_Core_Error::statusBounce(ts('Case Id not found.'));
     }
     if (count($form->_caseId) != 1) {
-      CRM_Core_Resources::fatal(ts('Expected one case-type'));
+      CRM_Core_Error::statusBounce(ts('Expected one case-type'));
     }
 
     $caseId = CRM_Utils_Array::first($form->_caseId);
@@ -98,7 +98,7 @@ class CRM_Case_Form_Activity_LinkCases {
   public static function formRule($values, $files, $form) {
     $errors = [];
 
-    $linkCaseId = CRM_Utils_Array::value('link_to_case_id', $values);
+    $linkCaseId = $values['link_to_case_id'] ?? NULL;
     assert('is_numeric($linkCaseId)');
     if ($linkCaseId == CRM_Utils_Array::first($form->_caseId)) {
       $errors['link_to_case'] = ts('Please select some other case to link.');
@@ -131,9 +131,9 @@ class CRM_Case_Form_Activity_LinkCases {
    * @param array $params
    * @param CRM_Activity_BAO_Activity $activity
    */
-  public static function endPostProcess(&$form, &$params, &$activity) {
+  public static function endPostProcess($form, $params, $activity) {
     $activityId = $activity->id;
-    $linkCaseID = CRM_Utils_Array::value('link_to_case_id', $params);
+    $linkCaseID = $params['link_to_case_id'] ?? NULL;
 
     //create a link between two cases.
     if ($activityId && $linkCaseID) {

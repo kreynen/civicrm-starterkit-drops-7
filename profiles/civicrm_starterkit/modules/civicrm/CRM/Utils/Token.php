@@ -601,10 +601,10 @@ class CRM_Utils_Token {
       $value = "{action.$token}";
     }
     else {
-      $value = CRM_Utils_Array::value($token, $addresses);
+      $value = $addresses[$token] ?? NULL;
 
       if ($value == NULL) {
-        $value = CRM_Utils_Array::value($token, $urls);
+        $value = $urls[$token] ?? NULL;
       }
 
       if ($value && $html) {
@@ -722,7 +722,7 @@ class CRM_Utils_Token {
       $noReplace = TRUE;
     }
     elseif ($token == 'checksum') {
-      $hash = CRM_Utils_Array::value('hash', $contact);
+      $hash = $contact['hash'] ?? NULL;
       $contactID = CRM_Utils_Array::retrieveValueRecursive($contact, 'contact_id');
       $cs = CRM_Contact_BAO_Contact_Utils::generateChecksum($contactID,
         NULL,
@@ -844,7 +844,7 @@ class CRM_Utils_Token {
     $html = FALSE,
     $escapeSmarty = FALSE
   ) {
-    $value = CRM_Utils_Array::value("{$category}.{$token}", $contact);
+    $value = $contact["{$category}.{$token}"] ?? NULL;
 
     if ($value && !$html) {
       $value = str_replace('&amp;', '&', $value);
@@ -1228,7 +1228,6 @@ class CRM_Utils_Token {
     }
 
     $details = CRM_Contact_BAO_Query::apiQuery($params, $returnProperties, NULL, NULL, 0, count($contactIDs), TRUE, FALSE, TRUE, CRM_Contact_BAO_Query::MODE_CONTACTS, NULL, TRUE);
-
     $contactDetails = &$details[0];
 
     foreach ($contactIDs as $contactID) {
@@ -1263,8 +1262,9 @@ class CRM_Utils_Token {
       }
     }
 
+    // $contactDetails = &$details[0] = is an array of [ contactID => contactDetails ]
     // also call a hook and get token details
-    CRM_Utils_Hook::tokenValues($details[0],
+    CRM_Utils_Hook::tokenValues($contactDetails,
       $contactIDs,
       $jobID,
       $tokens,
@@ -1291,9 +1291,7 @@ class CRM_Utils_Token {
    * @return array
    *   contactDetails with hooks swapped out
    */
-  public static function getAnonymousTokenDetails($contactIDs = [
-    0,
-  ],
+  public static function getAnonymousTokenDetails($contactIDs = [0],
                                            $returnProperties = NULL,
                                            $skipOnHold = TRUE,
                                            $skipDeceased = TRUE,
@@ -1641,7 +1639,7 @@ class CRM_Utils_Token {
     }
     $field = civicrm_api3($entity, 'getfield', ['action' => 'get', 'name' => $token, 'get_options' => 'get']);
     $field = $field['values'];
-    $fieldType = CRM_Utils_Array::value('type', $field);
+    $fieldType = $field['type'] ?? NULL;
     // Boolean fields
     if ($fieldType == CRM_Utils_Type::T_BOOLEAN && empty($field['options'])) {
       $field['options'] = [ts('No'), ts('Yes')];
@@ -1674,7 +1672,7 @@ class CRM_Utils_Token {
    */
   public static function replaceContributionTokens($str, &$contribution, $html = FALSE, $knownTokens = NULL, $escapeSmarty = FALSE) {
     $key = 'contribution';
-    if (!$knownTokens || !CRM_Utils_Array::value($key, $knownTokens)) {
+    if (!$knownTokens || empty($knownTokens[$key])) {
       //early return
       return $str;
     }

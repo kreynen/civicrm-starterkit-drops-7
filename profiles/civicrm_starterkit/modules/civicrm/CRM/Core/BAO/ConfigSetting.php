@@ -128,7 +128,7 @@ class CRM_Core_BAO_ConfigSetting {
    */
   public static function applyLocale($settings, $activatedLocales) {
     // are we in a multi-language setup?
-    $multiLang = $activatedLocales ? TRUE : FALSE;
+    $multiLang = (bool) $activatedLocales;
 
     // set the current language
     $chosenLocale = NULL;
@@ -190,7 +190,8 @@ class CRM_Core_BAO_ConfigSetting {
     global $dbLocale;
 
     // try to inherit the language from the hosting CMS
-    if ($settings->get('inheritLocale')) {
+    // If the language is specified in the session (ie. via lcMessages) we still allow it to be overridden.
+    if ($settings->get('inheritLocale') && empty($sessionLocale)) {
       // FIXME: On multilanguage installs, CRM_Utils_System::getUFLocale() in many cases returns nothing if $dbLocale is not set
       $lcMessages = $settings->get('lcMessages');
       $dbLocale = $multiLang && $lcMessages ? "_{$lcMessages}" : '';

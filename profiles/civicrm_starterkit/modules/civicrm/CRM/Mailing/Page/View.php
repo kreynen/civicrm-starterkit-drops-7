@@ -141,13 +141,13 @@ class CRM_Mailing_Page_View extends CRM_Core_Page {
       return NULL;
     }
 
-    $contactId = isset($this->_contactID) ? $this->_contactID : 0;
+    $contactId = $this->_contactID ?? 0;
 
     $result = civicrm_api3('Mailing', 'preview', [
       'id' => $this->_mailingID,
       'contact_id' => $contactId,
     ]);
-    $mailing = \CRM_Utils_Array::value('values', $result);
+    $mailing = $result['values'] ?? NULL;
 
     $title = NULL;
     if (isset($mailing['body_html']) && empty($_GET['text'])) {

@@ -21,7 +21,6 @@
 namespace Civi\Api4\Generic\Traits;
 
 use Civi\Api4\Utils\FormattingUtil;
-use Civi\Api4\Query\Api4SelectQuery;
 
 /**
  * @method string getLanguage()
@@ -80,26 +79,6 @@ trait DAOActionTrait {
   }
 
   /**
-   * @return array|int
-   */
-  protected function getObjects() {
-    $query = new Api4SelectQuery($this->getEntityName(), $this->getCheckPermissions(), $this->entityFields());
-    $query->select = $this->getSelect();
-    $query->where = $this->getWhere();
-    $query->orderBy = $this->getOrderBy();
-    $query->limit = $this->getLimit();
-    $query->offset = $this->getOffset();
-    if ($this->getDebug()) {
-      $query->debugOutput =& $this->_debugOutput;
-    }
-    $result = $query->run();
-    if (is_array($result)) {
-      \CRM_Utils_API_HTMLInputCoder::singleton()->decodeRows($result);
-    }
-    return $result;
-  }
-
-  /**
    * Fill field defaults which were declared by the api.
    *
    * Note: default values from core are ignored because the BAO or database layer will supply them.
@@ -146,7 +125,7 @@ trait DAOActionTrait {
 
     foreach ($items as $item) {
       $entityId = $item['id'] ?? NULL;
-      FormattingUtil::formatWriteParams($item, $this->getEntityName(), $this->entityFields());
+      FormattingUtil::formatWriteParams($item, $this->entityFields());
       $this->formatCustomParams($item, $entityId);
       $item['check_permissions'] = $this->getCheckPermissions();
 
@@ -166,7 +145,7 @@ trait DAOActionTrait {
         $createResult = $baoName::$method($item);
       }
       else {
-        $createResult = $this->genericCreateMethod($item);
+        $createResult = $baoName::writeRecord($item);
       }
 
       if (!$createResult) {
@@ -178,26 +157,6 @@ trait DAOActionTrait {
     }
     FormattingUtil::formatOutputValues($result, $this->entityFields(), $this->getEntityName());
     return $result;
-  }
-
-  /**
-   * Fallback when a BAO does not contain create or add functions
-   *
-   * @param $params
-   * @return mixed
-   */
-  private function genericCreateMethod($params) {
-    $baoName = $this->getBaoName();
-    $hook = empty($params['id']) ? 'create' : 'edit';
-
-    \CRM_Utils_Hook::pre($hook, $this->getEntityName(), $params['id'] ?? NULL, $params);
-    /** @var \CRM_Core_DAO $instance */
-    $instance = new $baoName();
-    $instance->copyValues($params);
-    $instance->save();
-    \CRM_Utils_Hook::post($hook, $this->getEntityName(), $instance->id, $instance);
-
-    return $instance;
   }
 
   /**
@@ -216,6 +175,7 @@ trait DAOActionTrait {
       }
 
       list($customGroup, $customField) = explode('.', $name);
+      list($customField, $option) = array_pad(explode(':', $customField), 2, NULL);
 
       $customFieldId = \CRM_Core_BAO_CustomField::getFieldValue(
         \CRM_Core_DAO_CustomField::class,
@@ -238,6 +198,11 @@ trait DAOActionTrait {
 
       // todo are we sure we don't want to allow setting to NULL? need to test
       if ($customFieldId && NULL !== $value) {
+
+        if ($option) {
+          $options = FormattingUtil::getPseudoconstantList($this->getEntityName(), 'custom_' . $customFieldId, $option, $params, $this->getActionName());
+          $value = FormattingUtil::replacePseudoconstant($options, $value, TRUE);
+        }
 
         if ($customFieldType == 'CheckBox') {
           // this function should be part of a class
@@ -281,7 +246,7 @@ trait DAOActionTrait {
     else {
       // Fixme: decouple from v3
       require_once 'api/v3/utils.php';
-      _civicrm_api3_check_edit_permissions($baoName, ['check_permissions' => 1] + $item);
+      _civicrm_api3_check_edit_permissions($baoName, $item);
     }
   }
 

@@ -500,7 +500,7 @@ class CRM_Import_ImportProcessor {
    * @return bool
    */
   protected function isValidRelationshipKey($key) {
-    return !empty($this->getValidRelationships()[$key]) ? TRUE : FALSE;
+    return !empty($this->getValidRelationships()[$key]);
   }
 
   /**

@@ -76,7 +76,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
       throw new CRM_Core_Exception("Failure: Missing Parameter $name");
     }
     else {
-      return CRM_Utils_Array::value($name, $this->_invoiceData);
+      return $this->_invoiceData[$name] ?? NULL;
     }
   }
 
@@ -457,7 +457,10 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
       }
     }
 
-    $paymentProcessorID = self::getPayPalPaymentProcessorID();
+    $paymentProcessorID = CRM_Utils_Array::value('processor_id', $this->_inputParameters);
+    if (!$paymentProcessorID) {
+      $paymentProcessorID = self::getPayPalPaymentProcessorID();
+    }
 
     if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
       return;

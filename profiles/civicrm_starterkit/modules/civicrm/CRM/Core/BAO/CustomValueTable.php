@@ -92,7 +92,7 @@ class CRM_Core_BAO_CustomValueTable {
                       CRM_Core_PseudoConstant::stateProvinceAbbreviation(), TRUE
                     );
                   }
-                  $validStates[] = CRM_Utils_Array::value('state_province_id', $states);
+                  $validStates[] = $states['state_province_id'] ?? NULL;
                 }
                 $value = implode(CRM_Core_DAO::VALUE_SEPARATOR,
                   $validStates
@@ -132,7 +132,7 @@ class CRM_Core_BAO_CustomValueTable {
                       CRM_Core_PseudoConstant::countryIsoCode(), TRUE
                     );
                   }
-                  $validCountries[] = CRM_Utils_Array::value('country_id', $countries);
+                  $validCountries[] = $countries['country_id'] ?? NULL;
                 }
                 $value = implode(CRM_Core_DAO::VALUE_SEPARATOR,
                   $validCountries
@@ -217,7 +217,7 @@ class CRM_Core_BAO_CustomValueTable {
             $count++;
           }
 
-          $fieldExtends = CRM_Utils_Array::value('extends', $field);
+          $fieldExtends = $field['extends'] ?? NULL;
           if (
             CRM_Utils_Array::value('entity_table', $field) == 'civicrm_contact'
             || $fieldExtends == 'Contact'
@@ -225,7 +225,7 @@ class CRM_Core_BAO_CustomValueTable {
             || $fieldExtends == 'Organization'
             || $fieldExtends == 'Household'
           ) {
-            $paramFieldsExtendContactForEntities[$entityID]['custom_' . CRM_Utils_Array::value('custom_field_id', $field)] = CRM_Utils_Array::value('custom_field_id', $field);
+            $paramFieldsExtendContactForEntities[$entityID]['custom_' . CRM_Utils_Array::value('custom_field_id', $field)] = $field['custom_field_id'] ?? NULL;
           }
         }
 
@@ -345,7 +345,7 @@ class CRM_Core_BAO_CustomValueTable {
           'custom_group_id' => $customValue['custom_group_id'],
           'table_name' => $customValue['table_name'],
           'column_name' => $customValue['column_name'],
-          'is_multiple' => CRM_Utils_Array::value('is_multiple', $customValue),
+          'is_multiple' => $customValue['is_multiple'] ?? NULL,
           'file_id' => $customValue['file_id'],
         ];
 
@@ -473,7 +473,7 @@ AND    $cond
       }
       $fields[$dao->table_name][] = $dao->fieldID;
       $select[$dao->table_name][] = "{$dao->column_name} AS custom_{$dao->fieldID}";
-      $isMultiple[$dao->table_name] = $dao->is_multiple ? TRUE : FALSE;
+      $isMultiple[$dao->table_name] = (bool) $dao->is_multiple;
       $file[$dao->table_name][$dao->fieldID] = $dao->fieldDataType;
     }
 

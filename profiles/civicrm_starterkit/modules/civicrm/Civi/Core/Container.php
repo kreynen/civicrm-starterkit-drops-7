@@ -1,7 +1,6 @@
 <?php
 namespace Civi\Core;
 
-use Civi\Core\Event\SystemInstallEvent;
 use Civi\Core\Lock\LockManager;
 use Symfony\Component\Config\ConfigCache;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -330,10 +329,16 @@ class Container {
    */
   public function createEventDispatcher($container) {
     $dispatcher = new CiviEventDispatcher($container);
-    $dispatcher->addListener(SystemInstallEvent::EVENT_NAME, ['\Civi\Core\InstallationCanary', 'check']);
-    $dispatcher->addListener(SystemInstallEvent::EVENT_NAME, ['\Civi\Core\DatabaseInitializer', 'initialize']);
-    $dispatcher->addListener(SystemInstallEvent::EVENT_NAME, ['\Civi\Core\LocalizationInitializer', 'initialize']);
+    if (\CRM_Core_Config::isUpgradeMode()) {
+      $dispatcher->setDispatchPolicy(\CRM_Upgrade_DispatchPolicy::get('upgrade.main'));
+    }
+
+    $dispatcher->addListener('civi.core.install', ['\Civi\Core\InstallationCanary', 'check']);
+    $dispatcher->addListener('civi.core.install', ['\Civi\Core\DatabaseInitializer', 'initialize']);
+    $dispatcher->addListener('civi.core.install', ['\Civi\Core\LocalizationInitializer', 'initialize']);
+    $dispatcher->addListener('hook_civicrm_post', ['\CRM_Core_Transaction', 'addPostCommit'], -1000);
     $dispatcher->addListener('hook_civicrm_pre', ['\Civi\Core\Event\PreEvent', 'dispatchSubevent'], 100);
+    $dispatcher->addListener('civi.dao.preDelete', ['\CRM_Core_BAO_EntityTag', 'preDeleteOtherEntity']);
     $dispatcher->addListener('hook_civicrm_post', ['\Civi\Core\Event\PostEvent', 'dispatchSubevent'], 100);
     $dispatcher->addListener('hook_civicrm_post::Activity', ['\Civi\CCase\Events', 'fireCaseChange']);
     $dispatcher->addListener('hook_civicrm_post::Case', ['\Civi\CCase\Events', 'fireCaseChange']);
@@ -356,12 +361,12 @@ class Container {
       'CRM_Core_LegacyErrorHandler',
       'handleException',
     ], -200);
-    $dispatcher->addListener(\Civi\ActionSchedule\Events::MAPPINGS, ['CRM_Activity_ActionMapping', 'onRegisterActionMappings']);
-    $dispatcher->addListener(\Civi\ActionSchedule\Events::MAPPINGS, ['CRM_Contact_ActionMapping', 'onRegisterActionMappings']);
-    $dispatcher->addListener(\Civi\ActionSchedule\Events::MAPPINGS, ['CRM_Contribute_ActionMapping_ByPage', 'onRegisterActionMappings']);
-    $dispatcher->addListener(\Civi\ActionSchedule\Events::MAPPINGS, ['CRM_Contribute_ActionMapping_ByType', 'onRegisterActionMappings']);
-    $dispatcher->addListener(\Civi\ActionSchedule\Events::MAPPINGS, ['CRM_Event_ActionMapping', 'onRegisterActionMappings']);
-    $dispatcher->addListener(\Civi\ActionSchedule\Events::MAPPINGS, ['CRM_Member_ActionMapping', 'onRegisterActionMappings']);
+    $dispatcher->addListener('civi.actionSchedule.getMappings', ['CRM_Activity_ActionMapping', 'onRegisterActionMappings']);
+    $dispatcher->addListener('civi.actionSchedule.getMappings', ['CRM_Contact_ActionMapping', 'onRegisterActionMappings']);
+    $dispatcher->addListener('civi.actionSchedule.getMappings', ['CRM_Contribute_ActionMapping_ByPage', 'onRegisterActionMappings']);
+    $dispatcher->addListener('civi.actionSchedule.getMappings', ['CRM_Contribute_ActionMapping_ByType', 'onRegisterActionMappings']);
+    $dispatcher->addListener('civi.actionSchedule.getMappings', ['CRM_Event_ActionMapping', 'onRegisterActionMappings']);
+    $dispatcher->addListener('civi.actionSchedule.getMappings', ['CRM_Member_ActionMapping', 'onRegisterActionMappings']);
 
     return $dispatcher;
   }
@@ -404,7 +409,7 @@ class Container {
       \CRM_Utils_API_ReloadOption::singleton(),
       \CRM_Utils_API_MatchOption::singleton(),
     ]));
-    $dispatcher->addSubscriber(new \Civi\API\Subscriber\XDebugSubscriber());
+    $dispatcher->addSubscriber(new \Civi\API\Subscriber\DebugSubscriber());
     $kernel = new \Civi\API\Kernel($dispatcher);
 
     $reflectionProvider = new \Civi\API\Provider\ReflectionProvider($kernel);

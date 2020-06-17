@@ -31,12 +31,12 @@ class CRM_Campaign_Form_Search_Survey extends CRM_Core_Form {
    * Processing needed for buildForm and later.
    */
   public function preProcess() {
-    $this->_search = CRM_Utils_Array::value('search', $_GET);
+    $this->_search = $_GET['search'] ?? NULL;
     $this->_force = CRM_Utils_Request::retrieve('force', 'Boolean', $this, FALSE, FALSE);
     $this->_searchTab = CRM_Utils_Request::retrieve('type', 'String', $this, FALSE, 'survey');
 
     //when we do load tab, lets load the default objects.
-    $this->assign('force', ($this->_force || $this->_searchTab) ? TRUE : FALSE);
+    $this->assign('force', $this->_force || $this->_searchTab);
     $this->assign('searchParams', json_encode($this->get('searchParams')));
     $this->assign('buildSelector', $this->_search);
     $this->assign('searchFor', $this->_searchTab);

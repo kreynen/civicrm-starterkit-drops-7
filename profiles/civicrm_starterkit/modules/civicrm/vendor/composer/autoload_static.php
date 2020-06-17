@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621
+class ComposerStaticInitb2582f114b1248d5a20a7411671eea43
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -62,7 +62,7 @@ class ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621
         ),
         'M' => 
         array (
-            'MimeType\\' => 9,
+            'MimeTyper\\' => 10,
             'MJS\\TopSort\\Tests\\' => 18,
             'MJS\\TopSort\\' => 12,
         ),
@@ -175,9 +175,9 @@ class ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621
         array (
             0 => __DIR__ . '/..' . '/phpoffice/common/src/Common',
         ),
-        'MimeType\\' => 
+        'MimeTyper\\' => 
         array (
-            0 => __DIR__ . '/..' . '/katzien/php-mime-type/src',
+            0 => __DIR__ . '/..' . '/adrienrn/php-mimetyper/src',
         ),
         'MJS\\TopSort\\Tests\\' => 
         array (
@@ -221,7 +221,8 @@ class ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621
         ),
         'Civi\\' => 
         array (
-            0 => __DIR__ . '/../..' . '/setup/src',
+            0 => __DIR__ . '/../..' . '/',
+            1 => __DIR__ . '/../..' . '/setup/src',
         ),
         'Cache\\TagInterop\\' => 
         array (
@@ -304,6 +305,13 @@ class ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621
                 0 => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib',
             ),
         ),
+        'D' => 
+        array (
+            'Dflydev\\ApacheMimeTypes' => 
+            array (
+                0 => __DIR__ . '/..' . '/dflydev/apache-mime-types/src',
+            ),
+        ),
         'C' => 
         array (
             'Crypt' => 
@@ -316,8 +324,7 @@ class ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621
             ),
             'Civi\\' => 
             array (
-                0 => __DIR__ . '/../..' . '/',
-                1 => __DIR__ . '/../..' . '/tests/phpunit',
+                0 => __DIR__ . '/../..' . '/tests/phpunit',
             ),
             'Civi' => 
             array (
@@ -488,11 +495,11 @@ class ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621::$prefixesPsr0;
-            $loader->fallbackDirsPsr0 = ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621::$fallbackDirsPsr0;
-            $loader->classMap = ComposerStaticInit1b2d18b3e6be91a2f49531a488d4d621::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitb2582f114b1248d5a20a7411671eea43::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitb2582f114b1248d5a20a7411671eea43::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInitb2582f114b1248d5a20a7411671eea43::$prefixesPsr0;
+            $loader->fallbackDirsPsr0 = ComposerStaticInitb2582f114b1248d5a20a7411671eea43::$fallbackDirsPsr0;
+            $loader->classMap = ComposerStaticInitb2582f114b1248d5a20a7411671eea43::$classMap;
 
         }, null, ClassLoader::class);
     }

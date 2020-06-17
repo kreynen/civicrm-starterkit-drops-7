@@ -13,8 +13,6 @@
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id: Email.php 45499 2013-02-08 12:31:05Z kurund $
- *
  */
 
 /**
@@ -22,76 +20,6 @@
  * contacts.
  */
 class CRM_Member_Form_Task_Email extends CRM_Member_Form_Task {
-
-  /**
-   * Are we operating in "single mode", i.e. sending email to one
-   * specific contact?
-   *
-   * @var bool
-   */
-  public $_single = FALSE;
-
-  /**
-   * Are we operating in "single mode", i.e. sending email to one
-   * specific contact?
-   *
-   * @var bool
-   */
-  public $_noEmails = FALSE;
-
-  /**
-   * All the existing templates in the system.
-   *
-   * @var array
-   */
-  public $_templates = NULL;
-
-  /**
-   * Build all the data structures needed to build the form.
-   *
-   * @return void
-   */
-  public function preProcess() {
-    CRM_Contact_Form_Task_EmailCommon::preProcessFromAddress($this);
-    parent::preProcess();
-
-    // we have all the membership ids, so now we get the contact ids
-    parent::setContactIDs();
-
-    $this->assign('single', $this->_single);
-  }
-
-  /**
-   * Build the form object.
-   *
-   *
-   * @return void
-   */
-  public function buildQuickForm() {
-    //enable form element
-    $this->assign('emailTask', TRUE);
-
-    CRM_Contact_Form_Task_EmailCommon::buildQuickForm($this);
-  }
-
-  /**
-   * Process the form after the input has been submitted and validated.
-   *
-   *
-   * @return void
-   */
-  public function postProcess() {
-    CRM_Contact_Form_Task_EmailCommon::postProcess($this);
-  }
-
-  /**
-   * List available tokens for this form.
-   *
-   * @return array
-   */
-  public function listTokens() {
-    $tokens = CRM_Core_SelectValues::contactTokens();
-    return $tokens;
-  }
+  use CRM_Contact_Form_Task_EmailTrait;
 
 }

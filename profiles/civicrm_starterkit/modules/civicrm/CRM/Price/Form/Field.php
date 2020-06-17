@@ -419,7 +419,7 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
         $publicOptionCount = $_flagOption = $_rowError = 0;
 
         $_showHide = new CRM_Core_ShowHideBlocks('', '');
-        $visibilityOptions = CRM_Price_BAO_PriceFieldValue::buildOptions('visibility_id', NULL, ['labelColumn' => 'name']);
+        $visibilityOptions = CRM_Price_BAO_PriceFieldValue::buildOptions('visibility_id', 'validate');
 
         for ($index = 1; $index <= self::NUM_OPTION; $index++) {
 
@@ -574,7 +574,7 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
           for ($index = 1; $index <= self::NUM_OPTION; $index++) {
 
             $isOptionSet = !empty($fields['option_label'][$index]) || !empty($fields['option_amount'][$index]);
-            $currentOptionVisibility = CRM_Utils_Array::value($fields['option_visibility_id'][$index], $visibilityOptions);
+            $currentOptionVisibility = $visibilityOptions[$fields['option_visibility_id'][$index]] ?? NULL;
 
             if ($isOptionSet && $currentOptionVisibility == 'public') {
               $errors["option_visibility_id[{$index}]"] = ts('\'Admin\' field should only have \'Admin\' visibility options.');

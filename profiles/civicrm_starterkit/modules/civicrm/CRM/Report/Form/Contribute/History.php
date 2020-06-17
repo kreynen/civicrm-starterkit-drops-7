@@ -232,6 +232,7 @@ class CRM_Report_Form_Contribute_History extends CRM_Report_Form {
             'default' => '',
           ],
           'receive_date' => ['operatorType' => CRM_Report_Form::OP_DATE],
+          'receipt_date' => ['operatorType' => CRM_Report_Form::OP_DATE],
           'contribution_status_id' => [
             'title' => ts('Contribution Status'),
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
@@ -326,7 +327,7 @@ class CRM_Report_Form_Contribute_History extends CRM_Report_Form {
           ) {
             if ($tableName == 'civicrm_relationship') {
               $this->_relationshipColumns["{$tableName}_{$fieldName}"] = "{$field['dbAlias']} as {$tableName}_{$fieldName}";
-              $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = CRM_Utils_Array::value('type', $field);
+              $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = $field['type'] ?? NULL;
               $this->_columnHeaders["{$tableName}_{$fieldName}"]['title'] = $field['title'];
               continue;
             }
@@ -355,7 +356,7 @@ class CRM_Report_Form_Contribute_History extends CRM_Report_Form {
             }
             else {
               $select[] = "{$field['dbAlias']} as {$tableName}_{$fieldName}";
-              $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = CRM_Utils_Array::value('type', $field);
+              $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = $field['type'] ?? NULL;
               $this->_columnHeaders["{$tableName}_{$fieldName}"]['title'] = $field['title'];
             }
             if (!empty($field['no_display'])) {
@@ -403,14 +404,14 @@ class CRM_Report_Form_Contribute_History extends CRM_Report_Form {
           }
           elseif (CRM_Utils_Array::value('type', $field) & CRM_Utils_Type::T_DATE
           ) {
-            $relative = CRM_Utils_Array::value("{$fieldName}_relative", $this->_params);
-            $from = CRM_Utils_Array::value("{$fieldName}_from", $this->_params);
-            $to = CRM_Utils_Array::value("{$fieldName}_to", $this->_params);
+            $relative = $this->_params["{$fieldName}_relative"] ?? NULL;
+            $from = $this->_params["{$fieldName}_from"] ?? NULL;
+            $to = $this->_params["{$fieldName}_to"] ?? NULL;
 
             $clause = $this->dateClause($field['name'], $relative, $from, $to, $field['type']);
           }
           else {
-            $op = CRM_Utils_Array::value("{$fieldName}_op", $this->_params);
+            $op = $this->_params["{$fieldName}_op"] ?? NULL;
             if ($op) {
               $clause = $this->whereClause($field,
                 $op,

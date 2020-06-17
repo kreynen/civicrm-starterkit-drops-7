@@ -14,8 +14,6 @@
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
  */
 
 
@@ -33,13 +31,6 @@ namespace Civi\Api4;
  * @package Civi\Api4
  */
 class Contact extends Generic\DAOEntity {
-
-  /**
-   * @return \Civi\Api4\Action\Contact\GetFields|Generic\DAOGetFieldsAction
-   */
-  public static function getFields() {
-    return new Action\Contact\GetFields(__CLASS__, __FUNCTION__);
-  }
 
   /**
    * @return \Civi\Api4\Action\Contact\GetChecksum

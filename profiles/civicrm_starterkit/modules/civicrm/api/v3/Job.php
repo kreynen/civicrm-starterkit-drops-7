@@ -182,14 +182,16 @@ function _civicrm_api3_job_geocode_spec(&$params) {
 }
 
 /**
- * Send the scheduled reminders for all contacts (either for activities or events).
+ * Send the scheduled reminders as configured.
  *
  * @param array $params
- *   (reference ) input parameters.
- *                        now - the time to use, in YmdHis format
- *                            - makes testing a bit simpler since we can simulate past/future time
+ *  - now - the time to use, in YmdHis format
+ *  - makes testing a bit simpler since we can simulate past/future time
  *
  * @return array
+ * @throws \API_Exception
+ * @throws \CRM_Core_Exception
+ * @throws \CiviCRM_API3_Exception
  */
 function civicrm_api3_job_send_reminder($params) {
   //note that $params['rowCount' can be overridden by one of the preferred syntaxes ($options['limit'] = x
@@ -199,18 +201,12 @@ function civicrm_api3_job_send_reminder($params) {
   $params['rowCount'] = 0;
   $lock = Civi::lockManager()->acquire('worker.core.ActionSchedule');
   if (!$lock->isAcquired()) {
-    return civicrm_api3_create_error('Could not acquire lock, another ActionSchedule process is running');
+    throw new API_Exception('Could not acquire lock, another ActionSchedule process is running');
   }
 
-  $result = CRM_Core_BAO_ActionSchedule::processQueue(CRM_Utils_Array::value('now', $params), $params);
+  CRM_Core_BAO_ActionSchedule::processQueue($params['now'] ?? NULL, $params);
   $lock->release();
-
-  if ($result['is_error'] == 0) {
-    return civicrm_api3_create_success();
-  }
-  else {
-    return civicrm_api3_create_error($result['messages']);
-  }
+  return civicrm_api3_create_success(1, $params, 'ActionSchedule', 'send_reminder');
 }
 
 /**
@@ -512,7 +508,7 @@ function civicrm_api3_job_process_respondent($params) {
  * @throws \CiviCRM_API3_Exception
  */
 function civicrm_api3_job_process_batch_merge($params) {
-  $rule_group_id = CRM_Utils_Array::value('rule_group_id', $params);
+  $rule_group_id = $params['rule_group_id'] ?? NULL;
   if (!$rule_group_id) {
     $rule_group_id = civicrm_api3('RuleGroup', 'getvalue', [
       'contact_type' => 'Individual',
@@ -521,8 +517,8 @@ function civicrm_api3_job_process_batch_merge($params) {
       'options' => ['limit' => 1],
     ]);
   }
-  $rgid = CRM_Utils_Array::value('rgid', $params);
-  $gid = CRM_Utils_Array::value('gid', $params);
+  $rgid = $params['rgid'] ?? NULL;
+  $gid = $params['gid'] ?? NULL;
   $mode = CRM_Utils_Array::value('mode', $params, 'safe');
 
   $result = CRM_Dedupe_Merger::batchMerge($rule_group_id, $gid, $mode, 1, 2, CRM_Utils_Array::value('criteria', $params, []), CRM_Utils_Array::value('check_permissions', $params), NULL, $params['search_limit']);
@@ -678,7 +674,7 @@ function civicrm_api3_job_group_rebuild($params) {
     throw new API_Exception('Could not acquire lock, another GroupRebuild process is running');
   }
 
-  $limit = CRM_Utils_Array::value('limit', $params, 0);
+  $limit = $params['limit'] ?? 0;
 
   CRM_Contact_BAO_GroupContactCache::loadAll(NULL, $limit);
   $lock->release();

@@ -55,15 +55,11 @@ class CRM_Contact_BAO_Contact_Utils {
         $imageInfo[$contactType]['url'] = $imageUrl;
       }
       else {
-        $isSubtype = (array_key_exists('parent_id', $typeInfo) &&
-          $typeInfo['parent_id']
-        ) ? TRUE : FALSE;
-
-        if ($isSubtype) {
+        if (!empty($typeInfo['parent_id'])) {
           $type = CRM_Contact_BAO_ContactType::getBasicType($typeInfo['name']) . '-subtype';
         }
         else {
-          $type = CRM_Utils_Array::value('name', $typeInfo);
+          $type = $typeInfo['name'] ?? NULL;
         }
 
         // do not add title since it hides contact name
@@ -118,7 +114,7 @@ FROM   civicrm_contact
 WHERE  id IN ( $idString )
 ";
     $count = CRM_Core_DAO::singleValueQuery($query);
-    return $count > 1 ? TRUE : FALSE;
+    return $count > 1;
   }
 
   /**
@@ -209,9 +205,9 @@ WHERE  id IN ( $idString )
 
     $input = CRM_Utils_System::explode('_', $inputCheck, 3);
 
-    $inputCS = CRM_Utils_Array::value(0, $input);
-    $inputTS = CRM_Utils_Array::value(1, $input);
-    $inputLF = CRM_Utils_Array::value(2, $input);
+    $inputCS = $input[0] ?? NULL;
+    $inputTS = $input[1] ?? NULL;
+    $inputLF = $input[2] ?? NULL;
 
     $check = self::generateChecksum($contactID, $inputTS, $inputLF);
     // Joomla_11 - If $inputcheck is null without explicitly casting to a string
@@ -584,7 +580,7 @@ LEFT JOIN  civicrm_email ce ON ( ce.contact_id=c.id AND ce.is_primary = 1 )
       $contactLinks['rows'][$i]['primary_email'] = $dao->email;
 
       // get the permission for current contact id.
-      $hasPermissions = CRM_Utils_Array::value($dao->id, $permissionedContactIds);
+      $hasPermissions = $permissionedContactIds[$dao->id] ?? NULL;
       if (!is_array($hasPermissions) || empty($hasPermissions)) {
         $i++;
         continue;
@@ -799,7 +795,7 @@ INNER JOIN civicrm_contact contact_target ON ( contact_target.id = act.contact_i
 
       // 3. get the address details for master_id
       $masterAddress = new CRM_Core_BAO_Address();
-      $masterAddress->id = CRM_Utils_Array::value('master_id', $values);
+      $masterAddress->id = $values['master_id'] ?? NULL;
       $masterAddress->find(TRUE);
 
       // 4. CRM-10336: Empty all fields (execept the fields to skip)
@@ -893,9 +889,9 @@ INNER JOIN civicrm_contact contact_target ON ( contact_target.id = act.contact_i
   public static function updateGreeting($params) {
     $contactType = $params['ct'];
     $greeting = $params['gt'];
-    $valueID = $id = CRM_Utils_Array::value('id', $params);
-    $force = CRM_Utils_Array::value('force', $params);
-    $limit = CRM_Utils_Array::value('limit', $params);
+    $valueID = $id = $params['id'] ?? NULL;
+    $force = $params['force'] ?? NULL;
+    $limit = $params['limit'] ?? NULL;
 
     // if valueID is not passed use default value
     if (!$valueID) {
@@ -908,14 +904,14 @@ INNER JOIN civicrm_contact contact_target ON ( contact_target.id = act.contact_i
     ];
 
     $allGreetings = CRM_Core_PseudoConstant::greeting($filter);
-    $originalGreetingString = $greetingString = CRM_Utils_Array::value($valueID, $allGreetings);
+    $originalGreetingString = $greetingString = $allGreetings[$valueID] ?? NULL;
     if (!$greetingString) {
       throw new CRM_Core_Exception(ts('Incorrect greeting value id %1, or no default greeting for this contact type and greeting type.', [1 => $valueID]));
     }
 
     // build return properties based on tokens
     $greetingTokens = CRM_Utils_Token::getTokens($greetingString);
-    $tokens = CRM_Utils_Array::value('contact', $greetingTokens);
+    $tokens = $greetingTokens['contact'] ?? NULL;
     $greetingsReturnProperties = [];
     if (is_array($tokens)) {
       $greetingsReturnProperties = array_fill_keys(array_values($tokens), 1);
@@ -1081,7 +1077,7 @@ WHERE id IN (" . implode(',', $contactIds) . ")";
       if (!empty($contactParams[$greeting . '_id'])) {
         $string = CRM_Core_PseudoConstant::getLabel('CRM_Contact_BAO_Contact', $greeting . '_id', $contactParams[$greeting . '_id']);
       }
-      $string = isset($contactParams[$greeting . '_custom']) ? $contactParams[$greeting . '_custom'] : $string;
+      $string = $contactParams[$greeting . '_custom'] ?? $string;
       if (empty($string)) {
         $tokens[$greeting] = [];
       }
@@ -1117,9 +1113,7 @@ WHERE id IN (" . implode(',', $contactIds) . ")";
    */
   public static function processGreetingTemplate(&$templateString, $contactDetails, $contactID, $className) {
     CRM_Utils_Token::replaceGreetingTokens($templateString, $contactDetails, $contactID, $className, TRUE);
-
-    $smarty = CRM_Core_Smarty::singleton();
-    $templateString = $smarty->fetch("string:$templateString");
+    $templateString = CRM_Utils_String::parseOneOffStringThroughSmarty($templateString);
   }
 
   /**

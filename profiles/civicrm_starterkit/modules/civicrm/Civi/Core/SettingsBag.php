@@ -136,7 +136,6 @@ class SettingsBag {
       while ($dao->fetch()) {
         $this->values[$dao->name] = ($dao->value !== NULL) ? \CRM_Utils_String::unserialize($dao->value) : NULL;
       }
-      $dao->values['contribution_invoice_settings'] = $this->getContributionSettings();
     }
 
     return $this;
@@ -167,6 +166,10 @@ class SettingsBag {
       $this->combined = $this->combine(
         [$this->defaults, $this->values, $this->mandatory]
       );
+      // computeVirtual() depends on completion of preceding pass.
+      $this->combined = $this->combine(
+        [$this->combined, $this->computeVirtual()]
+      );
     }
     return $this->combined;
   }
@@ -179,7 +182,7 @@ class SettingsBag {
    */
   public function get($key) {
     $all = $this->all();
-    return isset($all[$key]) ? $all[$key] : NULL;
+    return $all[$key] ?? NULL;
   }
 
   /**
@@ -190,7 +193,7 @@ class SettingsBag {
    * @return mixed|NULL
    */
   public function getDefault($key) {
-    return isset($this->defaults[$key]) ? $this->defaults[$key] : NULL;
+    return $this->defaults[$key] ?? NULL;
   }
 
   /**
@@ -202,7 +205,7 @@ class SettingsBag {
    * @return mixed|NULL
    */
   public function getExplicit($key) {
-    return (isset($this->values[$key]) ? $this->values[$key] : NULL);
+    return ($this->values[$key] ?? NULL);
   }
 
   /**
@@ -213,7 +216,7 @@ class SettingsBag {
    * @return mixed|NULL
    */
   public function getMandatory($key) {
-    return isset($this->mandatory[$key]) ? $this->mandatory[$key] : NULL;
+    return $this->mandatory[$key] ?? NULL;
   }
 
   /**
@@ -254,8 +257,7 @@ class SettingsBag {
    * @return SettingsBag
    */
   public function set($key, $value) {
-    if ($key === 'contribution_invoice_settings') {
-      $this->setContributionSettings($value);
+    if ($this->updateVirtual($key, $value)) {
       return $this;
     }
     $this->setDb($key, $value);
@@ -265,6 +267,8 @@ class SettingsBag {
   }
 
   /**
+   * Update a virtualized/deprecated setting.
+   *
    * Temporary handling for phasing out contribution_invoice_settings.
    *
    * Until we have transitioned we need to handle setting & retrieving
@@ -274,29 +278,44 @@ class SettingsBag {
    *
    * https://lab.civicrm.org/dev/core/issues/1558
    *
+   * @param string $key
    * @param array $value
+   * @return bool
+   *   TRUE if $key is a virtualized setting. FALSE if it is a normal setting.
    */
-  public function setContributionSettings($value) {
-    foreach (SettingsBag::getContributionInvoiceSettingKeys() as $possibleKeyName => $settingName) {
-      $keyValue = $value[$possibleKeyName] ?? '';
-      $this->set($settingName, $keyValue);
+  public function updateVirtual($key, $value) {
+    if ($key === 'contribution_invoice_settings') {
+      foreach (SettingsBag::getContributionInvoiceSettingKeys() as $possibleKeyName => $settingName) {
+        $keyValue = $value[$possibleKeyName] ?? '';
+        if ($possibleKeyName === 'invoicing' && is_array($keyValue)) {
+          $keyValue = $keyValue['invoicing'];
+        }
+        $this->set($settingName, $keyValue);
+      }
+      return TRUE;
     }
-    $this->values['contribution_invoice_settings'] = $this->getContributionSettings();
+    return FALSE;
   }
 
   /**
-   * Temporary function to handle returning the contribution_settings key despite it being deprecated.
-   *
-   * See more in comment block on previous function.
+   * Determine the values of any virtual/computed settings.
    *
    * @return array
    */
-  public function getContributionSettings() {
+  public function computeVirtual() {
     $contributionSettings = [];
     foreach (SettingsBag::getContributionInvoiceSettingKeys() as $keyName => $settingName) {
-      $contributionSettings[$keyName] = $this->values[$settingName] ?? '';
+      switch ($keyName) {
+        case 'invoicing':
+          $contributionSettings[$keyName] = $this->get($settingName) ? [$keyName => 1] : 0;
+          break;
+
+        default:
+          $contributionSettings[$keyName] = $this->get($settingName);
+          break;
+      }
     }
-    return $contributionSettings;
+    return ['contribution_invoice_settings' => $contributionSettings];
   }
 
   /**

@@ -92,6 +92,9 @@ class CRM_Member_Form_MembershipView extends CRM_Core_Form {
    *   Create or delete.
    * @param array $owner
    *   Primary membership info (membership_id, contact_id, membership_type ...).
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public function relAction($action, $owner) {
     switch ($action) {
@@ -114,21 +117,19 @@ class CRM_Member_Form_MembershipView extends CRM_Core_Form {
           'end_date' => CRM_Utils_Date::processDate($owner['end_date'], NULL, TRUE, 'Ymd'),
           'source' => ts('Manual Assignment of Related Membership'),
           'is_test' => $owner['is_test'],
-          'campaign_id' => CRM_Utils_Array::value('campaign_id', $owner),
+          'campaign_id' => $owner['campaign_id'] ?? NULL,
           'status_id' => $owner['status_id'],
           'skipStatusCal' => TRUE,
           'createActivity' => TRUE,
         ];
-        // @todo stop passing $ids here (we are only doing so because of passbyreference)
-        $ids = [];
-        CRM_Member_BAO_Membership::create($params, $ids);
+        CRM_Member_BAO_Membership::create($params);
         $relatedDisplayName = CRM_Contact_BAO_Contact::displayName($params['contact_id']);
         CRM_Core_Session::setStatus(ts('Related membership for %1 has been created.', [1 => $relatedDisplayName]),
           ts('Membership Added'), 'success');
         break;
 
       default:
-        CRM_Core_Error::fatal(ts("Invalid action specified in URL"));
+        throw new CRM_Core_Exception(ts('Invalid action specified in URL'));
     }
 
     // Redirect back to membership view page for the owner, without the relAction parameters
@@ -379,7 +380,7 @@ SELECT r.id, c.id as cid, c.display_name as name, c.job_title as comment,
 
       $isRecur = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_Membership', $this->membershipID, 'contribution_recur_id');
 
-      $autoRenew = $isRecur ? TRUE : FALSE;
+      $autoRenew = (bool) $isRecur;
     }
 
     if (!empty($values['is_test'])) {

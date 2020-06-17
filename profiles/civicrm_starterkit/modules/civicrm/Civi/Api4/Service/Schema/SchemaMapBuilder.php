@@ -29,7 +29,6 @@ use Civi\Api4\Service\Schema\Joinable\Joinable;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Civi\Api4\Service\Schema\Joinable\OptionValueJoinable;
 use CRM_Core_DAO_AllCoreTables as AllCoreTables;
-use CRM_Utils_Array as UtilsArray;
 
 class SchemaMapBuilder {
   /**
@@ -71,8 +70,8 @@ class SchemaMapBuilder {
     /** @var \CRM_Core_DAO $daoName */
     foreach (AllCoreTables::get() as $daoName => $data) {
       $table = new Table($data['table']);
-      foreach ($daoName::fields() as $field => $fieldData) {
-        $this->addJoins($table, $field, $fieldData);
+      foreach ($daoName::fields() as $fieldData) {
+        $this->addJoins($table, $fieldData['name'], $fieldData);
       }
       $map->addTable($table);
       if (in_array($data['name'], $this->apiEntities)) {
@@ -89,18 +88,18 @@ class SchemaMapBuilder {
    * @param array $data
    */
   private function addJoins(Table $table, $field, array $data) {
-    $fkClass = UtilsArray::value('FKClassName', $data);
+    $fkClass = $data['FKClassName'] ?? NULL;
 
     // can there be multiple methods e.g. pseudoconstant and fkclass
     if ($fkClass) {
       $tableName = AllCoreTables::getTableForClass($fkClass);
-      $fkKey = UtilsArray::value('FKKeyColumn', $data, 'id');
+      $fkKey = $data['FKKeyColumn'] ?? 'id';
       $alias = str_replace('_id', '', $field);
       $joinable = new Joinable($tableName, $fkKey, $alias);
       $joinable->setJoinType($joinable::JOIN_TYPE_MANY_TO_ONE);
       $table->addTableLink($field, $joinable);
     }
-    elseif (UtilsArray::value('pseudoconstant', $data)) {
+    elseif (!empty($data['pseudoconstant'])) {
       $this->addPseudoConstantJoin($table, $field, $data);
     }
   }
@@ -111,22 +110,22 @@ class SchemaMapBuilder {
    * @param array $data
    */
   private function addPseudoConstantJoin(Table $table, $field, array $data) {
-    $pseudoConstant = UtilsArray::value('pseudoconstant', $data);
-    $tableName = UtilsArray::value('table', $pseudoConstant);
-    $optionGroupName = UtilsArray::value('optionGroupName', $pseudoConstant);
-    $keyColumn = UtilsArray::value('keyColumn', $pseudoConstant, 'id');
+    $pseudoConstant = $data['pseudoconstant'] ?? NULL;
+    $tableName = $pseudoConstant['table'] ?? NULL;
+    $optionGroupName = $pseudoConstant['optionGroupName'] ?? NULL;
+    $keyColumn = $pseudoConstant['keyColumn'] ?? 'id';
 
     if ($tableName) {
       $alias = str_replace('civicrm_', '', $tableName);
       $joinable = new Joinable($tableName, $keyColumn, $alias);
-      $condition = UtilsArray::value('condition', $pseudoConstant);
+      $condition = $pseudoConstant['condition'] ?? NULL;
       if ($condition) {
         $joinable->addCondition($condition);
       }
       $table->addTableLink($field, $joinable);
     }
     elseif ($optionGroupName) {
-      $keyColumn = UtilsArray::value('keyColumn', $pseudoConstant, 'value');
+      $keyColumn = $pseudoConstant['keyColumn'] ?? 'value';
       $joinable = new OptionValueJoinable($optionGroupName, NULL, $keyColumn);
 
       if (!empty($data['serialize'])) {

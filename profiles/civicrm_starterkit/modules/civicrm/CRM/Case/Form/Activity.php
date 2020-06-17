@@ -145,17 +145,6 @@ class CRM_Case_Form_Activity extends CRM_Activity_Form_Activity {
       );
     }
     if (!$this->_activityId) {
-      $caseTypes = CRM_Case_PseudoConstant::caseType();
-
-      if (empty($caseTypes) && ($this->_activityTypeName == 'Change Case Type') && !$this->_caseId) {
-        $url = CRM_Utils_System::url('civicrm/contact/view/case',
-          "reset=1&action=view&cid={$this->_currentlyViewedContactId}&id={$caseIds}&show=1"
-        );
-        $session = CRM_Core_Session::singleton();
-        $session->pushUserContext($url);
-        CRM_Core_Error::statusBounce(ts("You do not have any active Case Types"));
-      }
-
       // check if activity count is within the limit
       $xmlProcessor = new CRM_Case_XMLProcessor_Process();
       foreach ($this->_caseId as $casePos => $caseId) {
@@ -594,15 +583,20 @@ class CRM_Case_Form_Activity extends CRM_Activity_Form_Activity {
       $selectedContacts[] = 'assignee_contact_id';
     }
 
+    $dndActivityTypes = Civi::settings()->get('do_not_notify_assignees_for') ?? [];
     foreach ($vvalue as $vkey => $vval) {
       foreach ($selectedContacts as $dnt => $val) {
         if (array_key_exists($val, $params) && !CRM_Utils_Array::crmIsEmptyArray($params[$val])) {
           if ($val == 'contact_check') {
-            $mailStatus = ts("A copy of the activity has also been sent to selected contacts(s).");
+            $mailStatus = ts("A copy of the activity has also been sent to selected contact(s).");
           }
           else {
-            $this->_relatedContacts = CRM_Activity_BAO_ActivityAssignment::getAssigneeNames([$vval['actId']], TRUE, FALSE);
-            $mailStatus .= ' ' . ts("A copy of the activity has also been sent to assignee contacts(s).");
+            if (!in_array($this->_activityTypeId, $dndActivityTypes)) {
+              $this->_relatedContacts = CRM_Activity_BAO_ActivityAssignment::getAssigneeNames(
+                [$vval['actId']], TRUE, FALSE
+              );
+              $mailStatus .= ' ' . ts("A copy of the activity has also been sent to assignee contact(s).");
+            }
           }
           //build an associative array with unique email addresses.
           foreach ($params[$val] as $key => $value) {
@@ -616,7 +610,7 @@ class CRM_Case_Form_Activity extends CRM_Activity_Form_Activity {
             if (isset($id) && array_key_exists($id, $this->_relatedContacts) && isset($this->_relatedContacts[$id]['email'])) {
               //if email already exists in array then append with ', ' another role only otherwise add it to array.
               if ($contactDetails = CRM_Utils_Array::value($this->_relatedContacts[$id]['email'], $mailToContacts)) {
-                $caseRole = CRM_Utils_Array::value('role', $this->_relatedContacts[$id]);
+                $caseRole = $this->_relatedContacts[$id]['role'] ?? NULL;
                 $mailToContacts[$this->_relatedContacts[$id]['email']]['role'] = $contactDetails['role'] . ', ' . $caseRole;
               }
               else {

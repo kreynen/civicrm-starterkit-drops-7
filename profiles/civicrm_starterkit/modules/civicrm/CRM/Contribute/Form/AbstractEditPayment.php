@@ -276,10 +276,10 @@ class CRM_Contribute_Form_AbstractEditPayment extends CRM_Contact_Form_Task {
 
     // Also don't allow user to update some fields for recurring contributions.
     if (!$this->_online) {
-      $this->_online = CRM_Utils_Array::value('contribution_recur_id', $values);
+      $this->_online = $values['contribution_recur_id'] ?? NULL;
     }
 
-    $this->assign('isOnline', $this->_online ? TRUE : FALSE);
+    $this->assign('isOnline', (bool) $this->_online);
 
     //to get note id
     $daoNote = new CRM_Core_BAO_Note();
@@ -415,9 +415,9 @@ WHERE  contribution_id = {$id}
       $payParams = ['id' => $this->_ppID];
 
       CRM_Pledge_BAO_PledgePayment::retrieve($payParams, $this->_pledgeValues['pledgePayment']);
-      $this->_pledgeID = CRM_Utils_Array::value('pledge_id', $this->_pledgeValues['pledgePayment']);
-      $paymentStatusID = CRM_Utils_Array::value('status_id', $this->_pledgeValues['pledgePayment']);
-      $this->_id = CRM_Utils_Array::value('contribution_id', $this->_pledgeValues['pledgePayment']);
+      $this->_pledgeID = $this->_pledgeValues['pledgePayment']['pledge_id'] ?? NULL;
+      $paymentStatusID = $this->_pledgeValues['pledgePayment']['status_id'] ?? NULL;
+      $this->_id = $this->_pledgeValues['pledgePayment']['contribution_id'] ?? NULL;
 
       //get all status
       $allStatus = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
@@ -661,14 +661,15 @@ WHERE  contribution_id = {$id}
   /**
    * Get the default payment instrument id.
    *
+   * This priortises the submitted value, if any and falls back on the processor.
+   *
    * @return int
+   *
+   * @throws \CRM_Core_Exception
    */
   protected function getDefaultPaymentInstrumentId() {
     $paymentInstrumentID = CRM_Utils_Request::retrieve('payment_instrument_id', 'Integer');
-    if ($paymentInstrumentID) {
-      return $paymentInstrumentID;
-    }
-    return key(CRM_Core_OptionGroup::values('payment_instrument', FALSE, FALSE, FALSE, 'AND is_default = 1'));
+    return (int) ($paymentInstrumentID ?? $this->_paymentProcessor['payment_instrument_id']);
   }
 
   /**

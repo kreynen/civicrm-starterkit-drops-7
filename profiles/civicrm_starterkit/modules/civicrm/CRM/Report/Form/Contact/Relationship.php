@@ -372,8 +372,8 @@ class CRM_Report_Form_Contact_Relationship extends CRM_Report_Form {
               $this->_phoneField_b = TRUE;
             }
             $select[] = "{$field['dbAlias']} as {$tableName}_{$fieldName}";
-            $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = CRM_Utils_Array::value('type', $field);
-            $this->_columnHeaders["{$tableName}_{$fieldName}"]['title'] = CRM_Utils_Array::value('title', $field);
+            $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = $field['type'] ?? NULL;
+            $this->_columnHeaders["{$tableName}_{$fieldName}"]['title'] = $field['title'] ?? NULL;
           }
         }
       }
@@ -454,9 +454,9 @@ class CRM_Report_Form_Contact_Relationship extends CRM_Report_Form {
 
           $clause = NULL;
           if (CRM_Utils_Array::value('type', $field) & CRM_Utils_Type::T_DATE) {
-            $relative = CRM_Utils_Array::value("{$fieldName}_relative", $this->_params);
-            $from = CRM_Utils_Array::value("{$fieldName}_from", $this->_params);
-            $to = CRM_Utils_Array::value("{$fieldName}_to", $this->_params);
+            $relative = $this->_params["{$fieldName}_relative"] ?? NULL;
+            $from = $this->_params["{$fieldName}_from"] ?? NULL;
+            $to = $this->_params["{$fieldName}_to"] ?? NULL;
 
             if ($fieldName == 'active_period_date') {
               $clause = $this->activeClause($field['name'], $relative, $from, $to, $field['type']);
@@ -466,14 +466,14 @@ class CRM_Report_Form_Contact_Relationship extends CRM_Report_Form {
             }
           }
           else {
-            $op = CRM_Utils_Array::value("{$fieldName}_op", $this->_params);
+            $op = $this->_params["{$fieldName}_op"] ?? NULL;
             if ($op) {
               if (($tableName == 'civicrm_contact' ||
                   $tableName == 'civicrm_contact_b') &&
                 ($fieldName == 'contact_type_a' ||
                   $fieldName == 'contact_type_b')
               ) {
-                $cTypes = CRM_Utils_Array::value("{$fieldName}_value", $this->_params);
+                $cTypes = $this->_params["{$fieldName}_value"] ?? NULL;
                 $contactTypes = $contactSubTypes = [];
                 if (!empty($cTypes)) {
                   foreach ($cTypes as $ctype) {
@@ -630,7 +630,7 @@ class CRM_Report_Form_Contact_Relationship extends CRM_Report_Form {
   }
 
   public function beginPostProcessCommon() {
-    $originalRelationshipTypeIdValue = CRM_Utils_Array::value('relationship_type_id_value', $this->_params);
+    $originalRelationshipTypeIdValue = $this->_params['relationship_type_id_value'] ?? NULL;
     if ($originalRelationshipTypeIdValue) {
       $relationshipTypes = [];
       $direction = [];
@@ -792,7 +792,7 @@ class CRM_Report_Form_Contact_Relationship extends CRM_Report_Form {
     if (!$lookup) {
       $lookup = CRM_Contact_BAO_Relationship::buildOptions("is_permission_a_b");
     };
-    return CRM_Utils_Array::value($key, $lookup);
+    return $lookup[$key] ?? NULL;
   }
 
   /**
@@ -821,21 +821,18 @@ class CRM_Report_Form_Contact_Relationship extends CRM_Report_Form {
    * @param string $from
    * @param string $to
    * @param string $type
-   * @param string $fromTime
-   * @param string $toTime
    *
    * @return null|string
    */
   public function activeClause(
     $fieldName,
-    $relative, $from, $to, $type = NULL, $fromTime = NULL, $toTime = NULL
-    ) {
+    $relative, $from, $to, $type = NULL) {
     $clauses = [];
     if (in_array($relative, array_keys($this->getOperationPair(CRM_Report_Form::OP_DATE)))) {
       return NULL;
     }
 
-    list($from, $to) = $this->getFromTo($relative, $from, $to, $fromTime, $toTime);
+    list($from, $to) = $this->getFromTo($relative, $from, $to);
 
     if ($from) {
       $from = ($type == CRM_Utils_Type::T_DATE) ? substr($from, 0, 8) : $from;

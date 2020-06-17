@@ -226,6 +226,7 @@ class CRM_Report_Form_Contribute_SoftCredit extends CRM_Report_Form {
         'grouping' => 'softcredit-fields',
         'filters' => [
           'receive_date' => ['operatorType' => CRM_Report_Form::OP_DATE],
+          'receipt_date' => ['operatorType' => CRM_Report_Form::OP_DATE],
           'currency' => [
             'title' => ts('Currency'),
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
@@ -369,7 +370,7 @@ class CRM_Report_Form_Contribute_SoftCredit extends CRM_Report_Form {
             }
             else {
               $select[] = "{$field['dbAlias']} as {$tableName}_{$fieldName}";
-              $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = CRM_Utils_Array::value('type', $field);
+              $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = $field['type'] ?? NULL;
               $this->_columnHeaders["{$tableName}_{$fieldName}"]['title'] = $field['title'];
             }
           }

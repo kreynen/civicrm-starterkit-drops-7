@@ -461,7 +461,7 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
     // array_values($this->_contactProfileFields)[0] but it's PHP 5.4+ only.
     $slice = array_slice($this->_contactProfileFields, 0, 1);
     $firstField = array_shift($slice);
-    $addToGroupID = isset($firstField['add_to_group_id']) ? $firstField['add_to_group_id'] : NULL;
+    $addToGroupID = $firstField['add_to_group_id'] ?? NULL;
     $this->_contactId = CRM_Contact_BAO_Contact::createProfileContact($params, $this->_contactProfileFields,
       $this->_contactId, $addToGroupID,
       $this->_contactProfileId, $this->_ctype,
@@ -487,7 +487,7 @@ class CRM_Campaign_Form_Petition_Signature extends CRM_Core_Form {
 
     // create the signature activity record
     $params['contactId'] = $this->_contactId;
-    $params['activity_campaign_id'] = CRM_Utils_Array::value('campaign_id', $this->petition);
+    $params['activity_campaign_id'] = $this->petition['campaign_id'] ?? NULL;
     $result = $this->bao->createSignature($params);
 
     // send thank you or email verification emails

@@ -157,7 +157,7 @@ class CRM_Pledge_BAO_Pledge extends CRM_Pledge_DAO_Pledge {
         }
       }
     }
-    $paymentParams['status_id'] = CRM_Utils_Array::value('status_id', $params);
+    $paymentParams['status_id'] = $params['status_id'] ?? NULL;
 
     $pledge = self::add($params);
     if (is_a($pledge, 'CRM_Core_Error')) {
@@ -195,7 +195,7 @@ class CRM_Pledge_BAO_Pledge extends CRM_Pledge_DAO_Pledge {
         'actual_amount',
       );
       foreach ($paymentKeys as $key) {
-        $paymentParams[$key] = CRM_Utils_Array::value($key, $params, NULL);
+        $paymentParams[$key] = $params[$key] ?? NULL;
       }
       CRM_Pledge_BAO_PledgePayment::create($paymentParams);
     }
@@ -524,14 +524,14 @@ GROUP BY  currency
             $contributionParams, $contributionStatus, $returnProperties
           );
           $contributionValue = array(
-            'status' => CRM_Utils_Array::value('contribution_status_id', $contributionStatus),
-            'receive_date' => CRM_Utils_Array::value('receive_date', $contributionStatus),
+            'status' => $contributionStatus['contribution_status_id'] ?? NULL,
+            'receive_date' => $contributionStatus['receive_date'] ?? NULL,
           );
         }
         $payments[$payID] = array_merge($contributionValue,
           array(
-            'amount' => CRM_Utils_Array::value('scheduled_amount', $values),
-            'due_date' => CRM_Utils_Array::value('scheduled_date', $values),
+            'amount' => $values['scheduled_amount'] ?? NULL,
+            'due_date' => $values['scheduled_date'] ?? NULL,
           )
         );
 
@@ -626,8 +626,8 @@ GROUP BY  currency
 
     // check for online pledge.
     if (!empty($params['receipt_from_email'])) {
-      $userName = CRM_Utils_Array::value('receipt_from_name', $params);
-      $userEmail = CRM_Utils_Array::value('receipt_from_email', $params);
+      $userName = $params['receipt_from_name'] ?? NULL;
+      $userEmail = $params['receipt_from_email'] ?? NULL;
     }
     elseif (!empty($params['from_email_id'])) {
       $receiptFrom = $params['from_email_id'];
@@ -638,8 +638,8 @@ GROUP BY  currency
     }
     else {
       // set the domain values.
-      $userName = CRM_Utils_Array::value('name', $domainValues);
-      $userEmail = CRM_Utils_Array::value('email', $domainValues);
+      $userName = $domainValues['name'] ?? NULL;
+      $userEmail = $domainValues['email'] ?? NULL;
     }
 
     if (!isset($receiptFrom)) {
@@ -683,7 +683,7 @@ GROUP BY  currency
         'is_test' => $params['is_test'],
         'status_id' => 2,
         'details' => $details,
-        'campaign_id' => CRM_Utils_Array::value('campaign_id', $params),
+        'campaign_id' => $params['campaign_id'] ?? NULL,
       );
 
       // lets insert assignee record.

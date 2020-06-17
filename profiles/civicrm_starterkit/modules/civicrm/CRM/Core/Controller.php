@@ -208,7 +208,7 @@ class CRM_Core_Controller extends HTML_QuickForm_Controller {
 
     parent::__construct($name, $modal);
 
-    $snippet = CRM_Utils_Array::value('snippet', $_REQUEST);
+    $snippet = $_REQUEST['snippet'] ?? NULL;
     if ($snippet) {
       if ($snippet == 3) {
         $this->_print = CRM_Core_Smarty::PRINT_PDF;
@@ -284,7 +284,7 @@ class CRM_Core_Controller extends HTML_QuickForm_Controller {
       return NULL;
     }
 
-    $key = CRM_Utils_Array::value('qfKey', $_REQUEST, NULL);
+    $key = $_REQUEST['qfKey'] ?? NULL;
     if (!$key && $_SERVER['REQUEST_METHOD'] === 'GET') {
       $key = CRM_Core_Key::get($name, $addSequence);
     }
@@ -417,8 +417,8 @@ class CRM_Core_Controller extends HTML_QuickForm_Controller {
     $pages = $stateMachine->getPages();
     foreach ($pages as $name => $value) {
       $className = CRM_Utils_Array::value('className', $value, $name);
-      $title = CRM_Utils_Array::value('title', $value);
-      $options = CRM_Utils_Array::value('options', $value);
+      $title = $value['title'] ?? NULL;
+      $options = $value['options'] ?? NULL;
       $stateName = CRM_Utils_String::getClassName($className);
       if (!empty($value['className'])) {
         $formName = $name;
@@ -442,7 +442,7 @@ class CRM_Core_Controller extends HTML_QuickForm_Controller {
         $$stateName->setOptions($options);
       }
       if (property_exists($$stateName, 'urlPath')) {
-        $$stateName->urlPath = explode('/', (string) CRM_Utils_System::getUrlPath());
+        $$stateName->urlPath = explode('/', (string) CRM_Utils_System::currentPath());
       }
       $this->addPage($$stateName);
       $this->addAction($stateName, new HTML_QuickForm_Action_Direct());
@@ -464,7 +464,7 @@ class CRM_Core_Controller extends HTML_QuickForm_Controller {
    */
   public function getButtonName() {
     $data = &$this->container();
-    return CRM_Utils_Array::value('_qf_button_name', $data);
+    return $data['_qf_button_name'] ?? NULL;
   }
 
   /**

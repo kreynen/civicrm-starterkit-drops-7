@@ -308,9 +308,9 @@ class CRM_Utils_Rule {
   public static function currentDate($date, $monthRequired = TRUE) {
     $config = CRM_Core_Config::singleton();
 
-    $d = CRM_Utils_Array::value('d', $date);
-    $m = CRM_Utils_Array::value('M', $date);
-    $y = CRM_Utils_Array::value('Y', $date);
+    $d = $date['d'] ?? NULL;
+    $m = $date['M'] ?? NULL;
+    $y = $date['Y'] ?? NULL;
 
     if (!$d && !$m && !$y) {
       return TRUE;
@@ -318,7 +318,7 @@ class CRM_Utils_Rule {
 
     // CRM-9017 CiviContribute/CiviMember form with expiration date format 'm Y'
     if (!$m && !empty($date['m'])) {
-      $m = CRM_Utils_Array::value('m', $date);
+      $m = $date['m'] ?? NULL;
     }
 
     $day = $mon = 1;
@@ -449,7 +449,7 @@ class CRM_Utils_Rule {
    */
   public static function positiveInteger($value) {
     if (is_int($value)) {
-      return ($value < 0) ? FALSE : TRUE;
+      return !($value < 0);
     }
 
     // CRM-13460
@@ -458,11 +458,7 @@ class CRM_Utils_Rule {
       return FALSE;
     }
 
-    if (preg_match('/^\d+$/', $value)) {
-      return TRUE;
-    }
-
-    return FALSE;
+    return (bool) preg_match('/^\d+$/', $value);
   }
 
   /**
@@ -492,7 +488,7 @@ class CRM_Utils_Rule {
       return FALSE;
     }
 
-    return preg_match('/(^-?\d\d*\.\d*$)|(^-?\d\d*$)|(^-?\.\d\d*$)/', $value) ? TRUE : FALSE;
+    return (bool) preg_match('/(^-?\d\d*\.\d*$)|(^-?\d\d*$)|(^-?\.\d\d*$)/', $value);
   }
 
   /**
@@ -513,7 +509,7 @@ class CRM_Utils_Rule {
    * @return bool
    */
   public static function alphanumeric($value) {
-    return preg_match('/^[a-zA-Z0-9_-]*$/', $value) ? TRUE : FALSE;
+    return (bool) preg_match('/^[a-zA-Z0-9_-]*$/', $value);
   }
 
   /**
@@ -523,7 +519,7 @@ class CRM_Utils_Rule {
    * @return bool
    */
   public static function numberOfDigit($value, $noOfDigit) {
-    return preg_match('/^\d{' . $noOfDigit . '}$/', $value) ? TRUE : FALSE;
+    return (bool) preg_match('/^\d{' . $noOfDigit . '}$/', $value);
   }
 
   /**
@@ -605,7 +601,7 @@ class CRM_Utils_Rule {
     // Allow values such as -0, 1.024555, -.1
     // We need to support multiple decimal places here, not just the number allowed by locale
     //  otherwise tax calculations break when you want the inclusive amount to be a round number (eg. £10 inc. VAT requires 8.333333333 here).
-    return preg_match('/(^-?\d+\.?\d*$)|(^-?\.\d+$)/', $value) ? TRUE : FALSE;
+    return (bool) preg_match('/(^-?\d+\.?\d*$)|(^-?\.\d+$)/', $value);
   }
 
   /**
@@ -889,13 +885,13 @@ class CRM_Utils_Rule {
   public static function qfDate($date) {
     $config = CRM_Core_Config::singleton();
 
-    $d = CRM_Utils_Array::value('d', $date);
-    $m = CRM_Utils_Array::value('M', $date);
-    $y = CRM_Utils_Array::value('Y', $date);
+    $d = $date['d'] ?? NULL;
+    $m = $date['M'] ?? NULL;
+    $y = $date['Y'] ?? NULL;
     if (isset($date['h']) ||
       isset($date['g'])
     ) {
-      $m = CRM_Utils_Array::value('M', $date);
+      $m = $date['M'] ?? NULL;
     }
 
     if (!$d && !$m && !$y) {

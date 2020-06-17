@@ -341,7 +341,7 @@ class CRM_Admin_Page_AJAX {
    * Used by jstree to incrementally load tags
    */
   public static function getTagTree() {
-    $parent = CRM_Utils_Type::escape(CRM_Utils_Array::value('parent_id', $_GET, 0), 'Integer');
+    $parent = CRM_Utils_Type::escape(($_GET['parent_id'] ?? 0), 'Integer');
     $substring = CRM_Utils_Type::escape(CRM_Utils_Array::value('str', $_GET), 'String');
     $result = [];
 
@@ -380,7 +380,7 @@ class CRM_Admin_Page_AJAX {
         }
       }
       else {
-        $hasChildTags = empty($childTagIDs[$dao->id]) ? FALSE : TRUE;
+        $hasChildTags = !empty($childTagIDs[$dao->id]);
         $usedFor = (array) explode(',', $dao->used_for);
         $tag = [
           'id' => $dao->id,

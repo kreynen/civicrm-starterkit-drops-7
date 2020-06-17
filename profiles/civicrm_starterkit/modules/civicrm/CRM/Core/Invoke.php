@@ -55,7 +55,7 @@ class CRM_Core_Invoke {
       return NULL;
     }
     // CRM-15901: Turn off PHP errors display for all ajax calls
-    if (CRM_Utils_Array::value(1, $args) == 'ajax' || CRM_Utils_Array::value('snippet', $_REQUEST)) {
+    if (CRM_Utils_Array::value(1, $args) == 'ajax' || !empty($_REQUEST['snippet'])) {
       ini_set('display_errors', 0);
     }
 
@@ -184,7 +184,8 @@ class CRM_Core_Invoke {
           stream_wrapper_unregister('phar');
           stream_wrapper_register('phar', \TYPO3\PharStreamWrapper\PharStreamWrapper::class);
         }
-      } else {
+      }
+      else {
         // this is not an exception we can handle
         throw $e;
       }
@@ -281,7 +282,7 @@ class CRM_Core_Invoke {
         $result = $wrapper->run(
           CRM_Utils_Array::value('page_callback', $item),
           CRM_Utils_Array::value('title', $item),
-          isset($pageArgs) ? $pageArgs : NULL
+          $pageArgs ?? NULL
         );
       }
       else {
@@ -291,7 +292,7 @@ class CRM_Core_Invoke {
           $mode = $pageArgs['mode'];
           unset($pageArgs['mode']);
         }
-        $title = CRM_Utils_Array::value('title', $item);
+        $title = $item['title'] ?? NULL;
         if (strstr($item['page_callback'], '_Page') || strstr($item['page_callback'], '\\Page\\')) {
           $object = new $item['page_callback']($title, $mode);
           $object->urlPath = explode('/', $_GET[$config->userFrameworkURLVar]);

@@ -179,7 +179,7 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
 
     $this->_searchContext = $searchContext;
 
-    $this->_ufGroupID = CRM_Utils_Array::value('uf_group_id', $this->_formValues);
+    $this->_ufGroupID = $this->_formValues['uf_group_id'] ?? NULL;
 
     if ($this->_ufGroupID) {
       $this->_fields = CRM_Core_BAO_UFGroup::getListingFields(CRM_Core_Action::VIEW,
@@ -204,7 +204,7 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
       }
     }
 
-    $displayRelationshipType = CRM_Utils_Array::value('display_relationship_type', $this->_formValues);
+    $displayRelationshipType = $this->_formValues['display_relationship_type'] ?? NULL;
     $operator = CRM_Utils_Array::value('operator', $this->_formValues, 'AND');
 
     // rectify params to what proximity search expects if there is a value for prox_distance
@@ -308,7 +308,7 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
             'qs' => $qs,
             'title' => $value['title'],
             'ref' => $value['ref'],
-            'class' => CRM_Utils_Array::value('class', $value),
+            'class' => $value['class'] ?? NULL,
           ];
         }
       }
@@ -612,7 +612,7 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
               $locationTypeName = "website-{$id}";
             }
             else {
-              $locationTypeName = CRM_Utils_Array::value($id, $locationTypes);
+              $locationTypeName = $locationTypes[$id] ?? NULL;
               if (!$locationTypeName) {
                 continue;
               }
@@ -653,7 +653,7 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
     $links = self::links($this->_context, $this->_contextMenu, $this->_key);
 
     //check explicitly added contact to a Smart Group.
-    $groupID = CRM_Utils_Array::value('group', $this->_formValues);
+    $groupID = $this->_formValues['group'] ?? NULL;
 
     $pseudoconstants = [];
     // for CRM-3157 purposes
@@ -719,13 +719,13 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
           list($locType) = explode("-email", $property);
           $onholdProperty = "{$locType}-on_hold";
 
-          $row[$property] = isset($result->$property) ? $result->$property : NULL;
+          $row[$property] = $result->$property ?? NULL;
           if (!empty($row[$property]) && !empty($result->$onholdProperty)) {
             $row[$property] .= " (On Hold)";
           }
         }
         else {
-          $row[$property] = isset($result->$property) ? $result->$property : NULL;
+          $row[$property] = $result->$property ?? NULL;
         }
       }
 
@@ -805,9 +805,7 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
           );
         }
         elseif ((is_numeric(CRM_Utils_Array::value('geo_code_1', $row))) ||
-          (!empty($row['city']) &&
-            CRM_Utils_Array::value('state_province', $row)
-          )
+          (!empty($row['city']) && !empty($row['state_province']))
         ) {
           $row['action'] = CRM_Core_Action::formLink(
             $links,
@@ -935,9 +933,7 @@ class CRM_Contact_Selector extends CRM_Core_Selector_Base implements CRM_Core_Se
       }
 
       if ((!is_numeric(CRM_Utils_Array::value('geo_code_1', $row))) &&
-        (empty($row['city']) ||
-          !CRM_Utils_Array::value('state_province', $row)
-        )
+        (empty($row['city']) || empty($row['state_province']))
       ) {
         $mask = $mask & 4095;
       }

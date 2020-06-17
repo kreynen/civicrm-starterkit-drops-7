@@ -204,10 +204,10 @@ class CRM_Badge_BAO_Badge {
     if ((CRM_Utils_Array::value('height_image_1', $formattedRow) >
         CRM_Utils_Array::value('height_image_2', $formattedRow)) && !empty($formattedRow['height_image_1'])
     ) {
-      $startOffset = CRM_Utils_Array::value('height_image_1', $formattedRow);
+      $startOffset = $formattedRow['height_image_1'] ?? NULL;
     }
     elseif (!empty($formattedRow['height_image_2'])) {
-      $startOffset = CRM_Utils_Array::value('height_image_2', $formattedRow);
+      $startOffset = $formattedRow['height_image_2'] ?? NULL;
     }
 
     if (!empty($formattedRow['participant_image'])) {
@@ -484,7 +484,7 @@ class CRM_Badge_BAO_Badge {
       $query->convertToPseudoNames($dao);
       $rows[$dao->participant_id] = [];
       foreach ($returnProperties as $key => $dontCare) {
-        $value = isset($dao->$key) ? $dao->$key : NULL;
+        $value = $dao->$key ?? NULL;
         // Format custom fields
         if (strstr($key, 'custom_') && isset($value)) {
           $value = CRM_Core_BAO_CustomField::displayValue($value, substr($key, 7), $dao->contact_id);

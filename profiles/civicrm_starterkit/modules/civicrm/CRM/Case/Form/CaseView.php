@@ -29,7 +29,7 @@ class CRM_Case_Form_CaseView extends CRM_Core_Form {
    * Set variables up before form is built.
    */
   public function preProcess() {
-    $this->_showRelatedCases = CRM_Utils_Array::value('relatedCases', $_GET);
+    $this->_showRelatedCases = $_GET['relatedCases'] ?? NULL;
 
     $xmlProcessorProcess = new CRM_Case_XMLProcessor_Process();
     $isMultiClient = $xmlProcessorProcess->getAllowMultipleCaseClients();
@@ -81,8 +81,8 @@ class CRM_Case_Form_CaseView extends CRM_Core_Form {
 
     $this->_caseDetails = [
       'case_type' => $caseType,
-      'case_status' => CRM_Utils_Array::value($values['case_status_id'], $statuses),
-      'case_subject' => CRM_Utils_Array::value('subject', $values),
+      'case_status' => $statuses[$values['case_status_id']] ?? NULL,
+      'case_subject' => $values['subject'] ?? NULL,
       'case_start_date' => $values['case_start_date'],
     ];
     $this->_caseType = $caseTypeName;
@@ -470,7 +470,7 @@ class CRM_Case_Form_CaseView extends CRM_Core_Form {
     $allCaseActTypes = CRM_Case_PseudoConstant::caseActivityType();
     foreach ($allCaseActTypes as $typeDetails) {
       if (!in_array($typeDetails['name'], ['Open Case'])) {
-        $aTypesFilter[$typeDetails['id']] = CRM_Utils_Array::value('label', $typeDetails);
+        $aTypesFilter[$typeDetails['id']] = $typeDetails['label'] ?? NULL;
       }
     }
     $aTypesFilter = $aTypesFilter + $aTypes;
@@ -498,6 +498,7 @@ class CRM_Case_Form_CaseView extends CRM_Core_Form {
       'check_permissions' => TRUE,
       'contact_id' => $this->_contactID,
       'is_deleted' => 0,
+      'option.limit' => 0,
       'id' => ['!=' => $this->_caseID],
       'return' => ['id', 'start_date', 'case_type_id.title'],
     ]);

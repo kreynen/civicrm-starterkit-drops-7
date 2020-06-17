@@ -399,7 +399,7 @@ class CRM_Utils_File {
       }
     }
     // support lower and uppercase file extensions
-    return isset($extensions[strtolower($ext)]) ? TRUE : FALSE;
+    return (bool) isset($extensions[strtolower($ext)]);
   }
 
   /**
@@ -1066,7 +1066,7 @@ HTACCESS;
    */
   public static function isValidFileName($fileName = NULL) {
     if ($fileName) {
-      $check = $fileName !== basename($fileName) ? FALSE : TRUE;
+      $check = ($fileName === basename($fileName));
       if ($check) {
         if (substr($fileName, 0, 1) == '/' || substr($fileName, 0, 1) == '.' || substr($fileName, 0, 1) == DIRECTORY_SEPARATOR) {
           $check = FALSE;
@@ -1082,15 +1082,9 @@ HTACCESS;
    * @param string $mimeType the mime-type we want extensions for
    * @return array
    */
-  public static function getAcceptableExtensionsForMimeType($mimeType = NULL) {
-    $mapping = \MimeType\Mapping::$types;
-    $extensions = [];
-    foreach ($mapping as $extension => $type) {
-      if ($mimeType == $type) {
-        $extensions[] = $extension;
-      }
-    }
-    return $extensions;
+  public static function getAcceptableExtensionsForMimeType($mimeType = []) {
+    $mimeRepostory = new \MimeTyper\Repository\ExtendedRepository();
+    return $mimeRepostory->findExtensions($mimeType);
   }
 
   /**

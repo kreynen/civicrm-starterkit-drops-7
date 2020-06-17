@@ -2846,23 +2846,23 @@ INSERT INTO civicrm_state_province (id, country_id, abbreviation, name) VALUES
 (4126, 1173, "01", "Aveiro"),
 (4127, 1173, "02", "Beja"),
 (4128, 1173, "03", "Braga"),
-(4129, 1173, "04", "Braganca"),
+(4129, 1173, "04", "Bragança"),
 (4130, 1173, "05", "Castelo Branco"),
-(4131, 1173, "06", "Colmbra"),
-(4132, 1173, "07", "Ovora"),
+(4131, 1173, "06", "Coimbra"),
+(4132, 1173, "07", "Évora"),
 (4133, 1173, "08", "Faro"),
 (4134, 1173, "09", "Guarda"),
 (4135, 1173, "10", "Leiria"),
 (4136, 1173, "11", "Lisboa"),
 (4137, 1173, "12", "Portalegre"),
 (4138, 1173, "13", "Porto"),
-(4139, 1173, "14", "Santarem"),
-(4140, 1173, "15", "Setubal"),
+(4139, 1173, "14", "Santarém"),
+(4140, 1173, "15", "Setúbal"),
 (4141, 1173, "16", "Viana do Castelo"),
 (4142, 1173, "17", "Vila Real"),
 (4143, 1173, "18", "Viseu"),
-(4144, 1173, "20", "Regiao Autonoma dos Acores"),
-(4145, 1173, "30", "Regiao Autonoma da Madeira"),
+(4144, 1173, "20", "Região Autónoma dos Açores"),
+(4145, 1173, "30", "Região Autónoma da Madeira"),
 (4146, 1168, "ASU", "Asuncion"),
 (4147, 1168, "16", "Alto Paraguay"),
 (4148, 1168, "10", "Alto Parana"),
@@ -6495,7 +6495,7 @@ INSERT INTO civicrm_option_value
     SELECT @tpl_ovid_petition_confirmation_needed := MAX(id) FROM civicrm_option_value WHERE option_group_id = @tpl_ogid_petition AND name = 'petition_confirmation_needed';
 
 INSERT INTO civicrm_msg_template
-  (msg_title,      msg_subject,                  msg_text,                  msg_html,                  workflow_id,        is_default, is_reserved) VALUES
+  (msg_title,      msg_subject,                  msg_text,                  msg_html,    workflow_name,              workflow_id,        is_default, is_reserved) VALUES
       
       
       
@@ -6642,7 +6642,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_case_activity, 1,          0),
+', 'case_activity', @tpl_ovid_case_activity, 1,          0),
       ('Cases - Send Copy of an Activity', '{if $idHash}[case #{$idHash}]{/if} {$activitySubject}
 ', '===========================================================
 {ts}Activity Summary{/ts} - {$activityTypeName}
@@ -6786,7 +6786,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_case_activity, 0,          1) ,      
+', 'case_activity', @tpl_ovid_case_activity, 0,          1) ,      
       
       
       ('Contributions - Duplicate Organization Alert', '{ts}CiviContribute Alert: Possible Duplicate Contact Record{/ts} - {contact.display_name}
@@ -6893,7 +6893,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_dupalert, 1,          0),
+', 'contribution_dupalert', @tpl_ovid_contribution_dupalert, 1,          0),
       ('Contributions - Duplicate Organization Alert', '{ts}CiviContribute Alert: Possible Duplicate Contact Record{/ts} - {contact.display_name}
 ', '{ts}A contribution / membership signup was made on behalf of the organization listed below.{/ts}
 {ts}The information provided matched multiple existing database records based on the configured Duplicate Matching Rules for your site.{/ts}
@@ -6998,7 +6998,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_dupalert, 0,          1) ,      
+', 'contribution_dupalert', @tpl_ovid_contribution_dupalert, 0,          1) ,      
       
       
       ('Contributions - Receipt (off-line)', '{ts}Contribution Receipt{/ts} - {contact.display_name}
@@ -7444,7 +7444,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_offline_receipt, 1,          0),
+', 'contribution_offline_receipt', @tpl_ovid_contribution_offline_receipt, 1,          0),
       ('Contributions - Receipt (off-line)', '{ts}Contribution Receipt{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -7888,7 +7888,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_offline_receipt, 0,          1) ,      
+', 'contribution_offline_receipt', @tpl_ovid_contribution_offline_receipt, 0,          1) ,      
       
       
       ('Contributions - Receipt (on-line)', '{if $is_pay_later}{ts}Invoice{/ts}{else}{ts}Receipt{/ts}{/if} - {$title} - {contact.display_name}
@@ -8577,7 +8577,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_online_receipt, 1,          0),
+', 'contribution_online_receipt', @tpl_ovid_contribution_online_receipt, 1,          0),
       ('Contributions - Receipt (on-line)', '{if $is_pay_later}{ts}Invoice{/ts}{else}{ts}Receipt{/ts}{/if} - {$title} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 {if $receipt_text}
@@ -9264,7 +9264,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_online_receipt, 0,          1) ,      
+', 'contribution_online_receipt', @tpl_ovid_contribution_online_receipt, 0,          1) ,      
       
       
       ('Contributions - Invoice', '{if $title}
@@ -9710,7 +9710,7 @@ INSERT INTO civicrm_msg_template
   </div>
   </body>
 </html>
-', @tpl_ovid_contribution_invoice_receipt, 1,          0),
+', 'contribution_invoice_receipt', @tpl_ovid_contribution_invoice_receipt, 1,          0),
       ('Contributions - Invoice', '{if $title}
   {if $component}
     {if $component == \'event\'}
@@ -10154,7 +10154,7 @@ INSERT INTO civicrm_msg_template
   </div>
   </body>
 </html>
-', @tpl_ovid_contribution_invoice_receipt, 0,          1) ,      
+', 'contribution_invoice_receipt', @tpl_ovid_contribution_invoice_receipt, 0,          1) ,      
       
       
       ('Contributions - Recurring Start and End Notification', '{ts}Recurring Contribution Notification{/ts} - {contact.display_name}
@@ -10357,7 +10357,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_recurring_notify, 1,          0),
+', 'contribution_recurring_notify', @tpl_ovid_contribution_recurring_notify, 1,          0),
       ('Contributions - Recurring Start and End Notification', '{ts}Recurring Contribution Notification{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -10558,7 +10558,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_recurring_notify, 0,          1) ,      
+', 'contribution_recurring_notify', @tpl_ovid_contribution_recurring_notify, 0,          1) ,      
       
       
       ('Contributions - Recurring Cancellation Notification', '{ts}Recurring Contribution Cancellation Notification{/ts} - {contact.display_name}
@@ -10598,7 +10598,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_recurring_cancelled, 1,          0),
+', 'contribution_recurring_cancelled', @tpl_ovid_contribution_recurring_cancelled, 1,          0),
       ('Contributions - Recurring Cancellation Notification', '{ts}Recurring Contribution Cancellation Notification{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -10636,7 +10636,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_recurring_cancelled, 0,          1) ,      
+', 'contribution_recurring_cancelled', @tpl_ovid_contribution_recurring_cancelled, 0,          1) ,      
       
       
       ('Contributions - Recurring Billing Updates', '{ts}Recurring Contribution Billing Updates{/ts} - {contact.display_name}
@@ -10728,7 +10728,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_recurring_billing, 1,          0),
+', 'contribution_recurring_billing', @tpl_ovid_contribution_recurring_billing, 1,          0),
       ('Contributions - Recurring Billing Updates', '{ts}Recurring Contribution Billing Updates{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -10818,7 +10818,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_recurring_billing, 0,          1) ,      
+', 'contribution_recurring_billing', @tpl_ovid_contribution_recurring_billing, 0,          1) ,      
       
       
       ('Contributions - Recurring Updates', '{ts}Recurring Contribution Update Notification{/ts} - {contact.display_name}
@@ -10866,7 +10866,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_recurring_edit, 1,          0),
+', 'contribution_recurring_edit', @tpl_ovid_contribution_recurring_edit, 1,          0),
       ('Contributions - Recurring Updates', '{ts}Recurring Contribution Update Notification{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -10912,7 +10912,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_contribution_recurring_edit, 0,          1) ,      
+', 'contribution_recurring_edit', @tpl_ovid_contribution_recurring_edit, 0,          1) ,      
       
       
       ('Personal Campaign Pages - Admin Notification', '{ts}Personal Campaign Page Notification{/ts} - {contact.display_name}
@@ -11032,7 +11032,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_pcp_notify, 1,          0),
+', 'pcp_notify', @tpl_ovid_pcp_notify, 1,          0),
       ('Personal Campaign Pages - Admin Notification', '{ts}Personal Campaign Page Notification{/ts} - {contact.display_name}
 ', '===========================================================
 {ts}Personal Campaign Page Notification{/ts}
@@ -11150,7 +11150,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_pcp_notify, 0,          1) ,      
+', 'pcp_notify', @tpl_ovid_pcp_notify, 0,          1) ,      
       
       
       ('Personal Campaign Pages - Supporter Status Change Notification', '{ts 1=$contribPageTitle}Your Personal Campaign Page for %1{/ts} - {contact.display_name}
@@ -11256,7 +11256,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_pcp_status_change, 1,          0),
+', 'pcp_status_change', @tpl_ovid_pcp_status_change, 1,          0),
       ('Personal Campaign Pages - Supporter Status Change Notification', '{ts 1=$contribPageTitle}Your Personal Campaign Page for %1{/ts} - {contact.display_name}
 ', '{if $pcpStatus eq \'Approved\'}
 ============================
@@ -11360,7 +11360,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_pcp_status_change, 0,          1) ,      
+', 'pcp_status_change', @tpl_ovid_pcp_status_change, 0,          1) ,      
       
       
       ('Personal Campaign Pages - Supporter Welcome', '{ts 1=$contribPageTitle}Your Personal Campaign Page for %1{/ts} - {contact.display_name}
@@ -11521,7 +11521,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_pcp_supporter_notify, 1,          0),
+', 'pcp_supporter_notify', @tpl_ovid_pcp_supporter_notify, 1,          0),
       ('Personal Campaign Pages - Supporter Welcome', '{ts 1=$contribPageTitle}Your Personal Campaign Page for %1{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -11680,7 +11680,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_pcp_supporter_notify, 0,          1) ,      
+', 'pcp_supporter_notify', @tpl_ovid_pcp_supporter_notify, 0,          1) ,      
       
       
       ('Personal Campaign Pages - Owner Notification', '{ts}Someone has just donated to your personal campaign page{/ts} - {contact.display_name}
@@ -11734,7 +11734,7 @@ INSERT INTO civicrm_msg_template
   </table>
 </body>
 </html>
-', @tpl_ovid_pcp_owner_notify, 1,          0),
+', 'pcp_owner_notify', @tpl_ovid_pcp_owner_notify, 1,          0),
       ('Personal Campaign Pages - Owner Notification', '{ts}Someone has just donated to your personal campaign page{/ts} - {contact.display_name}
 ', '===========================================================
 {ts}Personal Campaign Page Owner Notification{/ts}
@@ -11786,7 +11786,7 @@ INSERT INTO civicrm_msg_template
   </table>
 </body>
 </html>
-', @tpl_ovid_pcp_owner_notify, 0,          1) ,      
+', 'pcp_owner_notify', @tpl_ovid_pcp_owner_notify, 0,          1) ,      
       
       
       ('Additional Payment Receipt or Refund Notification', '{if $isRefund}{ts}Refund Notification{/ts}{else}{ts}Payment Receipt{/ts}{/if}{if $component eq \'event\'} - {$event.title}{/if} - {contact.display_name}
@@ -12139,7 +12139,7 @@ INSERT INTO civicrm_msg_template
 
  </body>
 </html>
-', @tpl_ovid_payment_or_refund_notification, 1,          0),
+', 'payment_or_refund_notification', @tpl_ovid_payment_or_refund_notification, 1,          0),
       ('Additional Payment Receipt or Refund Notification', '{if $isRefund}{ts}Refund Notification{/ts}{else}{ts}Payment Receipt{/ts}{/if}{if $component eq \'event\'} - {$event.title}{/if} - {contact.display_name}
 ', '{if $emailGreeting}{$emailGreeting},
 {/if}
@@ -12490,7 +12490,7 @@ INSERT INTO civicrm_msg_template
 
  </body>
 </html>
-', @tpl_ovid_payment_or_refund_notification, 0,          1) ,      
+', 'payment_or_refund_notification', @tpl_ovid_payment_or_refund_notification, 0,          1) ,      
       
       
       ('Events - Registration Confirmation and Receipt (off-line)', '{ts}Event Confirmation{/ts} - {$event.title} - {contact.display_name}
@@ -13294,7 +13294,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_event_offline_receipt, 1,          0),
+', 'event_offline_receipt', @tpl_ovid_event_offline_receipt, 1,          0),
       ('Events - Registration Confirmation and Receipt (off-line)', '{ts}Event Confirmation{/ts} - {$event.title} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 {if $event.confirm_email_text AND (not $isOnWaitlist AND not $isRequireApproval)}
@@ -14096,7 +14096,7 @@ INSERT INTO civicrm_msg_template
 
 </body>
 </html>
-', @tpl_ovid_event_offline_receipt, 0,          1) ,      
+', 'event_offline_receipt', @tpl_ovid_event_offline_receipt, 0,          1) ,      
       
       
       ('Events - Registration Confirmation and Receipt (on-line)', '{if $isOnWaitlist}{ts}Wait List Confirmation{/ts}{elseif $isRequireApproval}{ts}Registration Request Confirmation{/ts}{else}{ts}Registration Confirmation{/ts}{/if} - {$event.event_title} - {contact.display_name}
@@ -14907,7 +14907,7 @@ You were registered by: {$payer.name}
 
 </body>
 </html>
-', @tpl_ovid_event_online_receipt, 1,          0),
+', 'event_online_receipt', @tpl_ovid_event_online_receipt, 1,          0),
       ('Events - Registration Confirmation and Receipt (on-line)', '{if $isOnWaitlist}{ts}Wait List Confirmation{/ts}{elseif $isRequireApproval}{ts}Registration Request Confirmation{/ts}{else}{ts}Registration Confirmation{/ts}{/if} - {$event.event_title} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 {if $event.confirm_email_text AND (not $isOnWaitlist AND not $isRequireApproval)}
@@ -15716,7 +15716,7 @@ You were registered by: {$payer.name}
 
 </body>
 </html>
-', @tpl_ovid_event_online_receipt, 0,          1) ,      
+', 'event_online_receipt', @tpl_ovid_event_online_receipt, 0,          1) ,      
       
       
       ('Events - Receipt only', 'Receipt for {if $events_in_cart} Event Registration{/if} - {contact.display_name}
@@ -15975,7 +15975,7 @@ Total: {$total|crmMoney:$currency|string_format:"%10s"}
     If you have questions about the status of your registration or purchase please feel free to contact us.
   </body>
 </html>
-', @tpl_ovid_event_registration_receipt, 1,          0),
+', 'event_registration_receipt', @tpl_ovid_event_registration_receipt, 1,          0),
       ('Events - Receipt only', 'Receipt for {if $events_in_cart} Event Registration{/if} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -16232,7 +16232,7 @@ Total: {$total|crmMoney:$currency|string_format:"%10s"}
     If you have questions about the status of your registration or purchase please feel free to contact us.
   </body>
 </html>
-', @tpl_ovid_event_registration_receipt, 0,          1) ,      
+', 'event_registration_receipt', @tpl_ovid_event_registration_receipt, 0,          1) ,      
       
       
       ('Events - Registration Cancellation Notice', '{ts 1=$event.event_title}Event Registration Cancelled for %1{/ts} - {contact.display_name}
@@ -16412,7 +16412,7 @@ Total: {$total|crmMoney:$currency|string_format:"%10s"}
 
 </body>
 </html>
-', @tpl_ovid_participant_cancelled, 1,          0),
+', 'participant_cancelled', @tpl_ovid_participant_cancelled, 1,          0),
       ('Events - Registration Cancellation Notice', '{ts 1=$event.event_title}Event Registration Cancelled for %1{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -16590,7 +16590,7 @@ Total: {$total|crmMoney:$currency|string_format:"%10s"}
 
 </body>
 </html>
-', @tpl_ovid_participant_cancelled, 0,          1) ,      
+', 'participant_cancelled', @tpl_ovid_participant_cancelled, 0,          1) ,      
       
       
       ('Events - Registration Confirmation Invite', '{ts 1=$event.event_title}Confirm your registration for %1{/ts} - {contact.display_name}
@@ -16862,7 +16862,7 @@ Click this link to go to a web page where you can confirm your registration onli
 
 </body>
 </html>
-', @tpl_ovid_participant_confirm, 1,          0),
+', 'participant_confirm', @tpl_ovid_participant_confirm, 1,          0),
       ('Events - Registration Confirmation Invite', '{ts 1=$event.event_title}Confirm your registration for %1{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -17132,7 +17132,7 @@ Click this link to go to a web page where you can confirm your registration onli
 
 </body>
 </html>
-', @tpl_ovid_participant_confirm, 0,          1) ,      
+', 'participant_confirm', @tpl_ovid_participant_confirm, 0,          1) ,      
       
       
       ('Events - Pending Registration Expiration Notice', '{ts 1=$event.event_title}Event registration has expired for %1{/ts} - {contact.display_name}
@@ -17319,7 +17319,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_participant_expired, 1,          0),
+', 'participant_expired', @tpl_ovid_participant_expired, 1,          0),
       ('Events - Pending Registration Expiration Notice', '{ts 1=$event.event_title}Event registration has expired for %1{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -17504,7 +17504,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_participant_expired, 0,          1) ,      
+', 'participant_expired', @tpl_ovid_participant_expired, 0,          1) ,      
       
       
       ('Events - Registration Transferred Notice', '{ts 1=$event.event_title}Event Registration Transferred for %1{/ts} - {contact.display_name}
@@ -17682,7 +17682,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_participant_transferred, 1,          0),
+', 'participant_transferred', @tpl_ovid_participant_transferred, 1,          0),
       ('Events - Registration Transferred Notice', '{ts 1=$event.event_title}Event Registration Transferred for %1{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -17858,7 +17858,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_participant_transferred, 0,          1) ,      
+', 'participant_transferred', @tpl_ovid_participant_transferred, 0,          1) ,      
       
       
       ('Tell-a-Friend Email', '{ts 1=$senderContactName 2=$title}%1 wants you to know about %2{/ts}
@@ -17917,7 +17917,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_friend, 1,          0),
+', 'friend', @tpl_ovid_friend, 1,          0),
       ('Tell-a-Friend Email', '{ts 1=$senderContactName 2=$title}%1 wants you to know about %2{/ts}
 ', '{$senderMessage}
 
@@ -17974,7 +17974,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_friend, 0,          1) ,      
+', 'friend', @tpl_ovid_friend, 0,          1) ,      
       
       
       ('Memberships - Signup and Renewal Receipts (off-line)', '{if $receiptType EQ \'membership signup\'}
@@ -18387,7 +18387,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_membership_offline_receipt, 1,          0),
+', 'membership_offline_receipt', @tpl_ovid_membership_offline_receipt, 1,          0),
       ('Memberships - Signup and Renewal Receipts (off-line)', '{if $receiptType EQ \'membership signup\'}
 {ts}Membership Confirmation and Receipt{/ts}
 {elseif $receiptType EQ \'membership renewal\'}
@@ -18798,7 +18798,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_membership_offline_receipt, 0,          1) ,      
+', 'membership_offline_receipt', @tpl_ovid_membership_offline_receipt, 0,          1) ,      
       
       
       ('Memberships - Receipt (on-line)', '{if $is_pay_later}{ts}Invoice{/ts}{else}{ts}Receipt{/ts}{/if} - {$title} - {contact.display_name}
@@ -19596,7 +19596,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_membership_online_receipt, 1,          0),
+', 'membership_online_receipt', @tpl_ovid_membership_online_receipt, 1,          0),
       ('Memberships - Receipt (on-line)', '{if $is_pay_later}{ts}Invoice{/ts}{else}{ts}Receipt{/ts}{/if} - {$title} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 {if $receipt_text}
@@ -20392,7 +20392,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_membership_online_receipt, 0,          1) ,      
+', 'membership_online_receipt', @tpl_ovid_membership_online_receipt, 0,          1) ,      
       
       
       ('Memberships - Auto-renew Cancellation Notification', '{ts}Autorenew Membership Cancellation Notification{/ts} - {contact.display_name}
@@ -20480,7 +20480,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_membership_autorenew_cancelled, 1,          0),
+', 'membership_autorenew_cancelled', @tpl_ovid_membership_autorenew_cancelled, 1,          0),
       ('Memberships - Auto-renew Cancellation Notification', '{ts}Autorenew Membership Cancellation Notification{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -20566,7 +20566,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_membership_autorenew_cancelled, 0,          1) ,      
+', 'membership_autorenew_cancelled', @tpl_ovid_membership_autorenew_cancelled, 0,          1) ,      
       
       
       ('Memberships - Auto-renew Billing Updates', '{ts}Membership Autorenewal Billing Updates{/ts} - {contact.display_name}
@@ -20659,7 +20659,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_membership_autorenew_billing, 1,          0),
+', 'membership_autorenew_billing', @tpl_ovid_membership_autorenew_billing, 1,          0),
       ('Memberships - Auto-renew Billing Updates', '{ts}Membership Autorenewal Billing Updates{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -20750,7 +20750,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_membership_autorenew_billing, 0,          1) ,      
+', 'membership_autorenew_billing', @tpl_ovid_membership_autorenew_billing, 0,          1) ,      
       
       
       ('Test-drive - Receipt Header', '[TEST]
@@ -20771,7 +20771,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
   </tr>
  </table>
 </center>
-', @tpl_ovid_test_preview, 1,          0),
+', 'test_preview', @tpl_ovid_test_preview, 1,          0),
       ('Test-drive - Receipt Header', '[TEST]
 ', '***********************************************************
 
@@ -20790,7 +20790,7 @@ or want to inquire about reinstating your registration for this event.{/ts}</p>
   </tr>
  </table>
 </center>
-', @tpl_ovid_test_preview, 0,          1) ,      
+', 'test_preview', @tpl_ovid_test_preview, 0,          1) ,      
       
       
       ('Pledges - Acknowledgement', '{ts}Thank you for your Pledge{/ts} - {contact.display_name}
@@ -20956,7 +20956,7 @@ or need to modify your payment schedule.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_pledge_acknowledge, 1,          0),
+', 'pledge_acknowledge', @tpl_ovid_pledge_acknowledge, 1,          0),
       ('Pledges - Acknowledgement', '{ts}Thank you for your Pledge{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}<p>{$greeting},</p>{/if}
 
@@ -21120,7 +21120,7 @@ or need to modify your payment schedule.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_pledge_acknowledge, 0,          1) ,      
+', 'pledge_acknowledge', @tpl_ovid_pledge_acknowledge, 0,          1) ,      
       
       
       ('Pledges - Payment Reminder', '{ts}Pledge Payment Reminder{/ts} - {contact.display_name}
@@ -21264,7 +21264,7 @@ or need to modify your payment schedule.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_pledge_reminder, 1,          0),
+', 'pledge_reminder', @tpl_ovid_pledge_reminder, 1,          0),
       ('Pledges - Payment Reminder', '{ts}Pledge Payment Reminder{/ts} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -21406,7 +21406,7 @@ or need to modify your payment schedule.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_pledge_reminder, 0,          1) ,      
+', 'pledge_reminder', @tpl_ovid_pledge_reminder, 0,          1) ,      
       
       
       ('Profiles - Admin Notification', '{$grouptitle} {ts 1=$displayName}Submitted by %1{/ts} - {contact.display_name}
@@ -21495,7 +21495,7 @@ or need to modify your payment schedule.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_uf_notify, 1,          0),
+', 'uf_notify', @tpl_ovid_uf_notify, 1,          0),
       ('Profiles - Admin Notification', '{$grouptitle} {ts 1=$displayName}Submitted by %1{/ts} - {contact.display_name}
 ', '{ts}Submitted For:{/ts} {$displayName}
 {ts}Date:{/ts} {$currentDate}
@@ -21582,7 +21582,7 @@ or need to modify your payment schedule.{/ts}</p>
 
 </body>
 </html>
-', @tpl_ovid_uf_notify, 0,          1) ,      
+', 'uf_notify', @tpl_ovid_uf_notify, 0,          1) ,      
       
       
       ('Petition - signature added', 'Thank you for signing {$petition.title} - {contact.display_name}
@@ -21594,7 +21594,7 @@ Thank you for signing {$petition.title}.
 <p>Thank you for signing {$petition.title}.</p>
 
 {include file="CRM/Campaign/Page/Petition/SocialNetwork.tpl" petition_id=$survey_id noscript=true emailMode=true}
-', @tpl_ovid_petition_sign, 1,          0),
+', 'petition_sign', @tpl_ovid_petition_sign, 1,          0),
       ('Petition - signature added', 'Thank you for signing {$petition.title} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -21604,7 +21604,7 @@ Thank you for signing {$petition.title}.
 <p>Thank you for signing {$petition.title}.</p>
 
 {include file="CRM/Campaign/Page/Petition/SocialNetwork.tpl" petition_id=$survey_id noscript=true emailMode=true}
-', @tpl_ovid_petition_sign, 0,          1) ,      
+', 'petition_sign', @tpl_ovid_petition_sign, 0,          1) ,      
       
       
       ('Petition - need verification', 'Confirmation of signature needed for {$petition.title} - {contact.display_name}
@@ -21630,7 +21630,7 @@ on the link below or pasting the link into your browser.
 Email confirmation page: <a href="{$petition.confirmUrl} ">{$petition.confirmUrl}</a></p>
 
 <p>If you did not sign this petition, please ignore this message.</p>
-', @tpl_ovid_petition_confirmation_needed, 1,          0),
+', 'petition_confirmation_needed', @tpl_ovid_petition_confirmation_needed, 1,          0),
       ('Petition - need verification', 'Confirmation of signature needed for {$petition.title} - {contact.display_name}
 ', '{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 
@@ -21654,7 +21654,7 @@ on the link below or pasting the link into your browser.
 Email confirmation page: <a href="{$petition.confirmUrl} ">{$petition.confirmUrl}</a></p>
 
 <p>If you did not sign this petition, please ignore this message.</p>
-', @tpl_ovid_petition_confirmation_needed, 0,          1) ;
+', 'petition_confirmation_needed', @tpl_ovid_petition_confirmation_needed, 0,          1) ;
 
   
 INSERT INTO civicrm_msg_template
@@ -23896,4 +23896,4 @@ INSERT INTO `civicrm_report_instance`
     ( `domain_id`, `title`, `report_id`, `description`, `permission`, `form_values`)
 VALUES
     (  @domainID, 'Survey Details', 'survey/detail', 'Detailed report for canvassing, phone-banking, walk lists or other surveys.', 'access CiviReport', 'a:39:{s:6:"fields";a:2:{s:9:"sort_name";s:1:"1";s:6:"result";s:1:"1";}s:22:"assignee_contact_id_op";s:2:"eq";s:25:"assignee_contact_id_value";s:0:"";s:12:"sort_name_op";s:3:"has";s:15:"sort_name_value";s:0:"";s:17:"street_number_min";s:0:"";s:17:"street_number_max";s:0:"";s:16:"street_number_op";s:3:"lte";s:19:"street_number_value";s:0:"";s:14:"street_name_op";s:3:"has";s:17:"street_name_value";s:0:"";s:15:"postal_code_min";s:0:"";s:15:"postal_code_max";s:0:"";s:14:"postal_code_op";s:3:"lte";s:17:"postal_code_value";s:0:"";s:7:"city_op";s:3:"has";s:10:"city_value";s:0:"";s:20:"state_province_id_op";s:2:"in";s:23:"state_province_id_value";a:0:{}s:13:"country_id_op";s:2:"in";s:16:"country_id_value";a:0:{}s:12:"survey_id_op";s:2:"in";s:15:"survey_id_value";a:0:{}s:12:"status_id_op";s:2:"eq";s:15:"status_id_value";s:1:"1";s:11:"custom_1_op";s:2:"in";s:14:"custom_1_value";a:0:{}s:11:"custom_2_op";s:2:"in";s:14:"custom_2_value";a:0:{}s:17:"custom_3_relative";s:1:"0";s:13:"custom_3_from";s:0:"";s:11:"custom_3_to";s:0:"";s:11:"description";s:75:"Detailed report for canvassing, phone-banking, walk lists or other surveys.";s:13:"email_subject";s:0:"";s:8:"email_to";s:0:"";s:8:"email_cc";s:0:"";s:10:"permission";s:17:"access CiviReport";s:6:"groups";s:0:"";s:9:"domain_id";i:1;}');
-UPDATE civicrm_domain SET version = '5.24.3';
+UPDATE civicrm_domain SET version = '5.26.2';

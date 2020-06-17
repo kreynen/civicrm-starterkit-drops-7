@@ -42,6 +42,7 @@ class DAOUpdateAction extends AbstractUpdateAction {
    * @inheritDoc
    */
   public function _run(Result $result) {
+    $this->formatWriteValues($this->values);
     // Add ID from values to WHERE clause and check for mismatch
     if (!empty($this->values['id'])) {
       $wheres = array_column($this->where, NULL, 0);
@@ -66,7 +67,7 @@ class DAOUpdateAction extends AbstractUpdateAction {
     }
 
     // Batch update 1 or more records based on WHERE clause
-    $items = $this->getObjects();
+    $items = $this->getBatchRecords();
     foreach ($items as &$item) {
       $item = $this->values + $item;
     }

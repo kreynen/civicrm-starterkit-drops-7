@@ -21,12 +21,12 @@ class CRM_Utils_Array {
    * Returns $list[$key] if such element exists, or a default value otherwise.
    *
    * If $list is not actually an array at all, then the default value is
-   * returned.
+   * returned. We hope to deprecate this behaviour.
    *
    *
    * @param string $key
    *   Key value to look up in the array.
-   * @param array $list
+   * @param array|ArrayAccess $list
    *   Array from which to look up a value.
    * @param mixed $default
    *   (optional) Value to return $list[$key] does not exist.
@@ -38,6 +38,12 @@ class CRM_Utils_Array {
     if (is_array($list)) {
       return array_key_exists($key, $list) ? $list[$key] : $default;
     }
+    if ($list instanceof ArrayAccess) {
+      // ArrayAccess requires offsetExists is implemented for the equivalent to array_key_exists.
+      return $list->offsetExists($key) ? $list[$key] : $default;
+    }
+    // @todo - eliminate these from core & uncomment this line.
+    // CRM_Core_Error::deprecatedFunctionWarning('You have passed an invalid parameter for the "list"');
     return $default;
   }
 
@@ -563,10 +569,10 @@ class CRM_Utils_Array {
       $node = &$result;
       foreach ($keys as $key) {
         if (is_array($record)) {
-          $keyvalue = isset($record[$key]) ? $record[$key] : NULL;
+          $keyvalue = $record[$key] ?? NULL;
         }
         else {
-          $keyvalue = isset($record->{$key}) ? $record->{$key} : NULL;
+          $keyvalue = $record->{$key} ?? NULL;
         }
         if (isset($node[$keyvalue]) && !is_array($node[$keyvalue])) {
           $node[$keyvalue] = [];
@@ -909,7 +915,7 @@ class CRM_Utils_Array {
     foreach ($matrix as $pos => $oldRow) {
       $newRow = [];
       foreach ($columns as $column) {
-        $newRow[$column] = CRM_Utils_Array::value($column, $oldRow);
+        $newRow[$column] = $oldRow[$column] ?? NULL;
       }
       $newRows[$pos] = $newRow;
     }

@@ -26,7 +26,7 @@ return array(
     'Psr\\Cache\\' => array($vendorDir . '/psr/cache/src'),
     'PhpOffice\\PhpWord\\' => array($vendorDir . '/phpoffice/phpword/src/PhpWord'),
     'PhpOffice\\Common\\' => array($vendorDir . '/phpoffice/common/src/Common'),
-    'MimeType\\' => array($vendorDir . '/katzien/php-mime-type/src'),
+    'MimeTyper\\' => array($vendorDir . '/adrienrn/php-mimetyper/src'),
     'MJS\\TopSort\\Tests\\' => array($vendorDir . '/marcj/topsort/tests/Tests'),
     'MJS\\TopSort\\' => array($vendorDir . '/marcj/topsort/src'),
     'League\\Csv\\' => array($vendorDir . '/league/csv/src'),
@@ -37,7 +37,7 @@ return array(
     'FontLib\\' => array($vendorDir . '/phenx/php-font-lib/src/FontLib'),
     'Dompdf\\' => array($vendorDir . '/dompdf/dompdf/src'),
     'Civi\\Cxn\\Rpc\\' => array($vendorDir . '/civicrm/civicrm-cxn-rpc/src'),
-    'Civi\\' => array($baseDir . '/setup/src'),
+    'Civi\\' => array($baseDir . '/', $baseDir . '/setup/src'),
     'Cache\\TagInterop\\' => array($vendorDir . '/cache/tag-interop'),
     'Cache\\IntegrationTests\\' => array($vendorDir . '/cache/integration-tests/src'),
 );

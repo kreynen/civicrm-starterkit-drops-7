@@ -1,5 +1,43 @@
 [
     {
+        "name": "adrienrn/php-mimetyper",
+        "version": "0.2.2",
+        "version_normalized": "0.2.2.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/adrienrn/php-mimetyper.git",
+            "reference": "702e00a604b4baed34d69730ce055e05c0f43932"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/adrienrn/php-mimetyper/zipball/702e00a604b4baed34d69730ce055e05c0f43932",
+            "reference": "702e00a604b4baed34d69730ce055e05c0f43932",
+            "shasum": ""
+        },
+        "require": {
+            "dflydev/apache-mime-types": "^1.0"
+        },
+        "time": "2018-09-27T09:45:05+00:00",
+        "type": "library",
+        "installation-source": "dist",
+        "autoload": {
+            "psr-4": {
+                "MimeTyper\\": "src/"
+            }
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "Hussard",
+                "email": "adrien.ricartnoblet@gmail.com"
+            }
+        ],
+        "description": "PHP mime type and extension mapping library: compatible with Symfony, powered by jshttp/mime-db"
+    },
+    {
         "name": "cache/integration-tests",
         "version": "0.16.0",
         "version_normalized": "0.16.0.0",
@@ -261,6 +299,63 @@
             }
         ],
         "description": "Provides a way to patch Composer packages."
+    },
+    {
+        "name": "dflydev/apache-mime-types",
+        "version": "v1.0.1",
+        "version_normalized": "1.0.1.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/dflydev/dflydev-apache-mime-types.git",
+            "reference": "f30a57e59b7476e4c5270b6a0727d79c9c0eb861"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/dflydev/dflydev-apache-mime-types/zipball/f30a57e59b7476e4c5270b6a0727d79c9c0eb861",
+            "reference": "f30a57e59b7476e4c5270b6a0727d79c9c0eb861",
+            "shasum": ""
+        },
+        "require": {
+            "php": ">=5.3"
+        },
+        "require-dev": {
+            "twig/twig": "1.*"
+        },
+        "time": "2013-05-14T02:02:01+00:00",
+        "type": "library",
+        "extra": {
+            "branch-alias": {
+                "dev-master": "1.0-dev"
+            }
+        },
+        "installation-source": "dist",
+        "autoload": {
+            "psr-0": {
+                "Dflydev\\ApacheMimeTypes": "src"
+            }
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "Dragonfly Development Inc.",
+                "email": "info@dflydev.com",
+                "homepage": "http://dflydev.com"
+            },
+            {
+                "name": "Beau Simensen",
+                "email": "beau@dflydev.com",
+                "homepage": "http://beausimensen.com"
+            }
+        ],
+        "description": "Apache MIME Types",
+        "keywords": [
+            "apache",
+            "mime",
+            "mimetypes"
+        ]
     },
     {
         "name": "dompdf/dompdf",
@@ -558,53 +653,6 @@
             "uri",
             "url"
         ]
-    },
-    {
-        "name": "katzien/php-mime-type",
-        "version": "2.1.0",
-        "version_normalized": "2.1.0.0",
-        "source": {
-            "type": "git",
-            "url": "https://github.com/katzien/PhpMimeType.git",
-            "reference": "159dfbdcd5906442f3dad89951127f0b9dfa3b78"
-        },
-        "dist": {
-            "type": "zip",
-            "url": "https://api.github.com/repos/katzien/PhpMimeType/zipball/159dfbdcd5906442f3dad89951127f0b9dfa3b78",
-            "reference": "159dfbdcd5906442f3dad89951127f0b9dfa3b78",
-            "shasum": ""
-        },
-        "require": {
-            "php": ">=5.6"
-        },
-        "require-dev": {
-            "phpunit/phpunit": "5.*",
-            "satooshi/php-coveralls": "1.*"
-        },
-        "time": "2017-03-23T02:05:33+00:00",
-        "type": "library",
-        "installation-source": "dist",
-        "autoload": {
-            "psr-4": {
-                "MimeType\\": "src/"
-            }
-        },
-        "notification-url": "https://packagist.org/downloads/",
-        "license": [
-            "MIT"
-        ],
-        "authors": [
-            {
-                "name": "Kat Zien"
-            }
-        ],
-        "description": "A PHP library to detect the mime type of files.",
-        "homepage": "https://github.com/katzien/PhpMimeType",
-        "keywords": [
-            "mimetype",
-            "php"
-        ],
-        "abandoned": true
     },
     {
         "name": "league/csv",
@@ -949,6 +997,11 @@
         },
         "time": "2017-04-11T17:27:29+00:00",
         "type": "library",
+        "extra": {
+            "patches_applied": {
+                "Apply CiviCRM Customisations for CRM-1367 and CRM-5946": "https://raw.githubusercontent.com/civicrm/civicrm-core/36319938a5bf26c1e7e2110a26a65db6a5979268/tools/scripts/composer/patches/pear-mail.patch"
+            }
+        },
         "installation-source": "dist",
         "autoload": {
             "psr-0": {

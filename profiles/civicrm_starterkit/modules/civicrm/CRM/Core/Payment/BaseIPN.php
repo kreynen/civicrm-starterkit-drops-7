@@ -175,7 +175,7 @@ class CRM_Core_Payment_BaseIPN {
     else {
       //legacy support - functions are 'used' to be able to pass in a DAO
       $contribution = new CRM_Contribute_BAO_Contribution();
-      $contribution->id = CRM_Utils_Array::value('contribution', $ids);
+      $contribution->id = $ids['contribution'] ?? NULL;
       $contribution->find(TRUE);
       $objects['contribution'] = &$contribution;
     }
@@ -322,7 +322,7 @@ class CRM_Core_Payment_BaseIPN {
     $contribution->receipt_date = CRM_Utils_Date::isoToMysql($contribution->receipt_date);
     $contribution->thankyou_date = CRM_Utils_Date::isoToMysql($contribution->thankyou_date);
     $contribution->cancel_date = self::$_now;
-    $contribution->cancel_reason = CRM_Utils_Array::value('reasonCode', $input);
+    $contribution->cancel_reason = $input['reasonCode'] ?? NULL;
     $contribution->save();
 
     // Add line items for recurring payments.
@@ -476,10 +476,8 @@ class CRM_Core_Payment_BaseIPN {
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    */
-  public function completeTransaction(&$input, &$ids, &$objects, &$transaction) {
-    $contribution = &$objects['contribution'];
-
-    CRM_Contribute_BAO_Contribution::completeOrder($input, $ids, $objects, $transaction, $contribution);
+  public function completeTransaction(&$input, &$ids, &$objects, $transaction = NULL) {
+    CRM_Contribute_BAO_Contribution::completeOrder($input, $ids, $objects, $transaction);
   }
 
   /**

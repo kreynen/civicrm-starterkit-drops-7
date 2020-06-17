@@ -184,12 +184,7 @@ function _civicrm_api3_api_getfields(&$apiRequest) {
  *   true if error, false otherwise
  */
 function civicrm_error($result) {
-  if (is_array($result)) {
-    return (array_key_exists('is_error', $result) &&
-      $result['is_error']
-    ) ? TRUE : FALSE;
-  }
-  return FALSE;
+  return is_array($result) && !empty($result['is_error']);
 }
 
 /**
@@ -267,7 +262,7 @@ function _civicrm_api_replace_variable($value, $parentResult, $separator) {
       if (array_key_exists($fieldname, $parentResult) && is_array($parentResult[$fieldname])) {
         $arrayLocation = $parentResult[$fieldname];
         foreach ($stringParts as $key => $innerValue) {
-          $arrayLocation = CRM_Utils_Array::value($innerValue, $arrayLocation);
+          $arrayLocation = $arrayLocation[$innerValue] ?? NULL;
         }
         $value = $arrayLocation;
       }

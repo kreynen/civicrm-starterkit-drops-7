@@ -569,10 +569,10 @@ INNER JOIN  civicrm_group grp ON ( grp.id = campgrp.entity_id )
     }
 
     $campaignDetails = self::getPermissionedCampaigns($connectedCampaignId, NULL, TRUE, TRUE, $appendDates);
-    $fields = ['campaigns', 'hasAccessCampaign', 'isCampaignEnabled'];
-    foreach ($fields as $fld) {
-      $$fld = CRM_Utils_Array::value($fld, $campaignDetails);
-    }
+
+    $campaigns = $campaignDetails['campaigns'] ?? NULL;
+    $hasAccessCampaign = $campaignDetails['hasAccessCampaign'] ?? NULL;
+    $isCampaignEnabled = $campaignDetails['isCampaignEnabled'] ?? NULL;
 
     $showAddCampaign = FALSE;
     if ($connectedCampaignId || ($isCampaignEnabled && $hasAccessCampaign)) {
@@ -589,14 +589,12 @@ INNER JOIN  civicrm_group grp ON ( grp.id = campgrp.entity_id )
     }
 
     //carry this info to templates.
-    $infoFields = [
-      'showAddCampaign',
-      'hasAccessCampaign',
-      'isCampaignEnabled',
+    $campaignInfo = [
+      'showAddCampaign' => $showAddCampaign,
+      'hasAccessCampaign' => $hasAccessCampaign,
+      'isCampaignEnabled' => $isCampaignEnabled,
     ];
-    foreach ($infoFields as $fld) {
-      $campaignInfo[$fld] = $$fld;
-    }
+
     $form->assign('campaignInfo', $campaignInfo);
   }
 
@@ -612,7 +610,7 @@ INNER JOIN  civicrm_group grp ON ( grp.id = campgrp.entity_id )
     $campaignDetails = self::getPermissionedCampaigns(NULL, NULL, FALSE, FALSE, FALSE, TRUE);
     $fields = ['campaigns', 'hasAccessCampaign', 'isCampaignEnabled'];
     foreach ($fields as $fld) {
-      $$fld = CRM_Utils_Array::value($fld, $campaignDetails);
+      $$fld = $campaignDetails[$fld] ?? NULL;
     }
     $showCampaignInSearch = FALSE;
     if ($isCampaignEnabled && $hasAccessCampaign && !empty($campaigns)) {

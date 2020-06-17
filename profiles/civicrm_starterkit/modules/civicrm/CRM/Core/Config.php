@@ -421,7 +421,7 @@ class CRM_Core_Config extends CRM_Core_Config_MagicMerge {
         $urlVar = 'task';
       }
 
-      $path = CRM_Utils_Array::value($urlVar, $_GET);
+      $path = $_GET[$urlVar] ?? NULL;
     }
 
     if ($path && preg_match('/^civicrm\/upgrade(\/.*)?$/', $path)) {
@@ -560,7 +560,7 @@ class CRM_Core_Config extends CRM_Core_Config_MagicMerge {
     }
 
     // OK, this looks new.
-    Civi::service('dispatcher')->dispatch(\Civi\Core\Event\SystemInstallEvent::EVENT_NAME, new \Civi\Core\Event\SystemInstallEvent());
+    Civi::dispatcher()->dispatch('civi.core.install', new \Civi\Core\Event\SystemInstallEvent());
     Civi::settings()->set('installed', 1);
   }
 

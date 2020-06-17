@@ -81,19 +81,16 @@ class CRM_Utils_System {
    *   The URL fragment.
    */
   public static function makeURL($urlVar, $includeReset = FALSE, $includeForce = TRUE, $path = NULL, $absolute = FALSE) {
-    if (empty($path)) {
-      $config = CRM_Core_Config::singleton();
-      $path = CRM_Utils_Array::value($config->userFrameworkURLVar, $_GET);
-      if (empty($path)) {
-        return '';
-      }
+    $path = $path ?: CRM_Utils_System::currentPath();
+    if (!$path) {
+      return '';
     }
 
     return self::url(
-        $path,
-        CRM_Utils_System::getLinksUrl($urlVar, $includeReset, $includeForce),
-        $absolute
-      );
+      $path,
+      CRM_Utils_System::getLinksUrl($urlVar, $includeReset, $includeForce),
+      $absolute
+    );
   }
 
   /**
@@ -317,20 +314,19 @@ class CRM_Utils_System {
       'absolute' => $absolute,
       'isSSL' => $isSSL,
     ]);
-    Civi::service('dispatcher')->dispatch('hook_civicrm_alterExternUrl', $event);
+    Civi::dispatcher()->dispatch('hook_civicrm_alterExternUrl', $event);
     return urldecode(CRM_Utils_Url::unparseUrl($event->url));
   }
 
   /**
-   * Path of the current page e.g. 'civicrm/contact/view'
+   * @deprecated
+   * @see \CRM_Utils_System::currentPath
    *
    * @return string|null
    */
   public static function getUrlPath() {
-    if (isset($_GET[CRM_Core_Config::singleton()->userFrameworkURLVar])) {
-      return $_GET[CRM_Core_Config::singleton()->userFrameworkURLVar];
-    }
-    return NULL;
+    CRM_Core_Error::deprecatedFunctionWarning('CRM_Utils_System::currentPath');
+    return self::currentPath();
   }
 
   /**
@@ -356,14 +352,14 @@ class CRM_Utils_System {
   }
 
   /**
-   * What menu path are we currently on. Called for the primary tpl.
+   * Path of the current page e.g. 'civicrm/contact/view'
    *
-   * @return string
+   * @return string|null
    *   the current menu path
    */
   public static function currentPath() {
     $config = CRM_Core_Config::singleton();
-    return trim(CRM_Utils_Array::value($config->userFrameworkURLVar, $_GET), '/');
+    return isset($_GET[$config->userFrameworkURLVar]) ? trim($_GET[$config->userFrameworkURLVar], '/') : NULL;
   }
 
   /**
@@ -376,7 +372,7 @@ class CRM_Utils_System {
    *   url
    */
   public static function crmURL($params) {
-    $p = CRM_Utils_Array::value('p', $params);
+    $p = $params['p'] ?? NULL;
     if (!isset($p)) {
       $p = self::currentPath();
     }
@@ -420,7 +416,7 @@ class CRM_Utils_System {
     $url = $default;
 
     $session = CRM_Core_Session::singleton();
-    $referer = CRM_Utils_Array::value('HTTP_REFERER', $_SERVER);
+    $referer = $_SERVER['HTTP_REFERER'] ?? NULL;
 
     if ($referer && !empty($names)) {
       foreach ($names as $name) {
@@ -465,7 +461,7 @@ class CRM_Utils_System {
     // this is kinda hackish but not sure how to do it right
     $url = str_replace('&amp;', '&', $url);
 
-    $context['output'] = CRM_Utils_Array::value('snippet', $_GET);
+    $context['output'] = $_GET['snippet'] ?? NULL;
 
     $parsedUrl = CRM_Utils_Url::parseUrl($url);
     CRM_Utils_Hook::alterRedirect($parsedUrl, $context);
@@ -1192,9 +1188,7 @@ class CRM_Utils_System {
    * this function, please go and change the code in the install script as well.
    */
   public static function isSSL() {
-    return (isset($_SERVER['HTTPS']) &&
-        !empty($_SERVER['HTTPS']) &&
-        strtolower($_SERVER['HTTPS']) != 'off') ? TRUE : FALSE;
+    return !empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) != 'off';
   }
 
   /**
@@ -1245,7 +1239,7 @@ class CRM_Utils_System {
    *   IP address of logged in user.
    */
   public static function ipAddress($strictIPV4 = TRUE) {
-    $address = CRM_Utils_Array::value('REMOTE_ADDR', $_SERVER);
+    $address = $_SERVER['REMOTE_ADDR'] ?? NULL;
 
     $config = CRM_Core_Config::singleton();
     if ($config->userSystem->is_drupal && function_exists('ip_address')) {
@@ -1278,7 +1272,7 @@ class CRM_Utils_System {
    *   The previous page URL
    */
   public static function refererPath() {
-    return CRM_Utils_Array::value('HTTP_REFERER', $_SERVER);
+    return $_SERVER['HTTP_REFERER'] ?? NULL;
   }
 
   /**

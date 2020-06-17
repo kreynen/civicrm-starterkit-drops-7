@@ -14,8 +14,6 @@
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
  */
 
 
@@ -61,6 +59,7 @@ class BasicUpdateAction extends AbstractUpdateAction {
    * @throws \Civi\API\Exception\NotImplementedException
    */
   public function _run(Result $result) {
+    $this->formatWriteValues($this->values);
     foreach ($this->getBatchRecords() as $item) {
       $result[] = $this->writeRecord($this->values + $item);
     }

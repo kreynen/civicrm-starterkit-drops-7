@@ -62,9 +62,35 @@ class CRM_Custom_Form_Field extends CRM_Core_Form {
   private static $_dataTypeValues = NULL;
   private static $_dataTypeKeys = NULL;
 
-  private static $_dataToHTML = NULL;
-
   private static $_dataToLabels = NULL;
+
+  /**
+   * Used for mapping data types to html type options.
+   *
+   * Each item in this array corresponds to the same index in the dataType array
+   * @var array
+   */
+  public static $_dataToHTML = [
+    [
+      'Text' => 'Text',
+      'Select' => 'Select',
+      'Radio' => 'Radio',
+      'CheckBox' => 'CheckBox',
+      'Multi-Select' => 'Multi-Select',
+      'Autocomplete-Select' => 'Autocomplete-Select',
+    ],
+    ['Text' => 'Text', 'Select' => 'Select', 'Radio' => 'Radio'],
+    ['Text' => 'Text', 'Select' => 'Select', 'Radio' => 'Radio'],
+    ['Text' => 'Text', 'Select' => 'Select', 'Radio' => 'Radio'],
+    ['TextArea' => 'TextArea', 'RichTextEditor' => 'RichTextEditor'],
+    ['Date' => 'Select Date'],
+    ['Radio' => 'Radio'],
+    ['StateProvince' => 'Select State/Province', 'Multi-Select' => 'Multi-Select State/Province'],
+    ['Country' => 'Select Country', 'Multi-Select' => 'Multi-Select Country'],
+    ['File' => 'File'],
+    ['Link' => 'Link'],
+    ['ContactReference' => 'Autocomplete-Select'],
+  ];
 
   /**
    * Set variables up before form is built.
@@ -77,10 +103,6 @@ class CRM_Custom_Form_Field extends CRM_Core_Form {
       self::$_dataTypeValues = array_values(CRM_Core_BAO_CustomField::dataType());
     }
 
-    if (!self::$_dataToHTML) {
-      self::$_dataToHTML = CRM_Core_BAO_CustomField::dataToHtml();
-    }
-
     //custom field id
     $this->_id = CRM_Utils_Request::retrieve('id', 'Positive', $this);
 
@@ -90,7 +112,7 @@ class CRM_Custom_Form_Field extends CRM_Core_Form {
       $params = ['id' => $this->_id];
       CRM_Core_BAO_CustomField::retrieve($params, $this->_values);
       // note_length is an alias for the text_length field
-      $this->_values['note_length'] = CRM_Utils_Array::value('text_length', $this->_values);
+      $this->_values['note_length'] = $this->_values['text_length'] ?? NULL;
       // custom group id
       $this->_gid = $this->_values['custom_group_id'];
     }
@@ -571,7 +593,7 @@ class CRM_Custom_Form_Field extends CRM_Core_Form {
    *                  true otherwise
    */
   public static function formRule($fields, $files, $self) {
-    $default = CRM_Utils_Array::value('default_value', $fields);
+    $default = $fields['default_value'] ?? NULL;
 
     $errors = [];
 

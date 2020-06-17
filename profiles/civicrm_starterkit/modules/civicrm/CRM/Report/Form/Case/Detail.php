@@ -350,7 +350,7 @@ class CRM_Report_Form_Case_Detail extends CRM_Report_Form {
               $select[] = "{$field['dbAlias']} as {$tableName}_{$fieldName}";
             }
 
-            $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = CRM_Utils_Array::value('type', $field);
+            $this->_columnHeaders["{$tableName}_{$fieldName}"]['type'] = $field['type'] ?? NULL;
             $this->_columnHeaders["{$tableName}_{$fieldName}"]['title'] = $field['title'];
           }
         }
@@ -417,15 +417,15 @@ class CRM_Report_Form_Case_Detail extends CRM_Report_Form {
           $clause = NULL;
 
           if (CRM_Utils_Array::value('type', $field) & CRM_Utils_Type::T_DATE) {
-            $relative = CRM_Utils_Array::value("{$fieldName}_relative", $this->_params);
-            $from = CRM_Utils_Array::value("{$fieldName}_from", $this->_params);
-            $to = CRM_Utils_Array::value("{$fieldName}_to", $this->_params);
+            $relative = $this->_params["{$fieldName}_relative"] ?? NULL;
+            $from = $this->_params["{$fieldName}_from"] ?? NULL;
+            $to = $this->_params["{$fieldName}_to"] ?? NULL;
 
             $clause = $this->dateClause($field['dbAlias'], $relative, $from, $to, $field['type']);
           }
           else {
 
-            $op = CRM_Utils_Array::value("{$fieldName}_op", $this->_params);
+            $op = $this->_params["{$fieldName}_op"] ?? NULL;
             if ($fieldName == 'case_type_id' &&
               !empty($this->_params['case_type_id_value'])
             ) {
@@ -509,7 +509,7 @@ class CRM_Report_Form_Case_Detail extends CRM_Report_Form {
 
       $this->_columnHeaders['case_activity_all_dates'] = [
         'title' => $this->_caseDetailExtra['case_activity_all_dates']['title'] . ": {$this->caseActivityTypes[$activityType]}",
-        'type' => CRM_Utils_Array::value('type', $this->_caseDetailExtra['case_activity_all_dates']),
+        'type' => $this->_caseDetailExtra['case_activity_all_dates']['type'] ?? NULL,
       ];
     }
 
@@ -548,14 +548,14 @@ class CRM_Report_Form_Case_Detail extends CRM_Report_Form {
 
     if (!empty($this->_params['last_completed_date_time_relative']) ||
       !empty($this->_params['last_completed_date_time_from']) ||
-      CRM_Utils_Array::value('last_completed_date_time_to', $this->_params)
+      !empty($this->_params['last_completed_date_time_to'])
     ) {
       $this->_activityLastCompleted = TRUE;
     }
 
     if (!empty($this->_params['last_activity_date_time_relative']) ||
       !empty($this->_params['last_activity_date_time_from']) ||
-      CRM_Utils_Array::value('last_activity_date_time_to', $this->_params)
+      !empty($this->_params['last_activity_date_time_to'])
     ) {
       $this->_activityLast = TRUE;
     }

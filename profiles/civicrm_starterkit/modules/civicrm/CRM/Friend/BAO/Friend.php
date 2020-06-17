@@ -119,7 +119,7 @@ class CRM_Friend_BAO_Friend extends CRM_Friend_DAO_Friend {
       'details' => $params['suggested_message'],
       'status_id' => CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_status_id', 'Completed'),
       'is_test' => $params['is_test'],
-      'campaign_id' => CRM_Utils_Array::value('campaign_id', $params),
+      'campaign_id' => $params['campaign_id'] ?? NULL,
     ];
 
     // activity creation
@@ -157,9 +157,9 @@ class CRM_Friend_BAO_Friend extends CRM_Friend_DAO_Friend {
     $transaction->commit();
 
     // Process sending of mails
-    $mailParams['title'] = CRM_Utils_Array::value('title', $params);
-    $mailParams['general_link'] = CRM_Utils_Array::value('general_link', $friendParams);
-    $mailParams['message'] = CRM_Utils_Array::value('suggested_message', $params);
+    $mailParams['title'] = $params['title'] ?? NULL;
+    $mailParams['general_link'] = $friendParams['general_link'] ?? NULL;
+    $mailParams['message'] = $params['suggested_message'] ?? NULL;
 
     // Default "from email address" is default domain address.
     list($_, $mailParams['email_from']) = CRM_Core_BAO_Domain::getNameAndEmail();

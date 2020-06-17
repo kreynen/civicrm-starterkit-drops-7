@@ -14,8 +14,6 @@
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
  */
 
 
@@ -57,7 +55,7 @@ abstract class AbstractUpdateAction extends AbstractBatchAction {
    * @return mixed|null
    */
   public function getValue(string $fieldName) {
-    return isset($this->values[$fieldName]) ? $this->values[$fieldName] : NULL;
+    return $this->values[$fieldName] ?? NULL;
   }
 
   /**

@@ -200,19 +200,19 @@ class CRM_Utils_Chart {
         'legend' => "$legend " . CRM_Utils_Array::value('legend', $rows, ts('Contribution')) . ' ' . ts('Summary'),
         'values' => $graph[0],
         'multiValues' => $graph,
-        'barKeys' => CRM_Utils_Array::value('barKeys', $rows, []),
+        'barKeys' => $rows['barKeys'] ?? [],
       ];
     }
 
     // rotate the x labels.
-    $chartData['xLabelAngle'] = CRM_Utils_Array::value('xLabelAngle', $rows, 0);
+    $chartData['xLabelAngle'] = $rows['xLabelAngle'] ?? 0;
     if (!empty($rows['tip'])) {
       $chartData['tip'] = $rows['tip'];
     }
 
     // legend
-    $chartData['xname'] = CRM_Utils_Array::value('xname', $rows);
-    $chartData['yname'] = CRM_Utils_Array::value('yname', $rows);
+    $chartData['xname'] = $rows['xname'] ?? NULL;
+    $chartData['yname'] = $rows['yname'] ?? NULL;
 
     // carry some chart params if pass.
     foreach ([

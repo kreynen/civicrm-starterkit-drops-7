@@ -50,7 +50,7 @@ class CRM_Report_BAO_ReportInstance extends CRM_Report_DAO_ReportInstance {
       $params['is_reserved'] = CRM_Utils_Array::value('is_reserved', $params, FALSE);
       $params['domain_id'] = CRM_Utils_Array::value('domain_id', $params, CRM_Core_Config::domainID());
       // CRM-17256 set created_id on report creation.
-      $params['created_id'] = isset($params['created_id']) ? $params['created_id'] : CRM_Core_Session::getLoggedInContactID();
+      $params['created_id'] = $params['created_id'] ?? CRM_Core_Session::getLoggedInContactID();
     }
 
     if ($instanceID) {
@@ -114,10 +114,10 @@ class CRM_Report_BAO_ReportInstance extends CRM_Report_DAO_ReportInstance {
    */
   public static function &create(&$params) {
     if (isset($params['report_header'])) {
-      $params['header'] = CRM_Utils_Array::value('report_header', $params);
+      $params['header'] = $params['report_header'];
     }
     if (isset($params['report_footer'])) {
-      $params['footer'] = CRM_Utils_Array::value('report_footer', $params);
+      $params['footer'] = $params['report_footer'];
     }
 
     // build navigation parameters
@@ -131,8 +131,8 @@ class CRM_Report_BAO_ReportInstance extends CRM_Report_DAO_ReportInstance {
       $navigationParams['label'] = $params['title'];
       $navigationParams['name'] = $params['title'];
 
-      $navigationParams['current_parent_id'] = CRM_Utils_Array::value('parent_id', $navigationParams);
-      $navigationParams['parent_id'] = CRM_Utils_Array::value('parent_id', $params);
+      $navigationParams['current_parent_id'] = $navigationParams['parent_id'] ?? NULL;
+      $navigationParams['parent_id'] = $params['parent_id'] ?? NULL;
       $navigationParams['is_active'] = 1;
 
       if ($permission = CRM_Utils_Array::value('permission', $params)) {
@@ -144,7 +144,7 @@ class CRM_Report_BAO_ReportInstance extends CRM_Report_DAO_ReportInstance {
       unset($params['is_navigation']);
     }
 
-    $viewMode = !empty($params['view_mode']) ? $params['view_mode'] : FALSE;
+    $viewMode = !empty($params['view_mode']);
     if ($viewMode) {
       // Do not save to the DB - it's saved in the url.
       unset($params['view_mode']);

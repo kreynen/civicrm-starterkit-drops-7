@@ -19,6 +19,7 @@
  * @param array $apiRequest
  *
  * @return mixed
+ * @throws \CiviCRM_API3_Exception
  */
 function civicrm_api3_generic_getList($apiRequest) {
   $entity = _civicrm_api_get_entity_name_from_camel($apiRequest['entity']);
@@ -37,6 +38,31 @@ function civicrm_api3_generic_getList($apiRequest) {
 
   $request['params']['check_permissions'] = !empty($apiRequest['params']['check_permissions']);
   $result = civicrm_api3($entity, 'get', $request['params']);
+  if (!empty($request['input']) && !empty($defaults['search_field_fallback']) && $result['count'] < $request['params']['options']['limit']) {
+    // We support a field fallback. Note we don't do this as an OR query because that could easily
+    // bypass an index & kill the server. We just 'pad' the results if needed with the second
+    // query - this is effectively the same as what the old Ajax::getContactEmail function did.
+    // Since these queries should be quick & often only one should be needed this is a simpler alternative
+    // to constructing a UNION via the api.
+    $request['params'][$defaults['search_field_fallback']] = $request['params'][$defaults['search_field']];
+    if ($request['params']['options']['sort'] === $defaults['search_field']) {
+      // The way indexing works here is that the order by field will be chosen in preference to the
+      // filter field. This can result in really bad performance so use the filter field for the sort.
+      // See https://github.com/civicrm/civicrm-core/pull/16993 for performance test results.
+      $request['params']['options']['sort'] = $defaults['search_field_fallback'];
+    }
+    // Exclude anything returned from the previous query since we are looking for additional rows in this
+    // second query.
+    $request['params'][$defaults['search_field']] = ['NOT LIKE' => $request['params'][$defaults['search_field_fallback']]['LIKE']];
+    $request['params']['options']['limit'] -= $result['count'];
+    $result2 = civicrm_api3($entity, 'get', $request['params']);
+    $result['values'] = array_merge($result['values'], $result2['values']);
+    $result['count'] = count($result['values']);
+  }
+  else {
+    // Re-index to sequential = 0.
+    $result['values'] = array_merge($result['values']);
+  }
 
   // Hey api, would you like to format the output?
   $fnName = "_civicrm_api3_{$entity}_getlist_output";
@@ -98,7 +124,7 @@ function _civicrm_api3_generic_getList_defaults($entity, &$request, $apiDefaults
   $request += $apiDefaults + $defaults;
   // Default api params
   $params = [
-    'sequential' => 1,
+    'sequential' => 0,
     'options' => [],
   ];
   // When searching e.g. autocomplete
@@ -182,7 +208,7 @@ function _civicrm_api3_generic_getlist_output($result, $request, $entity, $field
         }
       };
       if (!empty($request['image_field'])) {
-        $data['image'] = isset($row[$request['image_field']]) ? $row[$request['image_field']] : '';
+        $data['image'] = $row[$request['image_field']] ?? '';
       }
       if (isset($row[$request['color_field']])) {
         $data['color'] = $row[$request['color_field']];
@@ -210,10 +236,10 @@ function _civicrm_api3_generic_getlist_postprocess($result, $request, &$values) 
   if (!empty($result['values'])) {
     foreach (array_values($result['values']) as $num => $row) {
       foreach ($request['extra'] as $field) {
-        $values[$num]['extra'][$field] = isset($row[$field]) ? $row[$field] : NULL;
+        $values[$num]['extra'][$field] = $row[$field] ?? NULL;
       }
       foreach ($chains as $chain) {
-        $values[$num][$chain] = isset($row[$chain]) ? $row[$chain] : NULL;
+        $values[$num][$chain] = $row[$chain] ?? NULL;
       }
     }
   }

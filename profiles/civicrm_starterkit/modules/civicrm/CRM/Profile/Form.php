@@ -357,7 +357,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
         $this->_ufGroup = (array) $dao;
       }
 
-      if (!CRM_Utils_Array::value('is_active', $this->_ufGroup)) {
+      if (empty($this->_ufGroup['is_active'])) {
         CRM_Core_Error::fatal(ts('The requested profile (gid=%1) is inactive or does not exist.', [
           1 => $this->_gid,
         ]));
@@ -841,7 +841,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
         $addCaptcha[$field['group_id']] = $field['add_captcha'];
       }
 
-      if (($name == 'email-Primary') || ($name == 'email-' . isset($primaryLocationType) ? $primaryLocationType : "")) {
+      if (($name == 'email-Primary') || ($name == 'email-' . ($primaryLocationType ?? ""))) {
         $emailPresent = TRUE;
         $this->_mail = $name;
       }
@@ -994,7 +994,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
     if (!$register && empty($fields['_qf_Edit_upload_duplicate'])) {
       // fix for CRM-3240
       if (!empty($fields['email-Primary'])) {
-        $fields['email'] = CRM_Utils_Array::value('email-Primary', $fields);
+        $fields['email'] = $fields['email-Primary'] ?? NULL;
       }
 
       // fix for CRM-6141
@@ -1107,7 +1107,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
       $details = $contactDetails[$this->_id];
     }
     if (!(!empty($details['addressee_id']) || !empty($details['email_greeting_id']) ||
-      CRM_Utils_Array::value('postal_greeting_id', $details)
+      !empty($details['postal_greeting_id'])
     )
     ) {
 
@@ -1187,7 +1187,7 @@ class CRM_Profile_Form extends CRM_Core_Form {
       }
     }
 
-    $addToGroupId = CRM_Utils_Array::value('add_to_group_id', $this->_ufGroup);
+    $addToGroupId = $this->_ufGroup['add_to_group_id'] ?? NULL;
     if (!empty($addToGroupId)) {
       //run same check whether group is a mailing list
       $groupTypes = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Group',

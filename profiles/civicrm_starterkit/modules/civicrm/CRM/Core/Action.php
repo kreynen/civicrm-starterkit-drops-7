@@ -16,8 +16,6 @@
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
  */
 class CRM_Core_Action {
 
@@ -140,7 +138,7 @@ class CRM_Core_Action {
    *   the action mask corresponding to the input string
    */
   public static function mapItem($item) {
-    $mask = CRM_Utils_Array::value(trim($item), self::$_names);
+    $mask = self::$_names[trim($item)] ?? NULL;
     return $mask ? $mask : 0;
   }
 
@@ -216,7 +214,7 @@ class CRM_Core_Action {
       if (!$mask || !array_key_exists('bit', $link) || ($mask & $link['bit'])) {
         $extra = isset($link['extra']) ? self::replace($link['extra'], $values) : NULL;
 
-        $frontend = (isset($link['fe'])) ? TRUE : FALSE;
+        $frontend = isset($link['fe']);
 
         if (isset($link['qs']) && !CRM_Utils_System::isNull($link['qs'])) {
           $urlPath = CRM_Utils_System::url(self::replace($link['url'], $values),

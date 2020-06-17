@@ -32,8 +32,8 @@ class I18nSubscriber implements EventSubscriberInterface {
    */
   public static function getSubscribedEvents() {
     return [
-      Events::PREPARE => ['onApiPrepare', Events::W_MIDDLE],
-      Events::RESPOND => ['onApiRespond', Events::W_LATE],
+      'civi.api.prepare' => ['onApiPrepare', Events::W_MIDDLE],
+      'civi.api.respond' => ['onApiRespond', Events::W_LATE],
     ];
   }
 
@@ -50,10 +50,10 @@ class I18nSubscriber implements EventSubscriberInterface {
 
     $params = $apiRequest['params'];
     if ($apiRequest['version'] < 4) {
-      $language = !empty($params['options']['language']) ? $params['options']['language'] : \CRM_Utils_Array::value('option.language', $params);
+      $language = $params['options']['language'] ?? $params['option.language'] ?? NULL;
     }
     else {
-      $language = \CRM_Utils_Array::value('language', $params);
+      $language = $params['language'] ?? NULL;
     }
     if ($language) {
       $this->setLocale($language, $apiRequest['id']);

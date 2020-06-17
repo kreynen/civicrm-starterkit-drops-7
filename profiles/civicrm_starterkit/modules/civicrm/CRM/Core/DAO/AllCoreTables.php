@@ -45,8 +45,8 @@ class CRM_Core_DAO_AllCoreTables {
         $entityType['name'],
         $entityType['class'],
         $entityType['table'],
-        isset($entityType['fields_callback']) ? $entityType['fields_callback'] : NULL,
-        isset($entityType['links_callback']) ? $entityType['links_callback'] : NULL
+        $entityType['fields_callback'] ?? NULL,
+        $entityType['links_callback'] ?? NULL
       );
     }
 
@@ -252,6 +252,17 @@ class CRM_Core_DAO_AllCoreTables {
   public static function getTableForClass($className) {
     return array_search(self::getCanonicalClassName($className),
       self::tables());
+  }
+
+  /**
+   * Convert the entity name into a table name.
+   *
+   * @param string $entityBriefName
+   *
+   * @return FALSE|string
+   */
+  public static function getTableForEntityName($entityBriefName) {
+    return self::getTableForClass(self::getFullName($entityBriefName));
   }
 
   /**

@@ -165,8 +165,8 @@ class CRM_Utils_System_Drupal6 extends CRM_Utils_System_DrupalBase {
     $user = NULL;
 
     if (!empty($row)) {
-      $dbName = CRM_Utils_Array::value('name', $row);
-      $dbEmail = CRM_Utils_Array::value('mail', $row);
+      $dbName = $row['name'] ?? NULL;
+      $dbEmail = $row['mail'] ?? NULL;
       if (strtolower($dbName) == strtolower($name)) {
         $errors['cms_name'] = ts('The username %1 is already taken. Please select another username.',
           [1 => $name]
@@ -460,7 +460,7 @@ class CRM_Utils_System_Drupal6 extends CRM_Utils_System_DrupalBase {
     }
     global $user;
     // If $uid is passed in, authentication has been done already.
-    $uid = CRM_Utils_Array::value('uid', $params);
+    $uid = $params['uid'] ?? NULL;
     if (!$uid) {
       //load user, we need to check drupal permissions.
       $name = CRM_Utils_Array::value('name', $params, FALSE) ? $params['name'] : trim(CRM_Utils_Array::value('name', $_REQUEST));
@@ -687,7 +687,7 @@ class CRM_Utils_System_Drupal6 extends CRM_Utils_System_DrupalBase {
     $result = [];
     $q = db_query('SELECT name, status FROM {system} WHERE type = \'module\' AND schema_version <> -1');
     while ($row = db_fetch_object($q)) {
-      $result[] = new CRM_Core_Module('drupal.' . $row->name, ($row->status == 1) ? TRUE : FALSE);
+      $result[] = new CRM_Core_Module('drupal.' . $row->name, $row->status == 1);
     }
     return $result;
   }

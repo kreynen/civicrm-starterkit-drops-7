@@ -184,7 +184,7 @@ LIMIT 1;";
    */
   public static function getRefundTransactionTrxnID($contributionID) {
     $ids = self::getRefundTransactionIDs($contributionID);
-    return isset($ids['trxn_id']) ? $ids['trxn_id'] : NULL;
+    return $ids['trxn_id'] ?? NULL;
   }
 
   /**
@@ -348,8 +348,8 @@ WHERE ceft.entity_id = %1";
         'to_financial_account_id' => CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($params['financial_type_id'], $toFinancialAccountType),
         'from_financial_account_id' => CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($params['financial_type_id'], $fromFinancialAccountType),
         'trxn_date' => date('YmdHis'),
-        'total_amount' => CRM_Utils_Array::value('cost', $params) ? $params['cost'] : 0,
-        'currency' => CRM_Utils_Array::value('currency', $params),
+        'total_amount' => $params['cost'] ?? 0,
+        'currency' => $params['currency'] ?? NULL,
         'status_id' => array_search('Completed', $contributionStatuses),
         'entity_table' => 'civicrm_contribution',
         'entity_id' => $params['contributionId'],
@@ -364,9 +364,9 @@ WHERE ceft.entity_id = %1";
       $productDetails = [];
       CRM_Contribute_BAO_Product::retrieve($premiumParams, $productDetails);
       $params = [
-        'cost' => CRM_Utils_Array::value('cost', $productDetails),
-        'currency' => CRM_Utils_Array::value('currency', $productDetails),
-        'financial_type_id' => CRM_Utils_Array::value('financial_type_id', $productDetails),
+        'cost' => $productDetails['cost'] ?? NULL,
+        'currency' => $productDetails['currency'] ?? NULL,
+        'financial_type_id' => $productDetails['financial_type_id'] ?? NULL,
         'contributionId' => $params['oldPremium']['contribution_id'],
         'isDeleted' => TRUE,
       ];
@@ -380,19 +380,18 @@ WHERE ceft.entity_id = %1";
    * @param array $params
    *   To create trxn entries.
    *
-   * @return bool|void
+   * @throws \CRM_Core_Exception
    */
   public static function recordFees($params) {
-    $domainId = CRM_Core_Config::domainID();
     $amount = 0;
     if (!empty($params['prevContribution'])) {
       $amount = $params['prevContribution']->fee_amount;
     }
     $amount = $params['fee_amount'] - $amount;
     if (!$amount) {
-      return FALSE;
+      return;
     }
-    $contributionId = isset($params['contribution']->id) ? $params['contribution']->id : $params['contribution_id'];
+    $contributionId = $params['contribution']->id ?? $params['contribution_id'];
     if (empty($params['financial_type_id'])) {
       $financialTypeId = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $contributionId, 'financial_type_id', 'id');
     }
@@ -416,7 +415,7 @@ WHERE ceft.entity_id = %1";
     $fItemParams
       = [
         'financial_account_id' => $financialAccount,
-        'contact_id' => CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Domain', $domainId, 'contact_id'),
+        'contact_id' => CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Domain', CRM_Core_Config::domainID(), 'contact_id'),
         'created_date' => date('YmdHis'),
         'transaction_date' => date('YmdHis'),
         'amount' => $amount,
@@ -667,7 +666,7 @@ WHERE ceft.entity_id = %1";
     }
 
     $financialTrxn = $financialTrxn['values'][$financialTrxn['id']];
-    $paymentProcessorID = CRM_Utils_Array::value('financial_trxn_id.payment_processor_id', $financialTrxn);
+    $paymentProcessorID = $financialTrxn['financial_trxn_id.payment_processor_id'] ?? NULL;
 
     if ($paymentProcessorID) {
       return NULL;
@@ -696,7 +695,7 @@ WHERE ceft.entity_id = %1";
     // ensure that there are all the information in updated contribution object identified by $currentContribution
     $currentContribution->find(TRUE);
 
-    $deferredFinancialAccount = CRM_Utils_Array::value('deferred_financial_account_id', $inputParams);
+    $deferredFinancialAccount = $inputParams['deferred_financial_account_id'] ?? NULL;
     if (empty($deferredFinancialAccount)) {
       $deferredFinancialAccount = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($prevContribution->financial_type_id, 'Deferred Revenue Account is');
     }

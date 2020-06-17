@@ -216,7 +216,7 @@ class CRM_Core_Menu {
     );
     $fieldsPresent = array();
     foreach ($fieldsToPropagate as $field) {
-      $fieldsPresent[$field] = CRM_Utils_Array::value($field, $menu[$path]) !== NULL ? TRUE : FALSE;
+      $fieldsPresent[$field] = isset($menu[$path][$field]);
     }
 
     $args = explode('/', $path);
@@ -227,9 +227,10 @@ class CRM_Core_Menu {
 
       foreach ($fieldsToPropagate as $field) {
         if (!$fieldsPresent[$field]) {
-          if (CRM_Utils_Array::value($field, CRM_Utils_Array::value($parentPath, $menu)) !== NULL) {
+          $fieldInParentMenu = $menu[$parentPath][$field] ?? NULL;
+          if ($fieldInParentMenu !== NULL) {
             $fieldsPresent[$field] = TRUE;
-            $menu[$path][$field] = $menu[$parentPath][$field];
+            $menu[$path][$field] = $fieldInParentMenu;
           }
         }
       }
@@ -349,7 +350,7 @@ class CRM_Core_Menu {
 
       $value = array(
         'title' => $item['title'],
-        'desc' => CRM_Utils_Array::value('desc', $item),
+        'desc' => $item['desc'] ?? NULL,
         'id' => strtr($item['title'], array(
           '(' => '_',
           ')' => '',
@@ -365,14 +366,13 @@ class CRM_Core_Menu {
           // forceBackend; CRM-14439 work-around; acceptable for now because we don't display breadcrumbs on frontend
           TRUE
         ),
-        'icon' => CRM_Utils_Array::value('icon', $item),
-        'extra' => CRM_Utils_Array::value('extra', $item),
+        'icon' => $item['icon'] ?? NULL,
+        'extra' => $item['extra'] ?? NULL,
       );
       if (!array_key_exists($item['adminGroup'], $values)) {
         $values[$item['adminGroup']] = array();
         $values[$item['adminGroup']]['fields'] = array();
       }
-      $weight = CRM_Utils_Array::value('weight', $item, 0);
       $values[$item['adminGroup']]['fields']["{weight}.{$item['title']}"] = $value;
       $values[$item['adminGroup']]['component_id'] = $item['component_id'];
     }
@@ -501,6 +501,8 @@ class CRM_Core_Menu {
   /**
    * @param $menu
    * @param $path
+   *
+   * @throws \CRM_Core_Exception
    */
   public static function fillComponentIds(&$menu, $path) {
     static $cache = array();
@@ -524,7 +526,7 @@ class CRM_Core_Menu {
       $menu[$path]['component_id'] = $cache[$compPath];
     }
     else {
-      if (CRM_Utils_Array::value('component', CRM_Utils_Array::value($compPath, $menu))) {
+      if (!empty($menu[$compPath]['component'])) {
         $componentId = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Component',
           $menu[$compPath]['component'],
           'id', 'name'

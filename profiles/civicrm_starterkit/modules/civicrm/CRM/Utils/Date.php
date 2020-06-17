@@ -395,8 +395,8 @@ class CRM_Utils_Date {
       }
 
       $date = [
-        '%b' => CRM_Utils_Array::value($month, $abbrMonths),
-        '%B' => CRM_Utils_Array::value($month, $fullMonths),
+        '%b' => $abbrMonths[$month] ?? NULL,
+        '%B' => $fullMonths[$month] ?? NULL,
         '%d' => $day > 9 ? $day : '0' . $day,
         '%e' => $day > 9 ? $day : ' ' . $day,
         '%E' => $day,
@@ -771,7 +771,7 @@ class CRM_Utils_Date {
       $now = self::isoToMysql($now);
     }
 
-    return (strtotime($mysqlDate) >= strtotime($now)) ? FALSE : TRUE;
+    return !(strtotime($mysqlDate) >= strtotime($now));
   }
 
   /**
@@ -950,12 +950,12 @@ class CRM_Utils_Date {
    */
   public static function intervalAdd($unit, $interval, $date, $dontCareTime = FALSE) {
     if (is_array($date)) {
-      $hour = CRM_Utils_Array::value('H', $date);
-      $minute = CRM_Utils_Array::value('i', $date);
-      $second = CRM_Utils_Array::value('s', $date);
-      $month = CRM_Utils_Array::value('M', $date);
-      $day = CRM_Utils_Array::value('d', $date);
-      $year = CRM_Utils_Array::value('Y', $date);
+      $hour = $date['H'] ?? NULL;
+      $minute = $date['i'] ?? NULL;
+      $second = $date['s'] ?? NULL;
+      $month = $date['M'] ?? NULL;
+      $day = $date['d'] ?? NULL;
+      $year = $date['Y'] ?? NULL;
     }
     else {
       extract(date_parse($date));
@@ -1093,7 +1093,7 @@ class CRM_Utils_Date {
     $from['H'] = $from['i'] = $from['s'] = 0;
     $relativeTermParts = explode('_', $relativeTerm);
     $relativeTermPrefix = $relativeTermParts[0];
-    $relativeTermSuffix = isset($relativeTermParts[1]) ? $relativeTermParts[1] : '';
+    $relativeTermSuffix = $relativeTermParts[1] ?? '';
 
     switch ($unit) {
       case 'year':

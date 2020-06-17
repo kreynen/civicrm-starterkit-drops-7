@@ -38,7 +38,7 @@ class CRM_Financial_Page_AJAX {
     }
     else {
       $financialAccountType = CRM_Financial_BAO_FinancialAccount::getfinancialAccountRelations();
-      $financialAccountType = CRM_Utils_Array::value($_GET['_value'], $financialAccountType);
+      $financialAccountType = $financialAccountType[$_GET['_value']] ?? NULL;
       $result = CRM_Contribute_PseudoConstant::financialAccount(NULL, $financialAccountType);
       if ($financialAccountType) {
         $defaultId = CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_financial_account WHERE is_default = 1 AND financial_account_type_id = $financialAccountType");
@@ -255,7 +255,7 @@ class CRM_Financial_Page_AJAX {
     $entityID = isset($_REQUEST['entityID']) ? CRM_Utils_Type::escape($_REQUEST['entityID'], 'String') : NULL;
     $notPresent = isset($_REQUEST['notPresent']) ? CRM_Utils_Type::escape($_REQUEST['notPresent'], 'String') : NULL;
     $statusID = isset($_REQUEST['statusID']) ? CRM_Utils_Type::escape($_REQUEST['statusID'], 'String') : NULL;
-    $search = isset($_REQUEST['search']) ? TRUE : FALSE;
+    $search = isset($_REQUEST['search']);
 
     $params = $_POST;
     if ($sort && $sortOrder) {
@@ -303,7 +303,7 @@ class CRM_Financial_Page_AJAX {
     $params['context'] = $context;
     $params['offset'] = ($params['page'] - 1) * $params['rp'];
     $params['rowCount'] = $params['rp'];
-    $params['sort'] = CRM_Utils_Array::value('sortBy', $params);
+    $params['sort'] = $params['sortBy'] ?? NULL;
     $params['total'] = 0;
 
     // get batch list
@@ -429,7 +429,7 @@ class CRM_Financial_Page_AJAX {
         );
       }
       if ($financialItem->contact_id) {
-        $row[$financialItem->id]['contact_type'] = CRM_Contact_BAO_Contact_Utils::getImage(CRM_Utils_Array::value('contact_sub_type', $row[$financialItem->id]) ? $row[$financialItem->id]['contact_sub_type'] : CRM_Utils_Array::value('contact_type', $row[$financialItem->id]), FALSE, $financialItem->contact_id);
+        $row[$financialItem->id]['contact_type'] = CRM_Contact_BAO_Contact_Utils::getImage(!empty($row[$financialItem->id]['contact_sub_type']) ? $row[$financialItem->id]['contact_sub_type'] : CRM_Utils_Array::value('contact_type', $row[$financialItem->id]), FALSE, $financialItem->contact_id);
       }
       $financialitems = $row;
     }

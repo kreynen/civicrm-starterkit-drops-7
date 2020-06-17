@@ -29,6 +29,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
 
   /**
    * email of the person paying for the membership (used for receipts)
+   *
    * @var string
    */
   protected $_memberEmail = NULL;
@@ -50,6 +51,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
 
   /**
    * email of the person paying for the membership (used for receipts)
+   *
    * @var string
    */
   protected $_contributorEmail = NULL;
@@ -71,6 +73,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
   /**
    * context would be set to standalone if the contact is use is being selected from
    * the form rather than in the URL
+   *
    * @var string
    */
   public $_context;
@@ -99,35 +102,35 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
   /**
    * Set entity fields to be assigned to the form.
    */
-  protected function setEntityFields() {}
+  protected function setEntityFields() {
+  }
 
   /**
    * Set the delete message.
    *
    * We do this from the constructor in order to do a translation.
    */
-  public function setDeleteMessage() {}
-
-  /**
-   * Pre-process form.
-   *
-   * @throws \Exception
-   */
+  public function setDeleteMessage() {
+  }
 
   /**
    * Set the renewal notification status message.
    */
   public function setRenewalMessage() {
-    $statusMsg = ts('%1 membership for %2 has been renewed.', array(1 => $this->membershipTypeName, 2 => $this->_memberDisplayName));
+    $statusMsg = ts('%1 membership for %2 has been renewed.', [1 => $this->membershipTypeName, 2 => $this->_memberDisplayName]);
 
     if ($this->isMailSent) {
-      $statusMsg .= ' ' . ts('A renewal confirmation and receipt has been sent to %1.', array(
-        1 => $this->_contributorEmail,
-      ));
+      $statusMsg .= ' ' . ts('A renewal confirmation and receipt has been sent to %1.', [1 => $this->_contributorEmail]);
     }
     CRM_Core_Session::setStatus($statusMsg, ts('Complete'), 'success');
   }
 
+  /**
+   * Preprocess form.
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
+   */
   public function preProcess() {
 
     // This string makes up part of the class names, differentiating them (not sure why) from the membership fields.
@@ -135,8 +138,8 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
     parent::preProcess();
 
     $this->assign('endDate', CRM_Utils_Date::customFormat(CRM_Core_DAO::getFieldValue('CRM_Member_DAO_Membership',
-        $this->_id, 'end_date'
-      )
+      $this->_id, 'end_date'
+    )
     ));
     $this->assign('membershipStatus',
       CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipStatus',
@@ -176,6 +179,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
    *
    * @return array
    *   Default values.
+   * @throws \CRM_Core_Exception
    */
   public function setDefaultValues() {
 
@@ -211,10 +215,10 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
     $defaults['send_receipt'] = 0;
 
     //set Soft Credit Type to Gift by default
-    $scTypes = CRM_Core_OptionGroup::values("soft_credit_type");
+    $scTypes = CRM_Core_OptionGroup::values('soft_credit_type');
     $defaults['soft_credit_type_id'] = CRM_Utils_Array::value(ts('Gift'), array_flip($scTypes));
 
-    $renewalDate = CRM_Utils_Array::value('renewal_date', $defaults);
+    $renewalDate = $defaults['renewal_date'] ?? NULL;
     $this->assign('renewalDate', $renewalDate);
     $this->assign('member_is_test', CRM_Utils_Array::value('member_is_test', $defaults));
 
@@ -226,6 +230,8 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
 
   /**
    * Build the form object.
+   *
+   * @throws \CRM_Core_Exception
    */
   public function buildQuickForm() {
 
@@ -259,7 +265,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
           continue;
         }
         else {
-          $memberOfContactId = CRM_Utils_Array::value('member_of_contact_id', $values);
+          $memberOfContactId = $values['member_of_contact_id'] ?? NULL;
           if (empty($selMemTypeOrg[$memberOfContactId])) {
             $selMemTypeOrg[$memberOfContactId] = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact',
               $memberOfContactId,
@@ -270,13 +276,13 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
             $selOrgMemType[$memberOfContactId][0] = ts('- select -');
           }
           if (empty($selOrgMemType[$memberOfContactId][$key])) {
-            $selOrgMemType[$memberOfContactId][$key] = CRM_Utils_Array::value('name', $values);
+            $selOrgMemType[$memberOfContactId][$key] = $values['name'] ?? NULL;
           }
         }
 
         //CRM-16950
         $taxAmount = NULL;
-        $totalAmount = CRM_Utils_Array::value('minimum_fee', $values);
+        $totalAmount = $values['minimum_fee'] ?? NULL;
         // @todo - feels a bug - we use taxRate from the form default rather than from the specified type?!?
         if ($this->getTaxRateForFinancialType($values['financial_type_id'])) {
           $taxAmount = ($taxRate / 100) * CRM_Utils_Array::value('minimum_fee', $values);
@@ -286,7 +292,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
         // build membership info array, which is used to set the payment information block when
         // membership type is selected.
         $allMembershipInfo[$key] = [
-          'financial_type_id' => CRM_Utils_Array::value('financial_type_id', $values),
+          'financial_type_id' => $values['financial_type_id'] ?? NULL,
           'total_amount' => CRM_Utils_Money::format($totalAmount, NULL, '%a'),
           'total_amount_numeric' => $totalAmount,
           'tax_message' => $taxAmount ? ts("Includes %1 amount of %2", [1 => $this->getSalesTaxTerm(), 2 => CRM_Utils_Money::format($taxAmount)]) : $taxAmount,
@@ -412,6 +418,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
    *
    * @return bool|array
    *   mixed true or array of errors
+   * @throws \CRM_Core_Exception
    */
   public static function formRule($params, $files, $self) {
     $errors = [];
@@ -453,6 +460,9 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
 
   /**
    * Process the renewal form.
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public function postProcess() {
     // get the submitted form values.
@@ -546,7 +556,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
 
       $this->_params['contribution_status_id'] = $result['payment_status_id'];
       $this->_params['trxn_id'] = $result['trxn_id'];
-      $this->_params['is_test'] = ($this->_mode == 'live') ? 0 : 1;
+      $this->_params['is_test'] = ($this->_mode === 'live') ? 0 : 1;
       $this->set('params', $this->_params);
       $this->assign('trxn_id', $result['trxn_id']);
     }
@@ -597,22 +607,17 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
       //create line items
       $lineItem = [];
       $this->_params = $this->setPriceSetParameters($this->_params);
-      CRM_Price_BAO_PriceSet::processAmount($this->_priceSet['fields'],
-        $this->_params, $lineItem[$this->_priceSetId], $this->_priceSetId
-      );
-      //CRM-11529 for quick config backoffice transactions
-      //when financial_type_id is passed in form, update the
-      //line items with the financial type selected in form
-      if ($submittedFinancialType = CRM_Utils_Array::value('financial_type_id', $this->_params)) {
-        foreach ($lineItem[$this->_priceSetId] as &$li) {
-          $li['financial_type_id'] = $submittedFinancialType;
-        }
-      }
 
-      if (!empty($lineItem)) {
-        $this->_params['lineItems'] = $lineItem;
-        $this->_params['processPriceSet'] = TRUE;
-      }
+      $order = new CRM_Financial_BAO_Order();
+      $order->setPriceSelectionFromUnfilteredInput($this->_params);
+      $order->setPriceSetID(self::getPriceSetID($this->_params));
+      $order->setOverrideTotalAmount($this->_params['total_amount']);
+      $order->setOverrideFinancialTypeID((int) $this->_params['financial_type_id']);
+
+      $this->_params['lineItems'][$this->_priceSetId] = $order->getLineItems();
+      // This is one of those weird & wonderful legacy params we aim to get rid of.
+      $this->_params['processPriceSet'] = TRUE;
+      $this->_params['tax_amount'] = $order->getTotalTaxAmount();
 
       //assign contribution contact id to the field expected by recordMembershipContribution
       if ($this->_contributorContactID != $this->_contactID) {
@@ -634,7 +639,8 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
         'contribution_recur_id' => $contributionRecurID,
       ]);
       //Remove `tax_amount` if it is not calculated.
-      if (CRM_Utils_Array::value('tax_amount', $temporaryParams) === 0) {
+      // ?? WHY - I haven't been able to figure out...
+      if (CRM_Utils_Array::value('tax_amount', $temporaryParams) === 0.0) {
         unset($temporaryParams['tax_amount']);
       }
       CRM_Member_BAO_Membership::recordMembershipContribution($temporaryParams);
@@ -665,7 +671,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
     // retrieve custom data
     $customFields = $customValues = $fo = [];
     foreach ($this->_groupTree as $groupID => $group) {
-      if ($groupID == 'info') {
+      if ($groupID === 'info') {
         continue;
       }
       foreach ($group['fields'] as $k => $field) {
@@ -675,7 +681,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
     }
     $members = [['member_id', '=', $this->_membershipId, 0, 0]];
     // check whether its a test drive
-    if ($this->_mode == 'test') {
+    if ($this->_mode === 'test') {
       $members[] = ['member_test', '=', 1, 0, 0];
     }
     CRM_Core_BAO_UFGroup::getValues($this->_contactID, $customFields, $customValues, FALSE, $members);
@@ -701,7 +707,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
       $this->assign('is_pay_later', 0);
       $this->assign('isPrimary', 1);
       $this->assign('receipt_text_renewal', $this->_params['receipt_text']);
-      if ($this->_mode == 'test') {
+      if ($this->_mode === 'test') {
         $this->assign('action', '1024');
       }
     }
@@ -714,7 +720,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
         'from' => $receiptFrom,
         'toName' => $this->_contributorDisplayName,
         'toEmail' => $this->_contributorEmail,
-        'isTest' => $this->_mode == 'test',
+        'isTest' => $this->_mode === 'test',
       ]
     );
   }
