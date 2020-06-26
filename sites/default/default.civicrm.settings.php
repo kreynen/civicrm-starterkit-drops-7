@@ -73,7 +73,7 @@ if (!empty($_ENV['PANTHEON_SITE'])) {
   // Database Username and Password
   $pantheon_db = 'mysql://' . $_ENV['DB_USER'] . ':' . $_ENV['DB_PASSWORD'] . '@';
   // Host
-  $pantheon_db .= 'dbserver.' . $_ENV['PANTHEON_ENVIRONMENT'] . '.' . $_ENV['PANTHEON_SITE'] . '.drush.in' . ':' . $_ENV['DB_PORT'];
+  $pantheon_db .= $_ENV['DB_HOST'] . ':' . $_ENV['DB_PORT'];
   // Database
   $pantheon_db .= '/' . $_ENV['DB_NAME'] . '?new_link=true';
 }
