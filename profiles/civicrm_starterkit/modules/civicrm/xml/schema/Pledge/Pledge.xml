@@ -5,6 +5,7 @@
   <name>civicrm_pledge</name>
   <add>2.1</add>
   <log>true</log>
+  <icon>fa-paper-plane</icon>
   <field>
     <name>id</name>
     <uniqueName>pledge_id</uniqueName>
@@ -201,6 +202,7 @@
     <add>2.1</add>
     <html>
       <type>Select Date</type>
+      <formatType>activityDate</formatType>
     </html>
     <uniqueName>pledge_start_date</uniqueName>
     <uniqueTitle>Payments Start Date</uniqueTitle>
@@ -217,6 +219,7 @@
     <add>2.1</add>
     <html>
       <type>Select Date</type>
+      <formatType>activityDate</formatType>
     </html>
   </field>
   <field>
@@ -227,6 +230,7 @@
     <add>2.1</add>
     <html>
       <type>Select Date</type>
+      <formatType>activityDate</formatType>
     </html>
   </field>
   <field>
@@ -244,6 +248,7 @@
     <add>2.1</add>
     <html>
       <type>Select Date</type>
+      <formatType>activityDate</formatType>
     </html>
   </field>
   <field>
@@ -255,6 +260,7 @@
     <add>2.1</add>
     <html>
       <type>Select Date</type>
+      <formatType>activityDate</formatType>
     </html>
     <uniqueName>pledge_end_date</uniqueName>
     <uniqueTitle>Payments Ended Date</uniqueTitle>

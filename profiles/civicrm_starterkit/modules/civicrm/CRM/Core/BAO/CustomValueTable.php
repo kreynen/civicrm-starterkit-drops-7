@@ -47,25 +47,31 @@ class CRM_Core_BAO_CustomValueTable {
         $set = [];
         $params = [];
         $count = 1;
-        foreach ($fields as $field) {
-          if (!$sqlOP) {
-            $entityID = $field['entity_id'];
-            $hookID = $field['custom_group_id'];
-            $isMultiple = $field['is_multiple'];
-            if (array_key_exists('id', $field)) {
-              $sqlOP = "UPDATE $tableName ";
-              $where = " WHERE  id = %{$count}";
-              $params[$count] = [$field['id'], 'Integer'];
-              $count++;
-              $hookOP = 'edit';
-            }
-            else {
-              $sqlOP = "INSERT INTO $tableName ";
-              $where = NULL;
-              $hookOP = 'create';
-            }
-          }
 
+        $firstField = reset($fields);
+        $entityID = $firstField['entity_id'];
+        $hookID = $firstField['custom_group_id'];
+        $isMultiple = $firstField['is_multiple'];
+        if (array_key_exists('id', $firstField)) {
+          $sqlOP = "UPDATE $tableName ";
+          $where = " WHERE  id = %{$count}";
+          $params[$count] = [$firstField['id'], 'Integer'];
+          $count++;
+          $hookOP = 'edit';
+        }
+        else {
+          $sqlOP = "INSERT INTO $tableName ";
+          $where = NULL;
+          $hookOP = 'create';
+        }
+
+        CRM_Utils_Hook::customPre($hookOP,
+          $hookID,
+          $entityID,
+          $fields
+        );
+
+        foreach ($fields as $field) {
           // fix the value before we store it
           $value = $field['value'];
           $type = $field['type'];
@@ -153,7 +159,7 @@ class CRM_Core_BAO_CustomValueTable {
 
             case 'File':
               if (!$field['file_id']) {
-                CRM_Core_Error::fatal();
+                throw new CRM_Core_Exception('Missing parameter file_id');
               }
 
               // need to add/update civicrm_entity_file
@@ -318,7 +324,7 @@ class CRM_Core_BAO_CustomValueTable {
         return 'datetime';
 
       default:
-        CRM_Core_Error::fatal();
+        throw new CRM_Core_Exception('Invalid Field Type');
     }
   }
 
@@ -415,12 +421,13 @@ class CRM_Core_BAO_CustomValueTable {
    *   Array of custom values for the entity with key=>value
    *                                   pairs specified as civicrm_custom_field.id => custom value.
    *                                   Empty array if no custom values found.
+   * @throws CRM_Core_Exception
    */
   public static function &getEntityValues($entityID, $entityType = NULL, $fieldIDs = NULL, $formatMultiRecordField = FALSE, $DTparams = NULL) {
     if (!$entityID) {
       // adding this here since an empty contact id could have serious repurcussions
       // like looping forever
-      CRM_Core_Error::fatal('Please file an issue with the backtrace');
+      throw new CRM_Core_Exception('Please file an issue with the backtrace');
       return NULL;
     }
 

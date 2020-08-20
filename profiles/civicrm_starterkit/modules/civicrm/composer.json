@@ -32,7 +32,7 @@
       "Civi\\": ["tests/phpunit/"]
     },
     "psr-4": {
-      "Civi\\": [".", "setup/src/"]
+      "Civi\\": [".", "Civi/", "setup/src/"]
     }
   },
   "include-path": ["vendor/tecnickcom"],
@@ -46,15 +46,15 @@
     "cache/integration-tests": "~0.16.0",
     "dompdf/dompdf" : "0.8.*",
     "electrolinux/phpquery": "^0.9.6",
-    "symfony/config": "^2.8.50 || ~3.0",
+    "symfony/config": "~3.0 || ~4.4",
     "symfony/polyfill-iconv": "~1.0",
-    "symfony/dependency-injection": "^2.8.50 || ~3.0",
-    "symfony/event-dispatcher": "^2.8.50 || ~3.0",
-    "symfony/filesystem": "^2.8.50 || ~3.0",
-    "symfony/process": "^2.8.50 || ~3.0",
+    "symfony/dependency-injection": "~3.0 || ~4.4",
+    "symfony/event-dispatcher": "~3.0 || ~4.4",
+    "symfony/filesystem": "~3.0 || ~4.4",
+    "symfony/process": "~3.0 || ~4.4",
     "psr/log": "~1.0",
-    "symfony/finder": "^2.8.50 || ~3.0",
-    "tecnickcom/tcpdf" : "6.2.*",
+    "symfony/finder": "~3.0 || ~4.4",
+    "tecnickcom/tcpdf" : "6.3.*",
     "totten/ca-config": "~17.05",
     "zetacomponents/base": "1.9.*",
     "zetacomponents/mail": "1.9.*",
@@ -69,13 +69,15 @@
     "guzzlehttp/guzzle": "^6.3",
     "psr/simple-cache": "~1.0.1",
     "cweagans/composer-patches": "~1.0",
-    "pear/log": "1.13.1",
+    "pear/log": "1.13.2",
     "adrienrn/php-mimetyper": "0.2.2",
     "civicrm/composer-downloads-plugin": "^2.0",
     "league/csv": "^9.2",
     "tplaner/when": "~3.0.0",
     "xkerman/restricted-unserialize": "~1.1",
-    "typo3/phar-stream-wrapper": "^2 || ^3.0"
+    "typo3/phar-stream-wrapper": "^2 || ^3.0",
+    "brick/money": "~0.4",
+    "ext-intl": "*"
   },
   "scripts": {
     "post-install-cmd": [
@@ -237,10 +239,16 @@
       }
     },
     "patches": {
+      "adrienrn/php-mimetyper": {
+        "Update gitignore to ensure that sites that manage via git don't miss out on the important db.json file": "https://patch-diff.githubusercontent.com/raw/adrienrn/php-mimetyper/pull/15.patch"
+      },
       "cache/integration-tests": {
         "Allow adding tests": "https://github.com/php-cache/integration-tests/commit/05f97174c09364dc10c084a38ba0cfd5124f4cec.patch",
         "Support PHPUnit 6+": "https://github.com/php-cache/integration-tests/commit/1ec7362962185df91d3d749bc3fa7e7b99cb9fc7.patch",
         "Add tests for binary data round trip": "https://github.com/php-cache/integration-tests/commit/89cd7068e83aa776774bfc44f6bcba858c085616.patch"
+      },
+      "electrolinux/phpquery": {
+        "PHP7.4 Fix for array access using {} instead of []": "https://raw.githubusercontent.com/civicrm/civicrm-core/fe45bdfc4f3e3d3deb27e3d853cdbc7f616620a9/tools/scripts/composer/patches/php74_array_access_fix_phpquery.patch"
       },
       "pear/mail": {
         "Apply CiviCRM Customisations for CRM-1367 and CRM-5946": "https://raw.githubusercontent.com/civicrm/civicrm-core/36319938a5bf26c1e7e2110a26a65db6a5979268/tools/scripts/composer/patches/pear-mail.patch"

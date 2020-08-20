@@ -272,7 +272,7 @@ class CRM_Utils_System {
     }
 
     $config = CRM_Core_Config::singleton();
-    $url = $config->userSystem->url($path, $query, $absolute, $fragment, $frontend, $forceBackend);
+    $url = $config->userSystem->url($path, $query, $absolute, $fragment, $frontend, $forceBackend, $htmlize);
 
     if ($htmlize) {
       $url = htmlentities($url);
@@ -316,6 +316,41 @@ class CRM_Utils_System {
     ]);
     Civi::dispatcher()->dispatch('hook_civicrm_alterExternUrl', $event);
     return urldecode(CRM_Utils_Url::unparseUrl($event->url));
+  }
+
+  /**
+   * Perform any current conversions/migrations on the extern URL.
+   *
+   * @param \Civi\Core\Event\GenericHookEvent $e
+   * @see CRM_Utils_Hook::alterExternUrl
+   */
+  public static function migrateExternUrl(\Civi\Core\Event\GenericHookEvent $e) {
+
+    /**
+     * $mkRouteUri is a small adapter to return generated URL as a "UriInterface".
+     * @param string $path
+     * @param string $query
+     * @return \Psr\Http\Message\UriInterface
+     */
+    $mkRouteUri = function ($path, $query) use ($e) {
+      $urlTxt = CRM_Utils_System::url($path, $query, $e->absolute, $e->fragment, FALSE, TRUE);
+      if ($e->isSSL || ($e->isSSL === NULL && \CRM_Utils_System::isSSL())) {
+        $urlTxt = str_replace('http://', 'https://', $urlTxt);
+      }
+      return CRM_Utils_Url::parseUrl($urlTxt);
+    };
+
+    switch (Civi::settings()->get('defaultExternUrl') . ':' . $e->path) {
+      case 'router:extern/open':
+        $e->url = $mkRouteUri('civicrm/mailing/open', preg_replace('/(^|&)q=/', '\1qid=', $e->query));
+        break;
+
+      case 'router:extern/url':
+        $e->url = $mkRouteUri('civicrm/mailing/url', $e->query);
+        break;
+
+      // Otherwise, keep the default.
+    }
   }
 
   /**
@@ -1031,28 +1066,6 @@ class CRM_Utils_System {
   }
 
   /**
-   * Format wiki url.
-   *
-   * @param string $string
-   * @param bool $encode
-   *
-   * @return string
-   */
-  public static function formatWikiURL($string, $encode = FALSE) {
-    $items = explode(' ', trim($string), 2);
-    if (count($items) == 2) {
-      $title = $items[1];
-    }
-    else {
-      $title = $items[0];
-    }
-
-    // fix for CRM-4044
-    $url = $encode ? self::urlEncode($items[0]) : $items[0];
-    return "<a href=\"$url\">$title</a>";
-  }
-
-  /**
    * Encode url.
    *
    * @param string $url
@@ -1060,6 +1073,7 @@ class CRM_Utils_System {
    * @return null|string
    */
   public static function urlEncode($url) {
+    CRM_Core_Error::deprecatedFunctionWarning('urlEncode');
     $items = parse_url($url);
     if ($items === FALSE) {
       return NULL;
@@ -1565,6 +1579,7 @@ class CRM_Utils_System {
    * @return string
    */
   public static function relativeURL($url) {
+    CRM_Core_Error::deprecatedFunctionWarning('url');
     // check if url is relative, if so return immediately
     if (substr($url, 0, 4) != 'http') {
       return $url;
@@ -1592,6 +1607,7 @@ class CRM_Utils_System {
    * @return string
    */
   public static function absoluteURL($url, $removeLanguagePart = FALSE) {
+    CRM_Core_Error::deprecatedFunctionWarning('url');
     // check if url is already absolute, if so return immediately
     if (substr($url, 0, 4) == 'http') {
       return $url;

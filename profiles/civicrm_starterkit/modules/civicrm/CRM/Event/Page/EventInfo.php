@@ -46,6 +46,8 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
     $context = CRM_Utils_Request::retrieve('context', 'Alphanumeric', $this, FALSE, 'register');
     $this->assign('context', $context);
 
+    $this->assign('iCal', CRM_Event_BAO_Event::getICalLinks($this->_id));
+
     // Sometimes we want to suppress the Event Full msg
     $noFullMsg = CRM_Utils_Request::retrieve('noFullMsg', 'String', $this, FALSE, 'false');
 
@@ -126,7 +128,7 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
             }
             // show tax rate with amount
             $invoiceSettings = Civi::settings()->get('contribution_invoice_settings');
-            $taxTerm = $invoiceSettings['tax_term'] ?? NULL;
+            $taxTerm = Civi::settings()->get('tax_term');
             $displayOpt = $invoiceSettings['tax_display_settings'] ?? NULL;
             $invoicing = $invoiceSettings['invoicing'] ?? NULL;
             foreach ($fieldValues['options'] as $optionId => $optionVal) {
@@ -339,8 +341,7 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
     $this->assign('location', $values['location']);
 
     if (CRM_Core_Permission::check(['access CiviEvent', 'edit all events'])) {
-      $enableCart = Civi::settings()->get('enable_cart');
-      $this->assign('manageEventLinks', CRM_Event_Page_ManageEvent::tabs($enableCart));
+      $this->assign('manageEventLinks', CRM_Event_Page_ManageEvent::tabs());
     }
 
     return parent::run();

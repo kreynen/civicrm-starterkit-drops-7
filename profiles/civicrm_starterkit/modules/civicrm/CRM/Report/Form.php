@@ -612,7 +612,7 @@ class CRM_Report_Form extends CRM_Core_Form {
         $this->_instanceValues
       );
       if (empty($this->_instanceValues)) {
-        CRM_Core_Error::fatal("Report could not be loaded.");
+        CRM_Core_Error::statusBounce("Report could not be loaded.");
       }
       $this->_title = $this->_instanceValues['title'];
       if (!empty($this->_instanceValues['permission']) &&
@@ -681,7 +681,7 @@ class CRM_Report_Form extends CRM_Core_Form {
     // Do not display Report Settings section if administer Reports permission is absent OR
     // if report instance is reserved and administer reserved reports absent
     if (!CRM_Core_Permission::check('administer Reports') ||
-      ($this->_instanceValues['is_reserved'] &&
+      (!empty($this->_instanceValues['is_reserved']) &&
         !CRM_Core_Permission::check('administer reserved reports'))
     ) {
       $this->_instanceForm = FALSE;
@@ -692,7 +692,7 @@ class CRM_Report_Form extends CRM_Core_Form {
     if (CRM_Core_Permission::check('administer Reports') ||
       CRM_Core_Permission::check('access Report Criteria')
     ) {
-      if (!$this->_instanceValues['is_reserved'] ||
+      if (empty($this->_instanceValues['is_reserved']) ||
         CRM_Core_Permission::check('administer reserved reports')
       ) {
         $this->assign('criteriaForm', TRUE);
@@ -2185,6 +2185,10 @@ class CRM_Report_Form extends CRM_Core_Form {
       $sqlOP = $this->getSQLOperator($relative);
       return "( {$fieldName} {$sqlOP} )";
     }
+    if (strlen($to) === 10) {
+      // If we just have the date we assume the end of that day.
+      $to .= ' 23:59:59';
+    }
 
     if ($relative) {
       list($from, $to) = $this->getFromTo($relative, $from, $to, $fromTime, $toTime);
@@ -3306,7 +3310,10 @@ WHERE cg.extends IN ('" . implode("','", $this->_customGroupExtends) . "') AND
             if (!empty($this->_params["{$fieldName}_relative"])) {
               list($from, $to) = CRM_Utils_Date::getFromTo($this->_params["{$fieldName}_relative"], NULL, NULL);
             }
-
+            if (strlen($to) === 10) {
+              // If we just have the date we assume the end of that day.
+              $to .= ' 23:59:59';
+            }
             if ($from || $to) {
               if ($from) {
                 $from = date('l j F Y, g:iA', strtotime($from));

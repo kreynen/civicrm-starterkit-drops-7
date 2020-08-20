@@ -79,14 +79,6 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
   public $_additionalParticipantIds;
 
   /**
-   * The mode that we are in.
-   *
-   * @var string
-   * @protect
-   */
-  public $_mode;
-
-  /**
    * The values for the contribution db object.
    *
    * @var array
@@ -182,12 +174,9 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
   public function preProcess() {
     $this->_eventId = CRM_Utils_Request::retrieve('id', 'Positive', $this, TRUE);
     $this->_action = CRM_Utils_Request::retrieve('action', 'Alphanumeric', $this, FALSE, CRM_Core_Action::ADD);
-
     //CRM-4320
     $this->_participantId = CRM_Utils_Request::retrieve('participantId', 'Positive', $this);
-
-    // current mode
-    $this->_mode = ($this->_action == 1024) ? 'test' : 'live';
+    $this->setPaymentMode();
 
     $this->_values = $this->get('values');
     $this->_fields = $this->get('fields');
@@ -199,10 +188,10 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
     $this->_isEventFull = $this->get('isEventFull');
     $this->_lineItemParticipantsCount = $this->get('lineItemParticipants');
     if (!is_array($this->_lineItem)) {
-      $this->_lineItem = array();
+      $this->_lineItem = [];
     }
     if (!is_array($this->_lineItemParticipantsCount)) {
-      $this->_lineItemParticipantsCount = array();
+      $this->_lineItemParticipantsCount = [];
     }
     $this->_availableRegistrations = $this->get('availableRegistrations');
     $this->_participantIDS = $this->get('participantIDs');
@@ -232,7 +221,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
       }
 
       // get all the values from the dao object
-      $this->_values = $this->_fields = array();
+      $this->_values = $this->_fields = [];
 
       //retrieve event information
       $params = array('id' => $this->_eventId);
@@ -519,7 +508,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
       if ($contactID) {
         //FIX CRM-9653
         if (is_array($id)) {
-          $fields = array();
+          $fields = [];
           foreach ($id as $profileID) {
             $field = CRM_Core_BAO_UFGroup::getFields($profileID, FALSE, CRM_Core_Action::ADD,
               NULL, NULL, FALSE, NULL,
@@ -643,7 +632,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
     }
     $eventFee = $form->_values['fee'] ?? NULL;
     if (!is_array($eventFee) || empty($eventFee)) {
-      $form->_values['fee'] = array();
+      $form->_values['fee'] = [];
     }
 
     //fix for non-upgraded price sets.CRM-4256.
@@ -666,7 +655,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
     }
     if ($isPaidEvent && empty($form->_values['fee'])) {
       if (CRM_Utils_System::getClassName($form) != 'CRM_Event_Form_Participant') {
-        CRM_Core_Error::fatal(ts('No Fee Level(s) or Price Set is configured for this event.<br />Click <a href=\'%1\'>CiviEvent >> Manage Event >> Configure >> Event Fees</a> to configure the Fee Level(s) or Price Set for this event.', array(1 => CRM_Utils_System::url('civicrm/event/manage/fee', 'reset=1&action=update&id=' . $form->_eventId))));
+        CRM_Core_Error::statusBounce(ts('No Fee Level(s) or Price Set is configured for this event.<br />Click <a href=\'%1\'>CiviEvent >> Manage Event >> Configure >> Event Fees</a> to configure the Fee Level(s) or Price Set for this event.', array(1 => CRM_Utils_System::url('civicrm/event/manage/fee', 'reset=1&action=update&id=' . $form->_eventId))));
       }
     }
   }
@@ -876,7 +865,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
 
     $priceSetId = $form->get('priceSetId');
     $addParticipantNum = substr($form->_name, 12);
-    $priceSetFields = $priceSetDetails = array();
+    $priceSetFields = $priceSetDetails = [];
     $hasPriceFieldsCount = FALSE;
     if ($priceSetId) {
       $priceSetDetails = $form->get('priceSet');
@@ -975,7 +964,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
     $priceSetDetails = $form->get('priceSet');
 
     foreach ($params as $key => & $value) {
-      $vals = array();
+      $vals = [];
       if (strpos($key, 'price_') !== FALSE) {
         $fieldId = substr($key, 6);
         if (!array_key_exists($fieldId, $priceSetDetails['fields']) ||
@@ -1014,7 +1003,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
     $priceSet = $form->get('priceSet');
     $priceSetId = $form->get('priceSetId');
 
-    $optionsCount = array();
+    $optionsCount = [];
     if (!$priceSetId ||
       !is_array($priceSet) ||
       empty($priceSet) ||
@@ -1024,7 +1013,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
       return $optionsCount;
     }
 
-    $priceSetFields = $priceMaxFieldDetails = array();
+    $priceSetFields = $priceMaxFieldDetails = [];
     if (!empty($priceSet['optionsCountTotal'])) {
       $priceSetFields = $priceSet['optionsCountDetails']['fields'];
     }
@@ -1123,7 +1112,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
    * @param array $optionFullIds
    * @param CRM_Core_Form $form
    */
-  public static function resetElementValue($optionFullIds = array(), &$form) {
+  public static function resetElementValue($optionFullIds = [], &$form) {
     if (!is_array($optionFullIds) ||
       empty($optionFullIds) ||
       !$form->isSubmitted()
@@ -1196,7 +1185,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
    * @param array $optionIds
    * @param CRM_Core_Form $form
    */
-  public static function resetSubmittedValue($elementName, $optionIds = array(), &$form) {
+  public static function resetSubmittedValue($elementName, $optionIds = [], &$form) {
     if (empty($elementName) ||
       !$form->elementExists($elementName) ||
       !$form->getSubmitValue($elementName)
@@ -1247,7 +1236,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
    * @return array
    */
   public static function validatePriceSet(&$form, $params) {
-    $errors = array();
+    $errors = [];
     $hasOptMaxValue = FALSE;
     if (!is_array($params) || empty($params)) {
       return $errors;
@@ -1268,7 +1257,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
       return $errors;
     }
 
-    $optionsCountDetails = $optionsMaxValueDetails = array();
+    $optionsCountDetails = $optionsMaxValueDetails = [];
     if (
       isset($priceSetDetails['optionsMaxValueTotal'])
       && $priceSetDetails['optionsMaxValueTotal']
@@ -1289,7 +1278,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
       $feeBlock = $priceSetDetails['fields'];
     }
 
-    $optionMaxValues = $fieldSelected = array();
+    $optionMaxValues = $fieldSelected = [];
     foreach ($params as $pNum => $values) {
       if (!is_array($values) || $values == 'skip') {
         continue;
@@ -1348,7 +1337,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
 
     //validate for option max value.
     foreach ($optionMaxValues as $fieldId => $values) {
-      $options = CRM_Utils_Array::value('options', $feeBlock[$fieldId], array());
+      $options = CRM_Utils_Array::value('options', $feeBlock[$fieldId], []);
       foreach ($values as $optId => $total) {
         $optMax = $optionsMaxValueDetails[$fieldId]['options'][$optId];
         $opDbCount = CRM_Utils_Array::value('db_total_count', $options[$optId], 0);
@@ -1383,7 +1372,7 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
     $this->_participantId = $participantID;
     $this->set('participantId', $this->_participantId);
 
-    $ids = $participantValues = array();
+    $ids = $participantValues = [];
     $participantParams = array('id' => $this->_participantId);
     CRM_Event_BAO_Participant::getValues($participantParams, $participantValues, $ids);
     $this->_values['participant'] = $participantValues[$this->_participantId];
@@ -1486,14 +1475,14 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
    */
   public function processRegistration($params, $contactID = NULL) {
     $session = CRM_Core_Session::singleton();
-    $this->_participantInfo = array();
+    $this->_participantInfo = [];
 
     // CRM-4320, lets build array of cancelled additional participant ids
     // those are drop or skip by primary at the time of confirmation.
     // get all in and then unset those are confirmed.
     $cancelledIds = $this->_additionalParticipantIds;
 
-    $participantCount = array();
+    $participantCount = [];
     foreach ($params as $participantNum => $record) {
       if ($record == 'skip') {
         $participantCount[$participantNum] = 'skip';

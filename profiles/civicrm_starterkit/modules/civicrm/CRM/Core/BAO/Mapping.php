@@ -151,6 +151,7 @@ class CRM_Core_BAO_Mapping extends CRM_Core_DAO_Mapping {
         civicrm_api3('OptionValue', 'create', [
           'option_group_id' => 'mapping_type',
           'label' => $mappingType,
+          'name' => $mappingType,
           'value' => max(array_keys($mappingValues['values'])) + 1,
           'is_reserved' => 1,
         ]);
@@ -1002,6 +1003,7 @@ class CRM_Core_BAO_Mapping extends CRM_Core_DAO_Mapping {
    *
    * @return array
    *   formatted associated array of elements
+   * @throws CRM_Core_Exception
    */
   public static function formattedFields(&$params, $row = FALSE) {
     $fields = [];
@@ -1016,7 +1018,7 @@ class CRM_Core_BAO_Mapping extends CRM_Core_DAO_Mapping {
       foreach ($value as $k => $v) {
         if (in_array($v[0], $types)) {
           if ($contactType && $contactType != $v[0]) {
-            CRM_Core_Error::fatal(ts("Cannot have two clauses with different types: %1, %2",
+            throw new CRM_Core_Exception(ts("Cannot have two clauses with different types: %1, %2",
               [1 => $contactType, 2 => $v[0]]
             ));
           }

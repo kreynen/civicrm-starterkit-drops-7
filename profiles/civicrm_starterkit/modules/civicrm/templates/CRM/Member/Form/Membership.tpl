@@ -59,7 +59,7 @@
       {else}
         {capture assign=ccModeLink}{crmURL p='civicrm/contact/view/membership' q="reset=1&action=add&context=standalone&mode=live"}{/capture}
       {/if}
-     <a class="open-inline-noreturn action-item crm-hover-button" href="{$ccModeLink}">&raquo; {ts}submit credit card membership{/ts}</a>
+     <a class="open-inline-noreturn action-item crm-hover-button" href="{$ccModeLink}"><i class="crm-i fa-credit-card" aria-hidden="true"></i> {ts}submit credit card membership{/ts}</a>
     </div>
     {/if}
     <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="top"}</div>
@@ -532,7 +532,7 @@
 
           alert = CRM.alert(
             // Mixing client-side variables with a translated string in smarty is awkward!
-            ts({/literal}'{ts escape='js' 1='%1' 2='%2' 3='%3' 4='%4'}This contact has an existing %1 membership at %2 with %3 status%4.{/ts}'{literal}, {1:memberorgs[selectedorg].membership_type, 2: org, 3: memberorgs[selectedorg].membership_status, 4: andEndDate})
+            ts({/literal}'{ts escape='js'}This contact has an existing %1 membership at %2 with %3 status%4.{/ts}'{literal}, {1:memberorgs[selectedorg].membership_type, 2: org, 3: memberorgs[selectedorg].membership_status, 4: andEndDate})
               + '<ul><li><a href="' + memberorgs[selectedorg].renewUrl + '">'
               + {/literal}'{ts escape='js'}Renew the existing membership instead{/ts}'
               + '</a></li><li><a href="' + memberorgs[selectedorg].membershipTab + '">'

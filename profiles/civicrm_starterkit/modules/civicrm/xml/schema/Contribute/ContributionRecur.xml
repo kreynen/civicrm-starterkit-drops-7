@@ -5,6 +5,7 @@
   <name>civicrm_contribution_recur</name>
   <add>1.6</add>
   <log>true</log>
+  <title>Recurring Contributions</title>
   <field>
     <name>id</name>
     <uniqueName>contribution_recur_id</uniqueName>
@@ -41,7 +42,7 @@
     <title>Amount</title>
     <type>decimal</type>
     <required>true</required>
-    <comment>Amount to be contributed or charged each recurrence.</comment>
+    <comment>Amount to be collected (including any sales tax) by payment processor each recurrence.</comment>
     <add>1.6</add>
     <html>
       <type>Text</type>

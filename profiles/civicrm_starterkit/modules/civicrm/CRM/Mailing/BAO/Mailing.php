@@ -690,6 +690,7 @@ class CRM_Mailing_BAO_Mailing extends CRM_Mailing_DAO_Mailing {
       }
 
       $this->templates['mailingID'] = $this->id;
+      $this->templates['campaign_id'] = $this->campaign_id;
       $this->templates['template_type'] = $this->template_type;
       CRM_Utils_Hook::alterMailContent($this->templates);
     }
@@ -1558,8 +1559,8 @@ ORDER BY   civicrm_email.is_bulkmail DESC
         // correct template IDs here
         'override_verp' => TRUE,
         'forward_replies' => FALSE,
-        'open_tracking' => TRUE,
-        'url_tracking' => TRUE,
+        'open_tracking' => Civi::settings()->get('open_tracking_default'),
+        'url_tracking' => Civi::settings()->get('url_tracking_default'),
         'visibility' => 'Public Pages',
         'replyto_email' => $domain_email,
         'header_id' => CRM_Mailing_PseudoConstant::defaultComponent('header_id', ''),

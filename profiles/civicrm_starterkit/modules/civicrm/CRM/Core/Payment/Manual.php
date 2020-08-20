@@ -24,6 +24,19 @@ class CRM_Core_Payment_Manual extends CRM_Core_Payment {
   public function checkConfig() {}
 
   /**
+   * Constructor.
+   */
+  public function __construct() {
+    $this->_paymentProcessor = [
+      'payment_type' => 0,
+      'billing_mode' => 0,
+      'id' => 0,
+      'url_recur' => '',
+      'is_recur' => 0,
+    ];
+  }
+
+  /**
    * Get billing fields required for this processor.
    *
    * We apply the existing default of returning fields only for payment processor type 1. Processors can override to
@@ -194,6 +207,19 @@ class CRM_Core_Payment_Manual extends CRM_Core_Payment {
    */
   public function supportsEditRecurringContribution() {
     return TRUE;
+  }
+
+  /**
+   * Does the processor support the user having a choice as to whether to cancel the recurring with the processor?
+   *
+   * If this returns TRUE then there will be an option to send a cancellation request in the cancellation form.
+   *
+   * This would normally be false for processors where CiviCRM maintains the schedule.
+   *
+   * @return bool
+   */
+  protected function supportsCancelRecurringNotifyOptional() {
+    return FALSE;
   }
 
   /**

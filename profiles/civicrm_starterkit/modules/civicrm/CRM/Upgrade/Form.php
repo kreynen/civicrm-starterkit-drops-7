@@ -10,11 +10,7 @@
  */
 
 /**
- *
- * @package CRM
- * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
+ * Class CRM_Upgrade_Form
  */
 class CRM_Upgrade_Form extends CRM_Core_Form {
   const QUEUE_NAME = 'CRM_Upgrade';
@@ -172,7 +168,7 @@ class CRM_Upgrade_Form extends CRM_Core_Form {
       if (!isset($errorMessage)) {
         $errorMessage = 'pre-condition failed for current upgrade step';
       }
-      CRM_Core_Error::fatal($errorMessage);
+      throw new CRM_Core_Exception($errorMessage);
     }
     $this->assign('recentlyViewed', FALSE);
   }
@@ -238,7 +234,7 @@ class CRM_Upgrade_Form extends CRM_Core_Form {
       if (!isset($errorMessage)) {
         $errorMessage = 'post-condition failed for current upgrade step';
       }
-      CRM_Core_Error::fatal($errorMessage);
+      throw new CRM_Core_Exception($errorMessage);
     }
   }
 
@@ -389,7 +385,7 @@ SET    version = '$version'
     }
     else {
       if (!file_exists($sqlFile)) {
-        CRM_Core_Error::fatal("sqlfile - $rev.mysql not found.");
+        throw new CRM_Core_Exception("sqlfile - $rev.mysql not found.");
       }
       $this->source($sqlFile);
     }
@@ -404,13 +400,13 @@ SET    version = '$version'
     $latestVer = CRM_Utils_System::version();
     $currentVer = CRM_Core_BAO_Domain::version(TRUE);
     if (!$currentVer) {
-      CRM_Core_Error::fatal(ts('Version information missing in civicrm database.'));
+      throw new CRM_Core_Exception(ts('Version information missing in civicrm database.'));
     }
     elseif (stripos($currentVer, 'upgrade')) {
-      CRM_Core_Error::fatal(ts('Database check failed - the database looks to have been partially upgraded. You may want to reload the database with the backup and try the upgrade process again.'));
+      throw new CRM_Core_Exception(ts('Database check failed - the database looks to have been partially upgraded. You may want to reload the database with the backup and try the upgrade process again.'));
     }
     if (!$latestVer) {
-      CRM_Core_Error::fatal(ts('Version information missing in civicrm codebase.'));
+      throw new CRM_Core_Exception(ts('Version information missing in civicrm codebase.'));
     }
 
     return [$currentVer, $latestVer];
@@ -454,6 +450,16 @@ SET    version = '$version'
           1 => CRM_Upgrade_Incremental_General::MIN_INSTALL_PHP_VER,
           2 => phpversion(),
           3 => $latestVer,
+        ]);
+    }
+
+    if (version_compare(CRM_Utils_SQL::getDatabaseVersion(), CRM_Upgrade_Incremental_General::MIN_INSTALL_MYSQL_VER) < 0) {
+      $error = ts('CiviCRM %4 requires MySQL version v%1 or MariaDB v%3 (or newer), but the current system uses %2 ',
+        [
+          1 => CRM_Upgrade_Incremental_General::MIN_INSTALL_MYSQL_VER,
+          2 => CRM_Utils_SQL::getDatabaseVersion(),
+          3 => '10.1',
+          4 => $latestVer,
         ]);
     }
 
@@ -514,7 +520,7 @@ SET    version = '$version'
 
     // Ensure that queue can be created
     if (!CRM_Queue_BAO_QueueItem::findCreateTable()) {
-      CRM_Core_Error::fatal(ts('Failed to find or create queueing table'));
+      throw new CRM_Core_Exception(ts('Failed to find or create queueing table'));
     }
     $queue = CRM_Queue_Service::singleton()->create([
       'name' => self::QUEUE_NAME,
@@ -711,7 +717,7 @@ SET    version = '$version'
     // pre-db check for major release.
     if ($upgrade->checkVersionRelease($rev, 'alpha1')) {
       if (!(is_callable([$versionObject, 'verifyPreDBstate']))) {
-        CRM_Core_Error::fatal("verifyPreDBstate method was not found for $rev");
+        throw new CRM_Core_Exception("verifyPreDBstate method was not found for $rev");
       }
 
       $error = NULL;
@@ -719,7 +725,7 @@ SET    version = '$version'
         if (!isset($error)) {
           $error = "post-condition failed for current upgrade for $rev";
         }
-        CRM_Core_Error::fatal($error);
+        throw new CRM_Core_Exception($error);
       }
 
     }

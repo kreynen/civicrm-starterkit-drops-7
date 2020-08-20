@@ -351,16 +351,16 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
       $this->failed($objects, $transaction);
       return;
     }
-    elseif ($status == 'Pending') {
-      $this->pending($objects, $transaction);
+    if ($status === 'Pending') {
+      Civi::log()->debug('Returning since contribution status is Pending');
       return;
     }
     elseif ($status == 'Refunded' || $status == 'Reversed') {
       $this->cancelled($objects, $transaction);
       return;
     }
-    elseif ($status != 'Completed') {
-      $this->unhandled($objects, $transaction);
+    elseif ($status !== 'Completed') {
+      Civi::log()->debug('Returning since contribution status is not handled');
       return;
     }
 
@@ -369,7 +369,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     if ($contribution->contribution_status_id == $completedStatusId) {
       $transaction->commit();
       Civi::log()->debug('PayPalProIPN: Returning since contribution has already been handled.');
-      echo "Success: Contribution has already been handled<p>";
+      echo 'Success: Contribution has already been handled<p>';
       return;
     }
 
@@ -493,9 +493,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
    * @throws CRM_Core_Exception
    */
   public function getInput(&$input, &$ids) {
-    if (!$this->getBillingID($ids)) {
-      return;
-    }
+    $billingID = $ids['billing'] = CRM_Core_BAO_LocationType::getBilling();
 
     $input['txnType'] = self::retrieve('txn_type', 'String', 'POST', FALSE);
     $input['paymentStatus'] = self::retrieve('payment_status', 'String', 'POST', FALSE);
@@ -503,7 +501,6 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     $input['amount'] = self::retrieve('mc_gross', 'Money', 'POST', FALSE);
     $input['reasonCode'] = self::retrieve('ReasonCode', 'String', 'POST', FALSE);
 
-    $billingID = $ids['billing'];
     $lookup = [
       "first_name" => 'first_name',
       "last_name" => 'last_name',
@@ -588,7 +585,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     // & suspec main function may be a victom of copy & paste
     // membership would be an easy add - but not relevant to my customer...
     $this->_component = $input['component'] = 'contribute';
-    $input['trxn_date'] = date('Y-m-d-H-i-s', strtotime(self::retrieve('time_created', 'String')));
+    $input['trxn_date'] = date('Y-m-d H:i:s', strtotime(self::retrieve('time_created', 'String')));
     $paymentProcessorID = $contributionRecur['payment_processor_id'];
 
     if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {

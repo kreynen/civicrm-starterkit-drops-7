@@ -815,13 +815,13 @@ CREATE TABLE `civicrm_contact_type` (
 
 
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Contact Type ID',
-     `name` varchar(64)    COMMENT 'Internal name of Contact Type (or Subtype).',
+     `name` varchar(64) NOT NULL   COMMENT 'Internal name of Contact Type (or Subtype).',
      `label` varchar(64)    COMMENT 'localized Name of Contact Type.',
      `description` text    COMMENT 'localized Optional verbose description of the type.',
      `image_URL` varchar(255)    COMMENT 'URL of image if any.',
      `parent_id` int unsigned    COMMENT 'Optional FK to parent contact type.',
-     `is_active` tinyint    COMMENT 'Is this entry active?',
-     `is_reserved` tinyint    COMMENT 'Is this contact type a predefined system type' 
+     `is_active` tinyint   DEFAULT 1 COMMENT 'Is this entry active?',
+     `is_reserved` tinyint   DEFAULT 0 COMMENT 'Is this contact type a predefined system type' 
 ,
         PRIMARY KEY (`id`)
  
@@ -940,7 +940,7 @@ CREATE TABLE `civicrm_mailing_abtest` (
      `mailing_id_a` int unsigned    COMMENT 'The first experimental mailing (\"A\" condition)',
      `mailing_id_b` int unsigned    COMMENT 'The second experimental mailing (\"B\" condition)',
      `mailing_id_c` int unsigned    COMMENT 'The final, general mailing (derived from A or B)',
-     `domain_id` int unsigned    COMMENT 'Which site is this mailing for',
+     `domain_id` int unsigned NOT NULL   COMMENT 'Which site is this mailing for',
      `testing_criteria` varchar(32)    ,
      `winner_criteria` varchar(32)    ,
      `specific_url` varchar(255)    COMMENT 'What specific url to track',
@@ -1761,7 +1761,8 @@ CREATE TABLE `civicrm_custom_group` (
      `created_id` int unsigned    COMMENT 'FK to civicrm_contact, who created this custom group',
      `created_date` datetime    COMMENT 'Date and time this custom group was created.',
      `is_reserved` tinyint   DEFAULT 0 COMMENT 'Is this a reserved Custom Group?',
-     `is_public` tinyint   DEFAULT 1 COMMENT 'Is this property public?' 
+     `is_public` tinyint   DEFAULT 1 COMMENT 'Is this property public?',
+     `icon` varchar(255)   DEFAULT NULL COMMENT 'crm-i icon class' 
 ,
         PRIMARY KEY (`id`)
  
@@ -1815,6 +1816,7 @@ CREATE TABLE `civicrm_custom_field` (
      `note_rows` int unsigned    COMMENT 'Number of rows in Note Field',
      `column_name` varchar(255)    COMMENT 'Name of the column that holds the values for this field.',
      `option_group_id` int unsigned    COMMENT 'For elements with options, the option group id that is used',
+     `serialize` int unsigned    COMMENT 'Serialization method - a non-null value indicates a multi-valued field.',
      `filter` varchar(255)    COMMENT 'Stores Contact Get API params contact reference custom fields. May be used for other filters in the future.',
      `in_selector` tinyint   DEFAULT 0 COMMENT 'Should the multi-record custom field values be displayed in tab table listing' 
 ,
@@ -2167,7 +2169,7 @@ CREATE TABLE `civicrm_navigation` (
      `permission_operator` varchar(3)    COMMENT 'Permission Operator',
      `parent_id` int unsigned    COMMENT 'Parent navigation item, used for grouping',
      `is_active` tinyint    COMMENT 'Is this navigation item active?',
-     `has_separator` tinyint    COMMENT 'If separator needs to be added after this menu item',
+     `has_separator` tinyint   DEFAULT 0 COMMENT 'Place a separator either before or after this menu item.',
      `weight` int    COMMENT 'Ordering of the navigation items in various blocks.' 
 ,
         PRIMARY KEY (`id`)
@@ -2219,7 +2221,7 @@ CREATE TABLE `civicrm_option_value` (
      `value` varchar(512) NOT NULL   COMMENT 'The actual value stored (as a foreign key) in the data record. Functions which need lookup option_value.title should use civicrm_option_value.option_group_id plus civicrm_option_value.value as the key.',
      `name` varchar(255)    COMMENT 'Stores a fixed (non-translated) name for this option value. Lookup functions should use the name as the key for the option value row.',
      `grouping` varchar(255)    COMMENT 'Use to sort and/or set display properties for sub-set(s) of options within an option group. EXAMPLE: Use for college_interest field, to differentiate partners from non-partners.',
-     `filter` int unsigned   DEFAULT NULL COMMENT 'Bitwise logic can be used to create subsets of options within an option_group for different uses.',
+     `filter` int unsigned   DEFAULT 0 COMMENT 'Bitwise logic can be used to create subsets of options within an option_group for different uses.',
      `is_default` tinyint   DEFAULT 0 COMMENT 'Is this the default option for the group?',
      `weight` int unsigned NOT NULL   COMMENT 'Controls display sort order.',
      `description` text    COMMENT 'Optional description.',
@@ -3039,7 +3041,7 @@ CREATE TABLE `civicrm_membership_type` (
 
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Membership Id',
      `domain_id` int unsigned NOT NULL   COMMENT 'Which Domain is this match entry for',
-     `name` varchar(128)    COMMENT 'Name of Membership Type',
+     `name` varchar(128) NOT NULL   COMMENT 'Name of Membership Type',
      `description` varchar(255)    COMMENT 'Description of Membership Type',
      `member_of_contact_id` int unsigned NOT NULL   COMMENT 'Owner organization for this membership type. FK to Contact ID',
      `financial_type_id` int unsigned NOT NULL   COMMENT 'If membership is paid by a contribution - what financial type should be used. FK to civicrm_financial_type.id',
@@ -4041,7 +4043,7 @@ CREATE TABLE `civicrm_contribution_recur` (
 
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Contribution Recur ID',
      `contact_id` int unsigned NOT NULL   COMMENT 'Foreign key to civicrm_contact.id.',
-     `amount` decimal(20,2) NOT NULL   COMMENT 'Amount to be contributed or charged each recurrence.',
+     `amount` decimal(20,2) NOT NULL   COMMENT 'Amount to be collected (including any sales tax) by payment processor each recurrence.',
      `currency` varchar(3)   DEFAULT NULL COMMENT '3 character string, value from config setting or input via user.',
      `frequency_unit` varchar(8)   DEFAULT 'month' COMMENT 'Time units for recurrence of payment.',
      `frequency_interval` int unsigned NOT NULL   COMMENT 'Number of time units for recurrence of payment.',
@@ -4205,7 +4207,7 @@ CREATE TABLE `civicrm_activity` (
      `source_record_id` int unsigned    COMMENT 'Artificial FK to original transaction (e.g. contribution) IF it is not an Activity. Table can be figured out through activity_type_id, and further through component registry.',
      `activity_type_id` int unsigned NOT NULL  DEFAULT 1 COMMENT 'FK to civicrm_option_value.id, that has to be valid, registered activity type.',
      `subject` varchar(255)    COMMENT 'The subject/purpose/short description of the activity.',
-     `activity_date_time` datetime    COMMENT 'Date and time this activity is scheduled to occur. Formerly named scheduled_date_time.',
+     `activity_date_time` datetime NULL  DEFAULT CURRENT_TIMESTAMP COMMENT 'Date and time this activity is scheduled to occur. Formerly named scheduled_date_time.',
      `duration` int unsigned    COMMENT 'Planned or actual duration of activity expressed in minutes. Conglomerate of former duration_hours and duration_minutes.',
      `location` varchar(255)    COMMENT 'Location of the activity (optional, open text).',
      `phone_id` int unsigned    COMMENT 'Phone ID of the number called (optional - used if an existing phone number is selected).',
@@ -4226,7 +4228,7 @@ CREATE TABLE `civicrm_activity` (
      `engagement_level` int unsigned    COMMENT 'Assign a specific level of engagement to this activity. Used for tracking constituents in ladder of engagement.',
      `weight` int    ,
      `is_star` tinyint   DEFAULT 0 COMMENT 'Activity marked as favorite.',
-     `created_date` timestamp NULL  DEFAULT NULL COMMENT 'When was the activity was created.',
+     `created_date` timestamp NULL  DEFAULT CURRENT_TIMESTAMP COMMENT 'When was the activity was created.',
      `modified_date` timestamp NULL  DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'When was the activity (or closely related entity) was created or modified or deleted.' 
 ,
         PRIMARY KEY (`id`)
@@ -4242,9 +4244,6 @@ CREATE TABLE `civicrm_activity` (
   )
   ,     INDEX `index_status_id`(
         status_id
-  )
-  ,     INDEX `index_medium_id`(
-        medium_id
   )
   ,     INDEX `index_is_current_revision`(
         is_current_revision
@@ -4355,8 +4354,8 @@ CREATE TABLE `civicrm_price_field_value` (
 
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Price Field Value',
      `price_field_id` int unsigned NOT NULL   COMMENT 'FK to civicrm_price_field',
-     `name` varchar(255)    COMMENT 'Price field option name',
-     `label` varchar(255)    COMMENT 'Price field option label',
+     `name` varchar(255)   DEFAULT NULL COMMENT 'Price field option name',
+     `label` varchar(255)   DEFAULT NULL COMMENT 'Price field option label',
      `description` text   DEFAULT NULL COMMENT 'Price field option description.',
      `help_pre` text   DEFAULT NULL COMMENT 'Price field option pre help text.',
      `help_post` text   DEFAULT NULL COMMENT 'Price field option post field help.',
@@ -4716,7 +4715,7 @@ CREATE TABLE `civicrm_event` (
      `summary` text    COMMENT 'Brief summary of event. Text and html allowed. Displayed on Event Registration form and can be used on other CMS pages which need an event summary.',
      `description` text    COMMENT 'Full description of event. Text and html allowed. Displayed on built-in Event Information screens.',
      `event_type_id` int unsigned   DEFAULT 0 COMMENT 'Event Type ID.Implicit FK to civicrm_option_value where option_group = event_type.',
-     `participant_listing_id` int unsigned   DEFAULT 0 COMMENT 'Should we expose the participant list? Implicit FK to civicrm_option_value where option_group = participant_listing.',
+     `participant_listing_id` int unsigned   DEFAULT NULL COMMENT 'Should we expose the participant list? Implicit FK to civicrm_option_value where option_group = participant_listing.',
      `is_public` tinyint   DEFAULT 1 COMMENT 'Public events will be included in the iCal feeds. Access to private event information may be limited using ACLs.',
      `start_date` datetime    COMMENT 'Date and time that event starts.',
      `end_date` datetime    COMMENT 'Date and time that event ends. May be NULL if no defined end date/time',

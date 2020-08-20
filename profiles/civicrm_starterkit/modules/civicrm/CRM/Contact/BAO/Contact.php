@@ -101,7 +101,7 @@ class CRM_Contact_BAO_Contact extends CRM_Contact_DAO_Contact {
    * @return CRM_Contact_DAO_Contact|CRM_Core_Error|NULL
    *   Created or updated contact object or error object.
    *   (error objects are being phased out in favour of exceptions)
-   * @throws \Exception
+   * @throws \CRM_Core_Exception
    */
   public static function add(&$params) {
     $contact = new CRM_Contact_DAO_Contact();
@@ -175,7 +175,7 @@ class CRM_Contact_BAO_Contact extends CRM_Contact_DAO_Contact {
     // Since hash was required, make sure we have a 0 value for it (CRM-1063).
     // @todo - does this mean we can remove this block?
     // Fixed in 1.5 by making hash optional, only do this in create mode, not update.
-    if ((!array_key_exists('hash', $contact) || !$contact->hash) && !$contact->id) {
+    if ((!isset($contact->hash) || !$contact->hash) && !$contact->id) {
       $allNull = FALSE;
       $contact->hash = md5(uniqid(rand(), TRUE));
     }
@@ -1320,7 +1320,7 @@ WHERE     civicrm_contact.id = " . CRM_Utils_Type::escape($id, 'Integer');
       return $contactTypes;
     }
     else {
-      CRM_Core_Error::fatal();
+      throw new CRM_Core_Exception();
     }
   }
 
@@ -2017,7 +2017,7 @@ ORDER BY civicrm_email.is_primary DESC";
     }
 
     if (empty($contactID)) {
-      CRM_Core_Error::fatal('Cannot proceed without a valid contact id');
+      throw new CRM_Core_Exception('Cannot proceed without a valid contact id');
     }
 
     // Process group and tag
@@ -3718,8 +3718,14 @@ LEFT JOIN civicrm_address ON ( civicrm_address.contact_id = civicrm_contact.id )
       ['key' => 'contact_type', 'value' => ts('Contact Type')],
       ['key' => 'group', 'value' => ts('Group'), 'entity' => 'GroupContact'],
       ['key' => 'tag', 'value' => ts('Tag'), 'entity' => 'EntityTag'],
+      ['key' => 'city', 'value' => ts('City'), 'type' => 'text', 'entity' => 'Address'],
+      ['key' => 'postal_code', 'value' => ts('Postal Code'), 'type' => 'text', 'entity' => 'Address'],
       ['key' => 'state_province', 'value' => ts('State/Province'), 'entity' => 'Address'],
       ['key' => 'country', 'value' => ts('Country'), 'entity' => 'Address'],
+      ['key' => 'first_name', 'value' => ts('First Name'), 'type' => 'text', 'condition' => ['contact_type' => 'Individual']],
+      ['key' => 'last_name', 'value' => ts('Last Name'), 'type' => 'text', 'condition' => ['contact_type' => 'Individual']],
+      ['key' => 'nick_name', 'value' => ts('Nick Name'), 'type' => 'text', 'condition' => ['contact_type' => 'Individual']],
+      ['key' => 'organization_name', 'value' => ts('Employer name'), 'type' => 'text', 'condition' => ['contact_type' => 'Individual']],
       ['key' => 'gender_id', 'value' => ts('Gender'), 'condition' => ['contact_type' => 'Individual']],
       ['key' => 'is_deceased', 'value' => ts('Deceased'), 'condition' => ['contact_type' => 'Individual']],
       ['key' => 'contact_id', 'value' => ts('Contact ID'), 'type' => 'text'],

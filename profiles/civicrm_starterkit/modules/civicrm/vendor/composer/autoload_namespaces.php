@@ -11,7 +11,6 @@ return array(
     'System' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
     'Sabberworm\\CSS' => array($vendorDir . '/sabberworm/php-css-parser/lib'),
     'PHPUnit_' => array($baseDir . '/packages'),
-    'PEAR' => array($vendorDir . '/pear/pear_exception'),
     'Net' => array($vendorDir . '/phpseclib/phpseclib/phpseclib', $vendorDir . '/pear/net_socket', $vendorDir . '/pear/net_smtp'),
     'Math' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
     'Mail' => array($vendorDir . '/pear/mail'),

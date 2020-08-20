@@ -46,6 +46,13 @@ class DAOGetAction extends AbstractGetAction {
   protected $select = [];
 
   /**
+   * Joins to other entities.
+   *
+   * @var array
+   */
+  protected $join = [];
+
+  /**
    * Field(s) by which to group the results.
    *
    * @var array
@@ -64,20 +71,31 @@ class DAOGetAction extends AbstractGetAction {
   public function _run(Result $result) {
     $this->setDefaultWhereClause();
     $this->expandSelectClauseWildcards();
-    $result->exchangeArray($this->getObjects());
+    $this->getObjects($result);
   }
 
   /**
-   * @return array|int
+   * @param \Civi\Api4\Generic\Result $result
    */
-  protected function getObjects() {
-    $query = new Api4SelectQuery($this);
+  protected function getObjects(Result $result) {
+    $getCount = in_array('row_count', $this->getSelect());
+    $onlyCount = $this->getSelect() === ['row_count'];
 
-    $result = $query->run();
-    if (is_array($result)) {
-      \CRM_Utils_API_HTMLInputCoder::singleton()->decodeRows($result);
+    if (!$onlyCount) {
+      $query = new Api4SelectQuery($this);
+      $rows = $query->run();
+      \CRM_Utils_API_HTMLInputCoder::singleton()->decodeRows($rows);
+      $result->exchangeArray($rows);
+      // No need to fetch count if we got a result set below the limit
+      if (!$this->getLimit() || count($rows) < $this->getLimit()) {
+        $result->rowCount = count($rows) + $this->getOffset();
+        $getCount = FALSE;
+      }
     }
-    return $result;
+    if ($getCount) {
+      $query = new Api4SelectQuery($this);
+      $result->rowCount = $query->getCount();
+    }
   }
 
   /**
@@ -118,6 +136,34 @@ class DAOGetAction extends AbstractGetAction {
     }
     $this->having[] = [$expr, $op, $value];
     return $this;
+  }
+
+  /**
+   * @param string $entity
+   * @param bool $required
+   * @param array ...$conditions
+   * @return DAOGetAction
+   */
+  public function addJoin(string $entity, bool $required = FALSE, ...$conditions): DAOGetAction {
+    array_unshift($conditions, $entity, $required);
+    $this->join[] = $conditions;
+    return $this;
+  }
+
+  /**
+   * @param array $join
+   * @return DAOGetAction
+   */
+  public function setJoin(array $join): DAOGetAction {
+    $this->join = $join;
+    return $this;
+  }
+
+  /**
+   * @return array
+   */
+  public function getJoin(): array {
+    return $this->join;
   }
 
 }

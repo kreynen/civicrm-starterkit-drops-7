@@ -280,7 +280,8 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     $absolute = FALSE,
     $fragment = NULL,
     $frontend = FALSE,
-    $forceBackend = FALSE
+    $forceBackend = FALSE,
+    $htmlize = TRUE
   ) {
     $query = html_entity_decode($query);
 
@@ -408,7 +409,15 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     $request = new \Symfony\Component\HttpFoundation\Request([], [], [], [], [], $_SERVER);
 
     // Create a kernel and boot it.
-    \Drupal\Core\DrupalKernel::createFromRequest($request, $autoloader, 'prod')->prepareLegacyRequest($request);
+    $kernel = \Drupal\Core\DrupalKernel::createFromRequest($request, $autoloader, 'prod');
+    $kernel->boot();
+    $kernel->preHandle($request);
+    $container = $kernel->rebuildContainer();
+    // Add our request to the stack and route context.
+    $request->attributes->set(\Symfony\Cmf\Component\Routing\RouteObjectInterface::ROUTE_OBJECT, new \Symfony\Component\Routing\Route('<none>'));
+    $request->attributes->set(\Symfony\Cmf\Component\Routing\RouteObjectInterface::ROUTE_NAME, '<none>');
+    $container->get('request_stack')->push($request);
+    $container->get('router.request_context')->fromRequest($request);
 
     // Initialize Civicrm
     \Drupal::service('civicrm')->initialize();
@@ -537,7 +546,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
   public function getModules() {
     $modules = [];
 
-    $module_data = system_rebuild_module_data();
+    $module_data = \Drupal::service('extension.list.module')->reset()->getList();
     foreach ($module_data as $module_name => $extension) {
       if (!isset($extension->info['hidden']) && $extension->origin != 'core') {
         $extension->schema_version = drupal_get_installed_schema_version($module_name);
@@ -654,13 +663,13 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    *
    * For example, 'civicrm/contact/view?reset=1&cid=66' will be returned as:
    *
-   * @code
+   * ```
    * array(
    *   'path' => 'civicrm/contact/view',
    *   'route' => 'civicrm.civicrm_contact_view',
    *   'query' => array('reset' => '1', 'cid' => '66'),
    * );
-   * @endcode
+   * ```
    *
    * @param string $url
    *   The url to parse.
@@ -706,7 +715,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    * @inheritDoc
    */
   public function getTimeZoneString() {
-    $timezone = drupal_get_user_timezone();
+    $timezone = date_default_timezone_get();
     return $timezone;
   }
 

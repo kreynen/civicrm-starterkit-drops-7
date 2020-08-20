@@ -685,12 +685,12 @@ class CRM_Contact_BAO_Query {
   public function addSpecialFields($apiEntity) {
     static $special = ['contact_type', 'contact_sub_type', 'sort_name', 'display_name'];
     // if get called via Contact.get API having address_id as return parameter
-    if ($apiEntity == 'Contact') {
+    if ($apiEntity === 'Contact') {
       $special[] = 'address_id';
     }
     foreach ($special as $name) {
       if (!empty($this->_returnProperties[$name])) {
-        if ($name == 'address_id') {
+        if ($name === 'address_id') {
           $this->_tables['civicrm_address'] = 1;
           $this->_select['address_id'] = 'civicrm_address.id as address_id';
           $this->_element['address_id'] = 1;
@@ -953,14 +953,14 @@ class CRM_Contact_BAO_Query {
           $this->_tables['civicrm_group_contact_cache'] = 1;
           $this->_pseudoConstantsSelect["{$name}"] = [
             'pseudoField' => "groups",
-            'idCol' => "groups",
+            'idCol' => 'groups',
           ];
         }
         elseif ($name === 'notes') {
           //@todo move this handling outside the big IF & ditch $makeException
           // if note field is subject then return subject else body of the note
           $noteColumn = 'note';
-          if (isset($noteField) && $noteField == 'note_subject') {
+          if (isset($noteField) && $noteField === 'note_subject') {
             $noteColumn = 'subject';
           }
 
@@ -1623,7 +1623,7 @@ class CRM_Contact_BAO_Query {
           }
         }
       }
-      elseif ($id == 'email_on_hold') {
+      elseif ($id === 'email_on_hold') {
         if ($onHoldValue = CRM_Utils_Array::value('email_on_hold', $formValues)) {
           // onHoldValue should be 0 or 1 or an array. Some legacy groups may hold ''
           // so in 5.11 we have an extra if that should become redundant over time.
@@ -1636,10 +1636,10 @@ class CRM_Contact_BAO_Query {
           }
         }
       }
-      elseif (substr($id, 0, 7) == 'custom_'
+      elseif (substr($id, 0, 7) === 'custom_'
         &&  (
-          substr($id, -5, 5) == '_from'
-          || substr($id, -3, 3) == '_to'
+          substr($id, -5, 5) === '_from'
+          || substr($id, -3, 3) === '_to'
         )
       ) {
         self::convertCustomRelativeFields($formValues, $params, $values, $id);
@@ -2049,7 +2049,7 @@ class CRM_Contact_BAO_Query {
             $this->_params[$id][1]
           );
           $this->_qill[0][] = ts("%1 %2 %3", [
-            1 => $field['title'],
+            1 => $field['title'] ?? '',
             2 => $qillop,
             3 => $qillVal,
           ]);
@@ -2323,7 +2323,7 @@ class CRM_Contact_BAO_Query {
             }
             // we don't know when this might happen
             else {
-              CRM_Core_Error::fatal(ts("%1 is not a valid operator", [1 => $operator]));
+              throw new CRM_Core_Exception(ts("%1 is not a valid operator", [1 => $operator]));
             }
           }
         }
@@ -2417,7 +2417,7 @@ class CRM_Contact_BAO_Query {
       $tName = str_replace(' ', '_', $tName);
       return [$tName, $fldName];
     }
-    CRM_Core_Error::fatal();
+    throw new CRM_Core_Exception('Cannot determine location table information');
   }
 
   /**
@@ -2973,7 +2973,7 @@ class CRM_Contact_BAO_Query {
 
     if (is_array($value) && count($value) > 1) {
       if (strpos($op, 'IN') === FALSE && strpos($op, 'NULL') === FALSE) {
-        CRM_Core_Error::fatal(ts("%1 is not a valid operator", [1 => $op]));
+        throw new CRM_Core_Exception(ts("%1 is not a valid operator", [1 => $op]));
       }
       $this->_useDistinct = TRUE;
     }
@@ -2982,7 +2982,7 @@ class CRM_Contact_BAO_Query {
       $value = CRM_Utils_Array::value($op, $value, $value);
     }
 
-    if ($name == 'group_type') {
+    if ($name === 'group_type') {
       $value = array_keys($this->getGroupsFromTypeCriteria($value));
     }
 
@@ -2997,7 +2997,7 @@ class CRM_Contact_BAO_Query {
     }
     $hasNonSmartGroups = count($regularGroupIDs);
 
-    $isNotOp = ($op == 'NOT IN' || $op == '!=');
+    $isNotOp = ($op === 'NOT IN' || $op === '!=');
 
     $statusJoinClause = $this->getGroupStatusClause($grouping);
     // If we are searching for 'Removed' contacts then despite it being a smart group we only care about the group_contact table.
@@ -3026,17 +3026,14 @@ class CRM_Contact_BAO_Query {
         }
       }
 
-      $gcTable = "`civicrm_group_contact-" . uniqid() . "`";
+      $gcTable = '`civicrm_group_contact-' . uniqid() . "`";
       $joinClause = ["contact_a.id = {$gcTable}.contact_id"];
 
       // @todo consider just casting != to NOT IN & handling both together.
-      if ($op == '!=') {
+      if ($op === '!=') {
         $groupIds = '';
         if (!empty($regularGroupIDs)) {
-          $groupIds = CRM_Utils_Type::validate(
-            implode(',', (array) $regularGroupIDs),
-            'CommaSeparatedIntegers'
-          );
+          $groupIds = CRM_Utils_Type::validate(implode(',', (array) $regularGroupIDs), 'CommaSeparatedIntegers');
         }
         $clause = "{$gcTable}.contact_id NOT IN (SELECT contact_id FROM civicrm_group_contact cgc WHERE cgc.group_id = $groupIds )";
       }
@@ -3283,10 +3280,7 @@ WHERE  $smartGroupClause
     // implode array, then remove all spaces
     $value = str_replace(' ', '', implode(',', (array) $value));
     if (!empty($value)) {
-      $value = CRM_Utils_Type::validate(
-        $value,
-        'CommaSeparatedIntegers'
-      );
+      $value = CRM_Utils_Type::validate($value, 'CommaSeparatedIntegers');
     }
 
     $useAllTagTypes = $this->getWhereValues('all_tag_types', $grouping);
@@ -3294,7 +3288,7 @@ WHERE  $smartGroupClause
 
     $etTable = "`civicrm_entity_tag-" . uniqid() . "`";
 
-    if ($useAllTagTypes[2]) {
+    if (!empty($useAllTagTypes[2])) {
       $this->_tables[$etTable] = $this->_whereTables[$etTable]
         = " LEFT JOIN civicrm_entity_tag {$etTable} ON ( {$etTable}.entity_id = contact_a.id  AND {$etTable}.entity_table = 'civicrm_contact') ";
 
@@ -3696,7 +3690,7 @@ WHERE  $smartGroupClause
     }
     CRM_Utils_Type::validateAll($contactIds, 'Positive');
     if (!empty($contactIds)) {
-      $this->_where[0][] = " ( contact_a.id IN (" . implode(',', $contactIds) . " ) ) ";
+      $this->_where[0][] = ' ( contact_a.id IN (' . implode(',', $contactIds) . " ) ) ";
     }
   }
 
@@ -4243,7 +4237,7 @@ WHERE  $smartGroupClause
     // Note we do not currently set mySql to handle timezones, so doing this the old-fashioned way
     $today = date('Ymd');
     //check for active, inactive and all relation status
-    if ($relStatus[2] == 0) {
+    if (empty($relStatus[2])) {
       $where[$grouping][] = "(
 civicrm_relationship.is_active = 1 AND
 ( civicrm_relationship.end_date IS NULL OR civicrm_relationship.end_date >= {$today} ) AND
@@ -5052,6 +5046,32 @@ civicrm_relationship.start_date > {$today}
         $onlyDeleted,
         $this->_skipDeleteClause
       );
+
+      if (!$onlyDeleted && CRM_Core_Permission::check('access deleted contacts')) {
+        $this->_permissionWhereClause = str_replace(' ( 1 ) ', '(contact_a.is_deleted = 0)', $this->_permissionWhereClause);
+      }
+
+      if (isset($this->_tables['civicrm_activity'])) {
+        $bao = new CRM_Activity_BAO_Activity();
+        $clauses = $subclauses = [];
+        foreach ((array) $bao->addSelectWhereClause() as $field => $vals) {
+          if ($vals && $field !== 'id') {
+            $clauses[] = $bao->tableName() . ".$field " . $vals;
+          }
+          elseif ($vals) {
+            $subclauses[] = "$field " . implode(" AND $field ", (array) $vals);
+          }
+        }
+        if ($subclauses) {
+          $clauses[] = $bao->tableName() . '.`id` IN (SELECT `id` FROM `' . $bao->tableName() . '` WHERE ' . implode(' AND ', $subclauses) . ')';
+        }
+        if (!empty($clauses) && $this->_permissionWhereClause) {
+          $this->_permissionWhereClause .= ' AND (' . implode(' AND ', $clauses) . ')';
+        }
+        elseif (!empty($clauses)) {
+          $this->_permissionWhereClause .= '(' . implode(' AND ', $clauses) . ')';
+        }
+      }
 
       // regenerate fromClause since permission might have added tables
       if ($this->_permissionWhereClause) {
@@ -6201,7 +6221,7 @@ AND   displayRelType.is_active = 1
         // @todo - this is a bit specific (one operator).
         // However it is covered by a unit test so can be altered later with
         // some confidence.
-        if ($op == 'BETWEEN') {
+        if ($op === 'BETWEEN') {
           $separator = ' AND ';
         }
         $fieldValue = implode($separator, $fieldValue);
@@ -6250,7 +6270,7 @@ AND   displayRelType.is_active = 1
    * @return string
    */
   public static function getWildCardedValue($wildcard, $op, $value) {
-    if ($wildcard && $op == 'LIKE') {
+    if ($wildcard && $op === 'LIKE') {
       if (CRM_Core_Config::singleton()->includeWildCardInName && (substr($value, 0, 1) != '%')) {
         return "%$value%";
       }
@@ -6415,9 +6435,8 @@ AND   displayRelType.is_active = 1
           if (empty($fieldSpec['bao'])) {
             continue;
           }
-          $sortedOptions = $fieldSpec['bao']::buildOptions($fieldSpec['name'], NULL, [
-            'orderColumn' => CRM_Utils_Array::value('labelColumn', $pseudoConstantMetadata, 'label'),
-          ]);
+          $sortedOptions = $fieldSpec['bao']::buildOptions($fieldSpec['name']);
+          natcasesort($sortedOptions);
           $fieldIDsInOrder = implode(',', array_keys($sortedOptions));
           // Pretty sure this validation ALSO happens in the order clause & this can't be reached but...
           // this might give some early warning.
@@ -6698,7 +6717,10 @@ AND   displayRelType.is_active = 1
    *   Should be clause with proper joins, effective to reduce where clause load.
    *
    * @param bool $skipOrderAndLimit
+   *
    * @return string
+   *
+   * @throws \CRM_Core_Exception
    */
   public function getSearchSQL(
     $offset = 0, $rowCount = 0, $sort = NULL,
@@ -6773,7 +6795,7 @@ AND   displayRelType.is_active = 1
       $name = $values[0] ?? NULL;
       $op = $values[1] ?? NULL;
       $value = $values[2] ?? NULL;
-      if ($name == 'contact_id' and $op == '=') {
+      if ($name === 'contact_id' and $op === '=') {
         if (CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $value, 'is_deleted')) {
           $onlyDeleted = TRUE;
         }

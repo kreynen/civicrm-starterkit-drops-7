@@ -263,14 +263,16 @@ class CRM_Core_Payment_PayPalIPN extends CRM_Core_Payment_BaseIPN {
     if ($status == 'Denied' || $status == 'Failed' || $status == 'Voided') {
       return $this->failed($objects, $transaction);
     }
-    elseif ($status == 'Pending') {
-      return $this->pending($objects, $transaction);
+    if ($status === 'Pending') {
+      Civi::log()->debug('Returning since contribution status is Pending');
+      return;
     }
     elseif ($status == 'Refunded' || $status == 'Reversed') {
       return $this->cancelled($objects, $transaction);
     }
-    elseif ($status != 'Completed') {
-      return $this->unhandled($objects, $transaction);
+    elseif ($status !== 'Completed') {
+      Civi::log()->debug('Returning since contribution status is not handled');
+      return;
     }
 
     // check if contribution is already completed, if so we ignore this ipn
@@ -278,7 +280,7 @@ class CRM_Core_Payment_PayPalIPN extends CRM_Core_Payment_BaseIPN {
     if ($contribution->contribution_status_id == $completedStatusId) {
       $transaction->commit();
       Civi::log()->debug('PayPalIPN: Returning since contribution has already been handled. (ID: ' . $contribution->id . ').');
-      echo "Success: Contribution has already been handled<p>";
+      echo 'Success: Contribution has already been handled<p>';
       return;
     }
 
@@ -379,17 +381,13 @@ class CRM_Core_Payment_PayPalIPN extends CRM_Core_Payment_BaseIPN {
    * @throws \CRM_Core_Exception
    */
   public function getInput(&$input, &$ids) {
-    if (!$this->getBillingID($ids)) {
-      return;
-    }
-
+    $billingID = $ids['billing'] = CRM_Core_BAO_LocationType::getBilling();
     $input['txnType'] = $this->retrieve('txn_type', 'String', FALSE);
     $input['paymentStatus'] = $this->retrieve('payment_status', 'String', FALSE);
     $input['invoice'] = $this->retrieve('invoice', 'String', TRUE);
     $input['amount'] = $this->retrieve('mc_gross', 'Money', FALSE);
     $input['reasonCode'] = $this->retrieve('ReasonCode', 'String', FALSE);
 
-    $billingID = $ids['billing'];
     $lookup = [
       "first_name" => 'first_name',
       "last_name" => 'last_name',

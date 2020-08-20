@@ -835,6 +835,8 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
         CRM_Core_BAO_CustomField::getFieldsForImport('Contribution', FALSE, FALSE, FALSE, $checkPermission)
       );
 
+      $fields['financial_type_id']['title'] = ts('Financial Type ID');
+
       self::$_exportableFields = $fields;
     }
 
@@ -1290,7 +1292,8 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
       if (empty($resultDAO->payment_processor_id) && CRM_Core_Permission::check('edit contributions')) {
         $links = [
           CRM_Core_Action::UPDATE => [
-            'name' => "<i class='crm-i fa-pencil'></i>",
+            'name' => ts('Edit Payment'),
+            'icon' => 'fa-pencil',
             'url' => 'civicrm/payment/edit',
             'class' => 'medium-popup',
             'qs' => "reset=1&id=%%id%%&contribution_id=%%contribution_id%%",
@@ -1308,7 +1311,8 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
           FALSE,
           'Payment.edit.action',
           'Payment',
-          $resultDAO->id
+          $resultDAO->id,
+          'icon'
         );
       }
 
@@ -1941,7 +1945,7 @@ LEFT JOIN civicrm_option_value contribution_status ON (civicrm_contribution.cont
     }
 
     if (empty($clauses)) {
-      CRM_Core_Error::fatal();
+      throw new CRM_Core_Exception('No Where clauses defined when deleting address');
     }
 
     $condition = implode(' OR ', $clauses);
@@ -2112,7 +2116,7 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
     $ids['contributionPage'] = NULL;
 
     if (!$baseIPN->validateData($input, $ids, $objects, FALSE)) {
-      CRM_Core_Error::fatal();
+      throw new CRM_Core_Exception('Unable to validate supplied data');
     }
 
     $memberships = &$objects['membership'];
@@ -2755,7 +2759,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    * @return bool
    * @throws Exception
    */
-  public function loadRelatedObjects(&$input, &$ids, $loadAll = FALSE) {
+  public function loadRelatedObjects($input, &$ids, $loadAll = FALSE) {
     // @todo deprecate this function - the steps should be
     // 1) add additional functions like 'getRelatedMemberships'
     // 2) switch all calls that refer to ->_relatedObjects to
@@ -3679,6 +3683,10 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
           $newFinancialAccount = CRM_Financial_BAO_FinancialAccount::getFinancialAccountForFinancialTypeByRelationship($params['financial_type_id'], $accountRelationship);
           if ($oldFinancialAccount != $newFinancialAccount) {
             $params['total_amount'] = 0;
+            // If we have a fee amount set reverse this as well.
+            if (isset($params['fee_amount'])) {
+              $params['trxnParams']['fee_amount'] = 0 - $params['fee_amount'];
+            }
             if (in_array($params['contribution']->contribution_status_id, $pendingStatus)) {
               $params['trxnParams']['to_financial_account_id'] = CRM_Financial_BAO_FinancialAccount::getFinancialAccountForFinancialTypeByRelationship(
                 $params['prevContribution']->financial_type_id, $accountRelationship);
@@ -3700,6 +3708,10 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
             /* $params['trxnParams']['to_financial_account_id'] = $trxnParams['to_financial_account_id']; */
             $params['financial_account_id'] = $newFinancialAccount;
             $params['total_amount'] = $params['trxnParams']['total_amount'] = $params['trxnParams']['net_amount'] = $trxnParams['total_amount'];
+            // Set the transaction fee amount back to the original value for creating the new positive financial trxn.
+            if (isset($params['fee_amount'])) {
+              $params['trxnParams']['fee_amount'] = $params['fee_amount'];
+            }
             self::updateFinancialAccounts($params);
             CRM_Core_BAO_FinancialTrxn::createDeferredTrxn(CRM_Utils_Array::value('line_item', $params), $params['contribution'], TRUE);
             $params['trxnParams']['to_financial_account_id'] = $trxnParams['to_financial_account_id'];

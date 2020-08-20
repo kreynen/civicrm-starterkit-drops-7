@@ -94,7 +94,7 @@ abstract class CRM_Core_Payment {
   /**
    * Processor type label.
    *
-   * (Deprecated parameter but used in some messages).
+   * (Deprecated unused parameter).
    *
    * @var string
    * @deprecated
@@ -400,6 +400,19 @@ abstract class CRM_Core_Payment {
   }
 
   /**
+   * Does the processor support the user having a choice as to whether to cancel the recurring with the processor?
+   *
+   * If this returns TRUE then there will be an option to send a cancellation request in the cancellation form.
+   *
+   * This would normally be false for processors where CiviCRM maintains the schedule.
+   *
+   * @return bool
+   */
+  protected function supportsCancelRecurringNotifyOptional() {
+    return $this->supportsCancelRecurring();
+  }
+
+  /**
    * Does this processor support pre-approval.
    *
    * This would generally look like a redirect to enter credentials which can then be used in a later payment call.
@@ -552,7 +565,12 @@ abstract class CRM_Core_Payment {
    *   Currently supported:
    *   - contributionPageRecurringHelp (params: is_recur_installments, is_email_receipt)
    *   - contributionPageContinueText (params: amount, is_payment_to_existing)
-   *   - cancelRecurDetailText (params: mode, amount, currency, frequency_interval, frequency_unit, installments, {membershipType|only if mode=auto_renew})
+   *   - cancelRecurDetailText:
+   *     params:
+   *       mode, amount, currency, frequency_interval, frequency_unit,
+   *       installments, {membershipType|only if mode=auto_renew},
+   *       selfService (bool) - TRUE if user doesn't have "edit contributions" permission.
+   *         ie. they are accessing via a "self-service" link from an email receipt or similar.
    *   - cancelRecurNotSupportedText
    *
    * @param array $params
@@ -615,7 +633,10 @@ abstract class CRM_Core_Payment {
         }
 
       case 'cancelRecurNotSupportedText':
-        return ts('Automatic cancellation is not supported for this payment processor. You or the contributor will need to manually cancel this recurring contribution using the payment processor website.');
+        if (!$this->supportsCancelRecurring()) {
+          return ts('Automatic cancellation is not supported for this payment processor. You or the contributor will need to manually cancel this recurring contribution using the payment processor website.');
+        }
+        return '';
 
     }
     CRM_Core_Error::deprecatedFunctionWarning('Calls to getText must use a supported method');
@@ -810,7 +831,7 @@ abstract class CRM_Core_Payment {
           'size' => 20,
           'maxlength' => 20,
           'autocomplete' => 'off',
-          'class' => 'creditcard',
+          'class' => 'creditcard required',
         ],
         'is_required' => TRUE,
         // 'description' => '16 digit card number', // If you enable a description field it will be shown below the field on the form
@@ -823,6 +844,7 @@ abstract class CRM_Core_Payment {
           'size' => 5,
           'maxlength' => 10,
           'autocomplete' => 'off',
+          'class' => ($isCVVRequired ? 'required' : ''),
         ],
         'is_required' => $isCVVRequired,
         'rules' => [
@@ -846,7 +868,7 @@ abstract class CRM_Core_Payment {
             'rule_parameters' => TRUE,
           ],
         ],
-        'extra' => ['class' => 'crm-form-select'],
+        'extra' => ['class' => 'crm-form-select required'],
       ],
       'credit_card_type' => [
         'htmlType' => 'select',
@@ -863,6 +885,7 @@ abstract class CRM_Core_Payment {
           'size' => 20,
           'maxlength' => 34,
           'autocomplete' => 'on',
+          'class' => 'required',
         ],
         'is_required' => TRUE,
       ],
@@ -875,6 +898,7 @@ abstract class CRM_Core_Payment {
           'size' => 20,
           'maxlength' => 34,
           'autocomplete' => 'off',
+          'class' => 'required',
         ],
         'rules' => [
           [
@@ -894,6 +918,7 @@ abstract class CRM_Core_Payment {
           'size' => 20,
           'maxlength' => 11,
           'autocomplete' => 'off',
+          'class' => 'required',
         ],
         'is_required' => TRUE,
         'rules' => [
@@ -912,6 +937,7 @@ abstract class CRM_Core_Payment {
           'size' => 20,
           'maxlength' => 64,
           'autocomplete' => 'off',
+          'class' => 'required',
         ],
         'is_required' => TRUE,
 
@@ -1013,6 +1039,7 @@ abstract class CRM_Core_Payment {
         'size' => 30,
         'maxlength' => 60,
         'autocomplete' => 'off',
+        'class' => 'required',
       ],
       'is_required' => TRUE,
     ];
@@ -1039,6 +1066,7 @@ abstract class CRM_Core_Payment {
         'size' => 30,
         'maxlength' => 60,
         'autocomplete' => 'off',
+        'class' => 'required',
       ],
       'is_required' => TRUE,
     ];
@@ -1052,6 +1080,7 @@ abstract class CRM_Core_Payment {
         'size' => 30,
         'maxlength' => 60,
         'autocomplete' => 'off',
+        'class' => 'required',
       ],
       'is_required' => TRUE,
     ];
@@ -1065,6 +1094,7 @@ abstract class CRM_Core_Payment {
         'size' => 30,
         'maxlength' => 60,
         'autocomplete' => 'off',
+        'class' => 'required',
       ],
       'is_required' => TRUE,
     ];
@@ -1075,6 +1105,7 @@ abstract class CRM_Core_Payment {
       'name' => "billing_state_province_id-{$billingLocationID}",
       'cc_field' => TRUE,
       'is_required' => TRUE,
+      'extra' => ['class' => 'required'],
     ];
 
     $metadata["billing_postal_code-{$billingLocationID}"] = [
@@ -1086,6 +1117,7 @@ abstract class CRM_Core_Payment {
         'size' => 30,
         'maxlength' => 60,
         'autocomplete' => 'off',
+        'class' => 'required',
       ],
       'is_required' => TRUE,
     ];
@@ -1099,6 +1131,7 @@ abstract class CRM_Core_Payment {
         '' => ts('- select -'),
       ] + CRM_Core_PseudoConstant::country(),
       'is_required' => TRUE,
+      'extra' => ['class' => 'required'],
     ];
     return $metadata;
   }
@@ -1359,6 +1392,7 @@ abstract class CRM_Core_Payment {
       }
     }
     if (is_a($result, 'CRM_Core_Error')) {
+      CRM_Core_Error::deprecatedFunctionWarning('payment processors should throw exceptions rather than return errors');
       throw new PaymentProcessorException(CRM_Core_Error::getMessages($result));
     }
     return $result;
@@ -1375,6 +1409,11 @@ abstract class CRM_Core_Payment {
    * proceed. Note the form layer will only call this after calling
    * $processor->supports('cancelRecurring');
    *
+   * A payment processor can control whether to notify the actual payment provider or just
+   * cancel in CiviCRM by setting the `isNotifyProcessorOnCancelRecur` property on PropertyBag.
+   * If supportsCancelRecurringNotifyOptional() is TRUE this will be automatically set based on
+   * the user selection on the form. If FALSE you need to set it yourself.
+   *
    * @param \Civi\Payment\PropertyBag $propertyBag
    *
    * @return array
@@ -1382,7 +1421,8 @@ abstract class CRM_Core_Payment {
    * @throws \Civi\Payment\Exception\PaymentProcessorException
    */
   public function doCancelRecurring(PropertyBag $propertyBag) {
-    if (method_exists($this, 'cancelSubscription')) {
+    if (method_exists($this, 'cancelSubscription')
+    && ($propertyBag->has('isNotifyProcessorOnCancelRecur') && $propertyBag->getIsNotifyProcessorOnCancelRecur())) {
       $message = NULL;
       if ($this->cancelSubscription($message, $propertyBag)) {
         return ['message' => $message];
@@ -1476,7 +1516,8 @@ abstract class CRM_Core_Payment {
     catch (CRM_Core_Exception $e) {
       Civi::log()->error('ipn_payment_callback_exception', [
         'context' => [
-          'backtrace' => CRM_Core_Error::formatBacktrace(debug_backtrace()),
+          'backtrace' => $e->getTraceAsString(),
+          'message' => $e->getMessage(),
         ],
       ]);
     }

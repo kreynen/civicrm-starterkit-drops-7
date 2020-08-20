@@ -59,7 +59,7 @@ class BasicGetAction extends AbstractGetAction {
     $this->expandSelectClauseWildcards();
     $values = $this->getRecords();
     $this->formatRawValues($values);
-    $result->exchangeArray($this->queryArray($values));
+    $this->queryArray($values, $result);
   }
 
   /**
@@ -115,7 +115,7 @@ class BasicGetAction extends AbstractGetAction {
     foreach ($records as &$values) {
       foreach ($this->entityFields() as $field) {
         if (!empty($field['options'])) {
-          foreach (array_keys(FormattingUtil::$pseudoConstantContexts) as $suffix) {
+          foreach (FormattingUtil::$pseudoConstantSuffixes as $suffix) {
             $pseudofield = $field['name'] . ':' . $suffix;
             if (!isset($values[$pseudofield]) && isset($values[$field['name']]) && $this->_isFieldSelected($pseudofield)) {
               $values[$pseudofield] = $values[$field['name']];

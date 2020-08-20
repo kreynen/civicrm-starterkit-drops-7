@@ -6,6 +6,7 @@
   <comment>Other Activity details stored here include contact, location, details.</comment>
   <add>1.1</add>
   <log>true</log>
+  <icon>fa-tasks</icon>
   <field>
     <name>id</name>
     <uniqueName>activity_id</uniqueName>
@@ -121,6 +122,9 @@
   <field>
     <name>activity_date_time</name>
     <import>true</import>
+    <required>false</required>
+    <export>true</export>
+    <default>CURRENT_TIMESTAMP</default>
     <title>Activity Date</title>
     <type>datetime</type>
     <headerPattern>/(activity.)?date(.time$)?/i</headerPattern>
@@ -319,6 +323,7 @@
     <name>index_medium_id</name>
     <fieldName>medium_id</fieldName>
     <add>2.2</add>
+    <drop>5.28</drop>
   </index>
   <field>
     <name>is_auto</name>
@@ -466,7 +471,7 @@
     <comment>When was the activity was created.</comment>
     <required>false</required>
     <export>true</export>
-    <default>NULL</default>
+    <default>CURRENT_TIMESTAMP</default>
     <add>4.7</add>
   </field>
   <field>

@@ -80,6 +80,15 @@ trait CRM_Contact_Form_Task_EmailTrait {
   public $contactEmails = [];
 
   /**
+   * Contacts form whom emails could not be sent.
+   *
+   * An array of contact ids and the relevant message details.
+   *
+   * @var array
+   */
+  protected $suppressedEmails = [];
+
+  /**
    * Getter for isSearchContext.
    *
    * @return bool
@@ -174,29 +183,19 @@ trait CRM_Contact_Form_Task_EmailTrait {
       $setDefaults = FALSE;
     }
 
-    $elements = ['to'];
     $this->_allContactIds = $this->_toContactIds = $this->_contactIds;
-    foreach ($elements as $element) {
-      if ($$element->getValue()) {
 
-        foreach ($this->getEmails($$element) as $value) {
-          $contactId = $value['contact_id'];
-          $email = $value['email'];
-          if ($contactId) {
-            switch ($element) {
-              case 'to':
-                $this->_contactIds[] = $this->_toContactIds[] = $contactId;
-                $this->_toContactEmails[] = $email;
-                break;
-
-            }
-
-            $this->_allContactIds[] = $contactId;
-          }
+    if ($to->getValue()) {
+      foreach ($this->getEmails($to) as $value) {
+        $contactId = $value['contact_id'];
+        $email = $value['email'];
+        if ($contactId) {
+          $this->_contactIds[] = $this->_toContactIds[] = $contactId;
+          $this->_toContactEmails[] = $email;
+          $this->_allContactIds[] = $contactId;
         }
-
-        $setDefaults = TRUE;
       }
+      $setDefaults = TRUE;
     }
 
     //get the group of contacts as per selected by user in case of Find Activities
@@ -207,51 +206,33 @@ trait CRM_Contact_Form_Task_EmailTrait {
 
     // check if we need to setdefaults and check for valid contact emails / communication preferences
     if (is_array($this->_allContactIds) && $setDefaults) {
-      $returnProperties = [
-        'sort_name' => 1,
-        'email' => 1,
-        'do_not_email' => 1,
-        'is_deceased' => 1,
-        'on_hold' => 1,
-        'display_name' => 1,
-        'preferred_mail_format' => 1,
-      ];
-
       // get the details for all selected contacts ( to, cc and bcc contacts )
-      list($this->_contactDetails) = CRM_Utils_Token::getTokenDetails($this->_allContactIds,
-        $returnProperties,
-        FALSE,
-        FALSE
-      );
+      $allContactDetails = civicrm_api3('Contact', 'get', [
+        'id' => ['IN' => $this->_allContactIds],
+        'return' => ['sort_name', 'email', 'do_not_email', 'is_deceased', 'on_hold', 'display_name', 'preferred_mail_format'],
+        'options' => ['limit' => 0],
+      ])['values'];
 
-      // make a copy of all contact details
-      $this->_allContactDetails = $this->_contactDetails;
+      // The contact task supports passing in email_id in a url. It supports a single email
+      // and is marked as having been related to CiviHR.
+      // The array will look like $this->_toEmail = ['email' => 'x', 'contact_id' => 2])
+      // If it exists we want to use the specified email which might be different to the primary email
+      // that we have.
+      if (!empty($this->_toEmail['contact_id']) && !empty($allContactDetails[$this->_toEmail['contact_id']])) {
+        $allContactDetails[$this->_toEmail['contact_id']]['email'] = $this->_toEmail['email'];
+      }
 
       // perform all validations on unique contact Ids
-      foreach (array_unique($this->_allContactIds) as $key => $contactId) {
-        $value = $this->_contactDetails[$contactId];
+      foreach ($allContactDetails as $contactId => $value) {
         if ($value['do_not_email'] || empty($value['email']) || !empty($value['is_deceased']) || $value['on_hold']) {
-          $suppressedEmails++;
-
-          // unset contact details for contacts that we won't be sending email. This is prevent extra computation
-          // during token evaluation etc.
-          unset($this->_contactDetails[$contactId]);
+          $this->setSuppressedEmail($contactId, $value);
         }
-        else {
-          $email = $value['email'];
-
-          // build array's which are used to setdefaults
-          if (in_array($contactId, $this->_toContactIds)) {
-            $this->_toContactDetails[$contactId] = $this->_contactDetails[$contactId];
-            // If a particular address has been specified as the default, use that instead of contact's primary email
-            if (!empty($this->_toEmail) && $this->_toEmail['contact_id'] == $contactId) {
-              $email = $this->_toEmail['email'];
-            }
-            $toArray[] = [
-              'text' => '"' . $value['sort_name'] . '" <' . $email . '>',
-              'id' => "$contactId::{$email}",
-            ];
-          }
+        elseif (in_array($contactId, $this->_toContactIds)) {
+          $this->_toContactDetails[$contactId] = $this->_contactDetails[$contactId] = $value;
+          $toArray[] = [
+            'text' => '"' . $value['sort_name'] . '" <' . $value['email'] . '>',
+            'id' => "$contactId::{$value['email']}",
+          ];
         }
       }
 
@@ -262,7 +243,7 @@ trait CRM_Contact_Form_Task_EmailTrait {
 
     $this->assign('toContact', json_encode($toArray));
 
-    $this->assign('suppressedEmails', $suppressedEmails);
+    $this->assign('suppressedEmails', count($this->suppressedEmails));
 
     $this->assign('totalSelectedContacts', count($this->_contactIds));
 
@@ -360,6 +341,7 @@ trait CRM_Contact_Form_Task_EmailTrait {
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    * @throws \Civi\API\Exception\UnauthorizedException
+   * @throws \API_Exception
    */
   public function postProcess() {
     $this->bounceIfSimpleMailLimitExceeded(count($this->_contactIds));
@@ -404,7 +386,6 @@ trait CRM_Contact_Form_Task_EmailTrait {
     // If we have had a contact email used here the value returned from the line above will be the
     // numerical key where as $from for use in the sendEmail in Activity needs to be of format of "To Name" <toemailaddress>
     $from = CRM_Utils_Mail::formatFromAddress($from);
-    $subject = $formValues['subject'];
 
     $ccArray = $formValues['cc_id'] ? explode(',', $formValues['cc_id']) : [];
     $cc = $this->getEmailString($ccArray);
@@ -414,21 +395,8 @@ trait CRM_Contact_Form_Task_EmailTrait {
     $bcc = $this->getEmailString($bccArray);
     $additionalDetails .= empty($bccArray) ? '' : "\nbcc : " . $this->getEmailUrlString($bccArray);
 
-    // CRM-5916: prepend case id hash to CiviCase-originating emails’ subjects
-    if (isset($this->_caseId) && is_numeric($this->_caseId)) {
-      $hash = substr(sha1(CIVICRM_SITE_KEY . $this->_caseId), 0, 7);
-      $subject = "[case #$hash] $subject";
-    }
-
-    $attachments = [];
-    CRM_Core_BAO_File::formatAttachment($formValues,
-      $attachments,
-      NULL, NULL
-    );
-
     // format contact details array to handle multiple emails from same contact
     $formattedContactDetails = [];
-    $tempEmails = [];
     foreach ($this->_contactIds as $key => $contactId) {
       // if we dont have details on this contactID, we should ignore
       // potentially this is due to the contact not wanting to receive email
@@ -438,69 +406,33 @@ trait CRM_Contact_Form_Task_EmailTrait {
       $email = $this->_toContactEmails[$key];
       // prevent duplicate emails if same email address is selected CRM-4067
       // we should allow same emails for different contacts
-      $emailKey = "{$contactId}::{$email}";
-      if (!in_array($emailKey, $tempEmails)) {
-        $tempEmails[] = $emailKey;
-        $details = $this->_contactDetails[$contactId];
-        $details['email'] = $email;
-        unset($details['email_id']);
-        $formattedContactDetails[] = $details;
-      }
-    }
-
-    $contributionIds = [];
-    if ($this->getVar('_contributionIds')) {
-      $contributionIds = $this->getVar('_contributionIds');
+      $details = $this->_contactDetails[$contactId];
+      $details['email'] = $email;
+      unset($details['email_id']);
+      $formattedContactDetails["{$contactId}::{$email}"] = $details;
     }
 
     // send the mail
     list($sent, $activityId) = CRM_Activity_BAO_Activity::sendEmail(
       $formattedContactDetails,
-      $subject,
+      $this->getSubject($formValues['subject']),
       $formValues['text_message'],
       $formValues['html_message'],
       NULL,
       NULL,
       $from,
-      $attachments,
+      $this->getAttachments($formValues),
       $cc,
       $bcc,
       array_keys($this->_toContactDetails),
       $additionalDetails,
-      $contributionIds,
+      $this->getVar('_contributionIds') ?? [],
       CRM_Utils_Array::value('campaign_id', $formValues),
       $this->getVar('_caseId')
     );
 
-    $followupStatus = '';
     if ($sent) {
-      $followupActivity = NULL;
-      if (!empty($formValues['followup_activity_type_id'])) {
-        $params['followup_activity_type_id'] = $formValues['followup_activity_type_id'];
-        $params['followup_activity_subject'] = $formValues['followup_activity_subject'];
-        $params['followup_date'] = $formValues['followup_date'];
-        $params['target_contact_id'] = $this->_contactIds;
-        $params['followup_assignee_contact_id'] = explode(',', $formValues['followup_assignee_contact_id']);
-        $followupActivity = CRM_Activity_BAO_Activity::createFollowupActivity($activityId, $params);
-        $followupStatus = ts('A followup activity has been scheduled.');
-
-        if (Civi::settings()->get('activity_assignee_notification')) {
-          if ($followupActivity) {
-            $mailToFollowupContacts = [];
-            $assignee = [$followupActivity->id];
-            $assigneeContacts = CRM_Activity_BAO_ActivityAssignment::getAssigneeNames($assignee, TRUE, FALSE);
-            foreach ($assigneeContacts as $values) {
-              $mailToFollowupContacts[$values['email']] = $values;
-            }
-
-            $sentFollowup = CRM_Activity_BAO_Activity::sendToAssignee($followupActivity, $mailToFollowupContacts);
-            if ($sentFollowup) {
-              $followupStatus .= '<br />' . ts('A copy of the follow-up activity has also been sent to follow-up assignee contacts(s).');
-            }
-          }
-        }
-      }
-
+      $followupStatus = $this->createFollowUpActivities($formValues, $activityId);
       $count_success = count($this->_toContactDetails);
       CRM_Core_Session::setStatus(ts('One message was sent successfully. ', [
         'plural' => '%count messages were sent successfully. ',
@@ -508,23 +440,10 @@ trait CRM_Contact_Form_Task_EmailTrait {
       ]) . $followupStatus, ts('Message Sent', ['plural' => 'Messages Sent', 'count' => $count_success]), 'success');
     }
 
-    // Display the name and number of contacts for those email is not sent.
-    // php 5.4 throws out a notice since the values of these below arrays are arrays.
-    // the behavior is not documented in the php manual, but it does the right thing
-    // suppressing the notices to get things in good shape going forward
-    $emailsNotSent = @array_diff_assoc($this->_allContactDetails, $this->_contactDetails);
-
-    if ($emailsNotSent) {
-      $not_sent = [];
-      foreach ($emailsNotSent as $contactId => $values) {
-        $displayName = $values['display_name'];
-        $email = $values['email'];
-        $contactViewUrl = CRM_Utils_System::url('civicrm/contact/view', "reset=1&cid=$contactId");
-        $not_sent[] = "<a href='$contactViewUrl' title='$email'>$displayName</a>" . ($values['on_hold'] ? '(' . ts('on hold') . ')' : '');
-      }
-      $status = '(' . ts('because no email address on file or communication preferences specify DO NOT EMAIL or Contact is deceased or Primary email address is On Hold') . ')<ul><li>' . implode('</li><li>', $not_sent) . '</li></ul>';
+    if (!empty($this->suppressedEmails)) {
+      $status = '(' . ts('because no email address on file or communication preferences specify DO NOT EMAIL or Contact is deceased or Primary email address is On Hold') . ')<ul><li>' . implode('</li><li>', $this->suppressedEmails) . '</li></ul>';
       CRM_Core_Session::setStatus($status, ts('One Message Not Sent', [
-        'count' => count($emailsNotSent),
+        'count' => count($this->suppressedEmails),
         'plural' => '%count Messages Not Sent',
       ]), 'info');
     }
@@ -645,6 +564,93 @@ trait CRM_Contact_Form_Task_EmailTrait {
       $urlString .= "<a href='{$contactURL}'>" . $this->contactEmails[$email]['contact.display_name'] . '</a>';
     }
     return $urlString;
+  }
+
+  /**
+   * Set the emails that are not to be sent out.
+   *
+   * @param int $contactID
+   * @param array $values
+   */
+  protected function setSuppressedEmail($contactID, $values) {
+    $contactViewUrl = CRM_Utils_System::url('civicrm/contact/view', 'reset=1&cid=' . $contactID);
+    $this->suppressedEmails[$contactID] = "<a href='$contactViewUrl' title='{$values['email']}'>{$values['display_name']}</a>" . ($values['on_hold'] ? '(' . ts('on hold') . ')' : '');
+  }
+
+  /**
+   * Get any attachments.
+   *
+   * @param array $formValues
+   *
+   * @return array
+   */
+  protected function getAttachments(array $formValues): array {
+    $attachments = [];
+    CRM_Core_BAO_File::formatAttachment($formValues,
+      $attachments,
+      NULL, NULL
+    );
+    return $attachments;
+  }
+
+  /**
+   * Get the subject for the message.
+   *
+   * The case handling should possibly be on the case form.....
+   *
+   * @param string $subject
+   *
+   * @return string
+   */
+  protected function getSubject(string $subject):string {
+    // CRM-5916: prepend case id hash to CiviCase-originating emails’ subjects
+    if (isset($this->_caseId) && is_numeric($this->_caseId)) {
+      $hash = substr(sha1(CIVICRM_SITE_KEY . $this->_caseId), 0, 7);
+      $subject = "[case #$hash] $subject";
+    }
+    return $subject;
+  }
+
+  /**
+   * Create any follow up activities.
+   *
+   * @param array $formValues
+   * @param int $activityId
+   *
+   * @return string
+   *
+   * @throws \CRM_Core_Exception
+   */
+  protected function createFollowUpActivities($formValues, $activityId): string {
+    $params = [];
+    $followupStatus = '';
+    $followupActivity = NULL;
+    if (!empty($formValues['followup_activity_type_id'])) {
+      $params['followup_activity_type_id'] = $formValues['followup_activity_type_id'];
+      $params['followup_activity_subject'] = $formValues['followup_activity_subject'];
+      $params['followup_date'] = $formValues['followup_date'];
+      $params['target_contact_id'] = $this->_contactIds;
+      $params['followup_assignee_contact_id'] = explode(',', $formValues['followup_assignee_contact_id']);
+      $followupActivity = CRM_Activity_BAO_Activity::createFollowupActivity($activityId, $params);
+      $followupStatus = ts('A followup activity has been scheduled.');
+
+      if (Civi::settings()->get('activity_assignee_notification')) {
+        if ($followupActivity) {
+          $mailToFollowupContacts = [];
+          $assignee = [$followupActivity->id];
+          $assigneeContacts = CRM_Activity_BAO_ActivityAssignment::getAssigneeNames($assignee, TRUE, FALSE);
+          foreach ($assigneeContacts as $values) {
+            $mailToFollowupContacts[$values['email']] = $values;
+          }
+
+          $sentFollowup = CRM_Activity_BAO_Activity::sendToAssignee($followupActivity, $mailToFollowupContacts);
+          if ($sentFollowup) {
+            $followupStatus .= '<br />' . ts('A copy of the follow-up activity has also been sent to follow-up assignee contacts(s).');
+          }
+        }
+      }
+    }
+    return $followupStatus;
   }
 
 }

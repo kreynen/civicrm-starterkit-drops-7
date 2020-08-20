@@ -106,9 +106,10 @@ class CRM_Core_BAO_CustomGroup extends CRM_Core_DAO_CustomGroup {
       'help_post',
       'is_active',
       'is_multiple',
+      'icon',
     ];
-    $current_db_version = CRM_Core_DAO::singleValueQuery("SELECT version FROM civicrm_domain WHERE id = " . CRM_Core_Config::domainID());
-    $is_public_version = $current_db_version >= '4.7.19' ? 1 : 0;
+    $current_db_version = CRM_Core_BAO_Domain::version();
+    $is_public_version = version_compare($current_db_version, '4.7.19', '>=');
     if ($is_public_version) {
       $fields[] = 'is_public';
     }
@@ -416,10 +417,14 @@ class CRM_Core_BAO_CustomGroup extends CRM_Core_DAO_CustomGroup {
         'max_multiple',
       ],
     ];
-    $current_db_version = CRM_Core_DAO::singleValueQuery("SELECT version FROM civicrm_domain WHERE id = " . CRM_Core_Config::domainID());
-    $is_public_version = $current_db_version >= '4.7.19' ? 1 : 0;
+    $current_db_version = CRM_Core_BAO_Domain::version();
+    $is_public_version = version_compare($current_db_version, '4.7.19', '>=');
+    $serialize_version = version_compare($current_db_version, '5.27.alpha1', '>=');
     if ($is_public_version) {
       $tableData['custom_group'][] = 'is_public';
+    }
+    if ($serialize_version) {
+      $tableData['custom_field'][] = 'serialize';
     }
     if (!$toReturn || !is_array($toReturn)) {
       $toReturn = $tableData;
@@ -1095,6 +1100,7 @@ ORDER BY civicrm_custom_group.weight,
       $group['extra'] = ['gid' => $customGroupDAO->id];
       $group['table_name'] = $customGroupDAO->table_name;
       $group['is_multiple'] = $customGroupDAO->is_multiple;
+      $group['icon'] = $customGroupDAO->icon;
       $groups[] = $group;
     }
 
@@ -1358,6 +1364,7 @@ ORDER BY civicrm_custom_group.weight,
                 }
               }
               else {
+                // Values may be "array strings" or actual arrays. Handle both.
                 if (is_array($value) && count($value)) {
                   CRM_Utils_Array::formatArrayKeys($value);
                   $checkedValue = $value;
@@ -1380,7 +1387,14 @@ ORDER BY civicrm_custom_group.weight,
           }
           else {
             if (isset($value)) {
-              $checkedValue = explode(CRM_Core_DAO::VALUE_SEPARATOR, $value);
+              // Values may be "array strings" or actual arrays. Handle both.
+              if (is_array($value) && count($value)) {
+                CRM_Utils_Array::formatArrayKeys($value);
+                $checkedValue = $value;
+              }
+              else {
+                $checkedValue = explode(CRM_Core_DAO::VALUE_SEPARATOR, substr($value, 1, -1));
+              }
               foreach ($checkedValue as $val) {
                 if ($val) {
                   $defaults[$elementName][$val] = $val;
@@ -1533,7 +1547,6 @@ ORDER BY civicrm_custom_group.weight,
     $form->assign_by_ref("{$prefix}groupTree", $groupTree);
 
     foreach ($groupTree as $id => $group) {
-      CRM_Core_ShowHideBlocks::links($form, $group['title'], '', '');
       foreach ($group['fields'] as $field) {
         $required = $field['is_required'] ?? NULL;
         //fix for CRM-1620

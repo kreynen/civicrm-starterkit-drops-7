@@ -258,7 +258,7 @@ class CRM_Core_Resources {
    * Access var from javascript:
    * CRM.vars.myNamespace.foo // "bar"
    *
-   * @see http://wiki.civicrm.org/confluence/display/CRMDOC/Javascript+Reference
+   * @see https://docs.civicrm.org/dev/en/latest/standards/javascript/
    *
    * @param string $nameSpace
    *   Usually the name of your extension.
@@ -760,11 +760,11 @@ class CRM_Core_Resources {
     // add wysiwyg editor
     $editor = Civi::settings()->get('editor_id');
     if ($editor == "CKEditor") {
-      CRM_Admin_Page_CKEditorConfig::setConfigDefault();
+      CRM_Admin_Form_CKEditorConfig::setConfigDefault();
       $items[] = [
         'config' => [
           'wysisygScriptLocation' => Civi::paths()->getUrl("[civicrm.root]/js/wysiwyg/crm.ckeditor.js"),
-          'CKEditorCustomConfig' => CRM_Admin_Page_CKEditorConfig::getConfigUrl(),
+          'CKEditorCustomConfig' => CRM_Admin_Form_CKEditorConfig::getConfigUrl(),
         ],
       ];
     }

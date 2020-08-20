@@ -68,7 +68,7 @@ class CRM_Core_Region {
   /**
    * Add a snippet of content to a region.
    *
-   * @code
+   * ```
    * CRM_Core_Region::instance('page-header')->add(array(
    *   'markup' => '<div style="color:red">Hello!</div>',
    * ));
@@ -81,7 +81,7 @@ class CRM_Core_Region {
    * CRM_Core_Region::instance('page-header')->add(array(
    *   'callback' => 'myextension_callback_function',
    * ));
-   * @endcode
+   * ```
    *
    * Note: This function does not perform any extra encoding of markup, script code, or etc. If
    * you're passing in user-data, you must clean it yourself.
@@ -223,8 +223,8 @@ class CRM_Core_Region {
           break;
 
         default:
-          require_once 'CRM/Core/Error.php';
-          CRM_Core_Error::fatal(ts('Snippet type %1 is unrecognized',
+          require_once 'CRM/Core/Exception.php';
+          throw new CRM_Core_Exception(ts('Snippet type %1 is unrecognized',
             [1 => $snippet['type']]));
       }
     }

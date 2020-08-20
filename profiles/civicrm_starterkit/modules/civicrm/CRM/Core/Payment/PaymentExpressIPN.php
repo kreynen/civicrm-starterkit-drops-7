@@ -39,14 +39,6 @@
 class CRM_Core_Payment_PaymentExpressIPN extends CRM_Core_Payment_BaseIPN {
 
   /**
-   * We only need one instance of this object. So we use the singleton
-   * pattern and cache the instance in this variable
-   *
-   * @var object
-   */
-  static private $_singleton = NULL;
-
-  /**
    * Mode of operation: live or test
    *
    * @var object
@@ -109,6 +101,8 @@ class CRM_Core_Payment_PaymentExpressIPN extends CRM_Core_Payment_BaseIPN {
    * @param $transactionReference
    *
    * @return bool
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public function newOrderNotify($success, $privateData, $component, $amount, $transactionReference) {
     $ids = $input = $params = [];
@@ -160,8 +154,6 @@ class CRM_Core_Payment_PaymentExpressIPN extends CRM_Core_Payment_BaseIPN {
       return FALSE;
     }
 
-    $transaction = new CRM_Core_Transaction();
-
     // check if contribution is already completed, if so we ignore this ipn
 
     if ($contribution->contribution_status_id == 1) {
@@ -181,7 +173,7 @@ class CRM_Core_Payment_PaymentExpressIPN extends CRM_Core_Payment_BaseIPN {
         $contribution->trxn_id = $ids['membership'];
       }
     }
-    $this->completeTransaction($input, $ids, $objects, $transaction);
+    CRM_Contribute_BAO_Contribution::completeOrder($input, $ids, $objects);
     return TRUE;
   }
 
@@ -308,7 +300,7 @@ class CRM_Core_Payment_PaymentExpressIPN extends CRM_Core_Payment_BaseIPN {
         $info = curl_getinfo($curl);
         if ($info['http_code'] < 200 || $info['http_code'] > 299) {
           $log_message = "DPS error: HTTP {$info['http_code']} retrieving {$info['url']}.";
-          CRM_Core_Error::fatal($log_message);
+          throw new CRM_Core_Exception($log_message);
         }
         else {
           fwrite($message_log, sprintf("\n\r%s:- %s\n", date("D M j G:i:s T Y"), $response));
@@ -318,7 +310,7 @@ class CRM_Core_Payment_PaymentExpressIPN extends CRM_Core_Payment_BaseIPN {
           $valid = CRM_Core_Payment_PaymentExpressUtils::_xmlAttribute($response, 'valid');
           // CRM_Core_Payment_PaymentExpressUtils::_xmlAttribute() returns NULL if preg fails.
           if (is_null($valid)) {
-            CRM_Core_Error::fatal(ts("DPS error: Unable to parse XML response from DPS.", [1 => $valid]));
+            throw new CRM_Core_Exception(ts("DPS error: Unable to parse XML response from DPS.", [1 => $valid]));
           }
           $success = CRM_Core_Payment_PaymentExpressUtils::_xmlElement($response, 'Success');
           $txnId = CRM_Core_Payment_PaymentExpressUtils::_xmlElement($response, 'TxnId');
@@ -334,7 +326,7 @@ class CRM_Core_Payment_PaymentExpressIPN extends CRM_Core_Payment_BaseIPN {
       }
       else {
         // calling DPS failed
-        CRM_Core_Error::fatal(ts('Unable to establish connection to the payment gateway to verify transaction response.'));
+        throw new CRM_Core_Exception(ts('Unable to establish connection to the payment gateway to verify transaction response.'));
         exit;
       }
     }

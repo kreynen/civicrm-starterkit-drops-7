@@ -130,7 +130,8 @@ class CRM_Event_Page_ManageEvent extends CRM_Core_Page {
    * @return array
    *   (reference) of tab links
    */
-  public static function &tabs($enableCart) {
+  public static function &tabs() {
+    $enableCart = Civi::settings()->get('enable_cart');
     $cacheKey = $enableCart ? 1 : 0;
     if (!(self::$_tabLinks)) {
       self::$_tabLinks = [];
@@ -224,6 +225,7 @@ class CRM_Event_Page_ManageEvent extends CRM_Core_Page {
 
     // assign vars to templates
     $this->assign('action', $action);
+    $this->assign('iCal', CRM_Event_BAO_Event::getICalLinks());
     $id = CRM_Utils_Request::retrieve('id', 'Positive',
       $this, FALSE, 0, 'REQUEST'
     );

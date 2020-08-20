@@ -44,6 +44,14 @@ class CRM_Core_DAO extends DB_DataObject {
    * @deprecated
    */
   public static $_nullObject = NULL;
+
+  /**
+   * Icon associated with this entity.
+   *
+   * @var string
+   */
+  public static $_icon = NULL;
+
   /**
    * @var array
    * @deprecated
@@ -111,6 +119,16 @@ class CRM_Core_DAO extends DB_DataObject {
     $this->__table = $this->getTableName();
   }
 
+  /**
+   * Returns localized title of this entity.
+   * @return string
+   */
+  public static function getEntityTitle() {
+    $className = static::class;
+    Civi::log()->warning("$className needs to be regeneraged. Missing getEntityTitle method.", ['civi.tag' => 'deprecated']);
+    return CRM_Core_DAO_AllCoreTables::getBriefName($className);
+  }
+
   public function __clone() {
     if (!empty($this->_DB_resultid)) {
       $this->resultCopies++;
@@ -160,7 +178,7 @@ class CRM_Core_DAO extends DB_DataObject {
       }
       CRM_Core_DAO::executeQuery("SET SESSION sql_mode = %1", [1 => [implode(',', $currentModes), 'String']]);
     }
-    CRM_Core_DAO::executeQuery('SET NAMES utf8');
+    CRM_Core_DAO::executeQuery('SET NAMES utf8mb4');
     CRM_Core_DAO::executeQuery('SET @uniqueID = %1', [1 => [CRM_Utils_Request::id(), 'String']]);
   }
 
@@ -510,6 +528,43 @@ class CRM_Core_DAO extends DB_DataObject {
   public static function &fields() {
     $result = NULL;
     return $result;
+  }
+
+  /**
+   * Returns all usable fields, indexed by name.
+   *
+   * This function differs from fields() in that it indexes by name rather than unique_name.
+   *
+   * It excludes fields not added yet by pending upgrades.
+   * This avoids problems with trying to SELECT a field that exists in code but has not yet been added to the db.
+   *
+   * @param bool $checkPermissions
+   *   Filter by field permissions.
+   * @return array
+   */
+  public static function getSupportedFields($checkPermissions = FALSE) {
+    $fields = array_column((array) static::fields(), NULL, 'name');
+
+    // Exclude fields yet not added by pending upgrades
+    $dbVer = \CRM_Core_BAO_Domain::version();
+    if ($fields && version_compare($dbVer, \CRM_Utils_System::version()) < 0) {
+      $fields = array_filter($fields, function($field) use ($dbVer) {
+        $add = $field['add'] ?? '1.0.0';
+        if (substr_count($add, '.') < 2) {
+          $add .= '.alpha1';
+        }
+        return version_compare($dbVer, $add, '>=');
+      });
+    }
+
+    // Exclude fields the user does not have permission for
+    if ($checkPermissions) {
+      $fields = array_filter($fields, function($field) {
+        return empty($field['permission']) || CRM_Core_Permission::check($field['permission']);
+      });
+    }
+
+    return $fields;
   }
 
   /**
@@ -1481,12 +1536,6 @@ FROM   civicrm_domain
       return $result;
     }
 
-    if ($freeDAO ||
-      preg_match('/^(insert|update|delete|create|drop|replace)/i', $queryStr)
-    ) {
-      // we typically do this for insert/update/delete statements OR if explicitly asked to
-      // free the dao
-    }
     return $dao;
   }
 
@@ -1736,7 +1785,7 @@ FROM   civicrm_domain
       if (!$blockCopyofCustomValues) {
         $newObject->copyCustomFields($object->id, $newObject->id);
       }
-      CRM_Utils_Hook::post('create', CRM_Core_DAO_AllCoreTables::getBriefName(str_replace('_BAO_', '_DAO_', $daoName)), $newObject->id, $newObject);
+      CRM_Utils_Hook::post('create', CRM_Core_DAO_AllCoreTables::getBriefName($daoName), $newObject->id, $newObject);
     }
 
     return $newObject;
@@ -2459,7 +2508,7 @@ SELECT contact_id
       $coreReferences = CRM_Core_DAO::getReferencesToTable($tableName);
       foreach ($coreReferences as $coreReference) {
         if ($coreReference instanceof \CRM_Core_Reference_Dynamic) {
-          \Civi::$statics[__CLASS__]['contact_references_dynamic'][$tableName][$coreReference->getReferenceTable()][] = $coreReference->getReferenceKey();
+          \Civi::$statics[__CLASS__]['contact_references_dynamic'][$tableName][$coreReference->getReferenceTable()][] = [$coreReference->getReferenceKey(), $coreReference->getTypeColumn()];
         }
       }
     }
@@ -2628,7 +2677,7 @@ SELECT contact_id
    *
    * @param string $context
    *
-   * @throws Exception
+   * @throws CRM_Core_Exception
    * @return array
    */
   public static function buildOptionsContext($context = NULL) {
@@ -2642,7 +2691,7 @@ SELECT contact_id
     ];
     // Validation: enforce uniformity of this param
     if ($context !== NULL && !isset($contexts[$context])) {
-      throw new Exception("'$context' is not a valid context for buildOptions.");
+      throw new CRM_Core_Exception("'$context' is not a valid context for buildOptions.");
     }
     return $contexts;
   }
@@ -2857,11 +2906,11 @@ SELECT contact_id
    * Generates acl clauses suitable for adding to WHERE or ON when doing an api.get for this entity
    *
    * Return format is in the form of fieldname => clauses starting with an operator. e.g.:
-   * @code
+   * ```
    *   array(
    *     'location_type_id' => array('IS NOT NULL', 'IN (1,2,3)')
    *   )
-   * @endcode
+   * ```
    *
    * Note that all array keys must be actual field names in this entity. Use subqueries to filter on other tables e.g. custom values.
    *

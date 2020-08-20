@@ -532,6 +532,26 @@ abstract class CRM_Utils_Hook {
   }
 
   /**
+   * This hook is called before a db write on a custom table.
+   *
+   * @param string $op
+   *   The type of operation being performed.
+   * @param string $groupID
+   *   The custom group ID.
+   * @param object $entityID
+   *   The entityID of the row in the custom table.
+   * @param array $params
+   *   The parameters that were sent into the calling function.
+   *
+   * @return null
+   *   the return value is ignored
+   */
+  public static function customPre($op, $groupID, $entityID, &$params) {
+    return self::singleton()
+      ->invoke(['op', 'groupID', 'entityID', 'params'], $op, $groupID, $entityID, $params, self::$_nullObject, self::$_nullObject, 'civicrm_customPre');
+  }
+
+  /**
    * This hook is called when composing the ACL where clause to restrict
    * visibility of contacts to the logged in user
    *
@@ -1162,7 +1182,7 @@ abstract class CRM_Utils_Hook {
    *   See discussion in CRM-16224 as to whether $paymentObj should be passed by reference.
    * @param array &$rawParams
    *    array of params as passed to to the processor
-   * @param array &$cookedParams
+   * @param array|\Civi\Payment\PropertyBag &$cookedParams
    *     params after the processor code has translated them into its own key/value pairs
    *
    * @return mixed
@@ -2234,10 +2254,8 @@ abstract class CRM_Utils_Hook {
    *      If omitted, default to "array('civicrm/a')" for backward compat.
    *      For a utility that should only be loaded on-demand, use "array()".
    *      For a utility that should be loaded in all pages use, "array('*')".
-   * @return null
-   *   the return value is ignored
    *
-   * @code
+   * ```
    * function mymod_civicrm_angularModules(&$angularModules) {
    *   $angularModules['myAngularModule'] = array(
    *     'ext' => 'org.example.mymod',
@@ -2252,7 +2270,10 @@ abstract class CRM_Utils_Hook {
    *     'basePages' => array('civicrm/a'),
    *   );
    * }
-   * @endcode
+   * ```
+   *
+   * @return null
+   *   the return value is ignored
    */
   public static function angularModules(&$angularModules) {
     return self::singleton()->invoke(['angularModules'], $angularModules,
@@ -2266,7 +2287,7 @@ abstract class CRM_Utils_Hook {
    *
    * @param \Civi\Angular\Manager $angular
    *
-   * @code
+   * ```
    * function example_civicrm_alterAngular($angular) {
    *   $changeSet = \Civi\Angular\ChangeSet::create('mychanges')
    *     ->alterHtml('~/crmMailing/EditMailingCtrl/2step.html', function(phpQueryObject $doc) {
@@ -2275,7 +2296,7 @@ abstract class CRM_Utils_Hook {
    *   );
    *   $angular->add($changeSet);
    * }
-   * @endCode
+   * ```
    */
   public static function alterAngular($angular) {
     $event = \Civi\Core\Event\GenericHookEvent::create([
@@ -2365,7 +2386,7 @@ abstract class CRM_Utils_Hook {
   /**
    * Modify the CiviCRM container - add new services, parameters, extensions, etc.
    *
-   * @code
+   * ```
    * use Symfony\Component\Config\Resource\FileResource;
    * use Symfony\Component\DependencyInjection\Definition;
    *
@@ -2373,7 +2394,7 @@ abstract class CRM_Utils_Hook {
    *   $container->addResource(new FileResource(__FILE__));
    *   $container->setDefinition('mysvc', new Definition('My\Class', array()));
    * }
-   * @endcode
+   * ```
    *
    * Tip: The container configuration will be compiled/cached. The default cache
    * behavior is aggressive. When you first implement the hook, be sure to

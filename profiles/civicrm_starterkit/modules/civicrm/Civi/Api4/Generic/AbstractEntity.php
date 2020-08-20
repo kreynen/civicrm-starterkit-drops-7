@@ -19,6 +19,7 @@
 namespace Civi\Api4\Generic;
 
 use Civi\API\Exception\NotImplementedException;
+use Civi\Api4\Utils\ReflectionUtils;
 
 /**
  * Base class for all api entities.
@@ -66,10 +67,9 @@ abstract class AbstractEntity {
     $permissions = \CRM_Core_Permission::getEntityActionPermissions();
 
     // For legacy reasons the permissions are keyed by lowercase entity name
-    // Note: Convert to camel & back in order to circumvent all the api3 naming oddities
-    $lcentity = _civicrm_api_get_entity_name_from_camel(\CRM_Utils_String::convertStringToCamel(self::getEntityName()));
+    $lcentity = \CRM_Core_DAO_AllCoreTables::convertEntityNameToLower(self::getEntityName());
     // Merge permissions for this entity with the defaults
-    return \CRM_Utils_Array::value($lcentity, $permissions, []) + $permissions['default'];
+    return ($permissions[$lcentity] ?? []) + $permissions['default'];
   }
 
   /**
@@ -79,6 +79,15 @@ abstract class AbstractEntity {
    */
   protected static function getEntityName() {
     return substr(static::class, strrpos(static::class, '\\') + 1);
+  }
+
+  /**
+   * Overridable function to return a localized title for this entity.
+   *
+   * @return string
+   */
+  protected static function getEntityTitle() {
+    return static::getEntityName();
   }
 
   /**
@@ -100,6 +109,23 @@ abstract class AbstractEntity {
       throw new NotImplementedException("Api $entity $action version 4 does not exist.");
     }
     return $actionObject;
+  }
+
+  /**
+   * Reflection function called by Entity::get()
+   *
+   * @see \Civi\Api4\Action\Entity\Get
+   * @return array
+   */
+  public static function getInfo() {
+    $info = [
+      'name' => static::getEntityName(),
+      'title' => static::getEntityTitle(),
+    ];
+    $reflection = new \ReflectionClass(static::class);
+    $info += ReflectionUtils::getCodeDocs($reflection, NULL, ['entity' => $info['name']]);
+    unset($info['package'], $info['method']);
+    return $info;
   }
 
 }
