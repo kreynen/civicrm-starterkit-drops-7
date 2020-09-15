@@ -13,7 +13,7 @@ projects[drupal][version] = "7.61"
 ; ====== CIVICRM RELATED =========
 
 libraries[civicrm][download][type] = get
-libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.28.2-drupal.tar.gz"
+libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.28.4-drupal.tar.gz"
 libraries[civicrm][destination] = modules
 libraries[civicrm][directory_name] = civicrm
 
@@ -58,6 +58,11 @@ libraries[civicrm][patch][1849424-pass] = ./patches/pass-vars-in-install-link.pa
 ; [OPTIONAL] SMTP patch for PHP 5.6+
 ; https://civicrm.stackexchange.com/questions/16628/outgoing-mail-settings-civismtp-php-5-6-x-problem
 libraries[civicrm][patch][smtpverify] = ./patches/smtp-disable-peer-verification.patch
+
+; Prevent validation on Paypal button
+; https://lab.civicrm.org/dev/financial/-/issues/147
+; @todo remove in 5.30.0
+libraries[civicrm][patch][paypalclick] = https://patch-diff.githubusercontent.com/raw/civicrm/civicrm-core/pull/18459.patch
 
 ; === Modules ===
 
