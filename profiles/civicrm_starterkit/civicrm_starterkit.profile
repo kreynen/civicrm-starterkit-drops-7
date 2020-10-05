@@ -5,6 +5,29 @@
  */
 
 /**
+ * Implements hook_init().
+ *
+ * Set the database to use the same timezone as the default in Drupal.
+ * We need this because we Pantheon often migrates databases to new dbserver
+ * instances, which resets the db settings.
+ *
+ * Drupal is fine with changing this since it doesn't rely on it for saving
+ * dates. But it will confuse the CiviCRM reporting if moving the database to
+ * a different timezone on new hosting.
+ */
+function civicrm_starterkit_init() {
+  // We know it's Pantheon and MySQL so we don't need to check for other dbs.
+  // See also class date_sql_handler and views_get_timezone().
+  $php_tz = (new DateTime('now'))->format('P');
+  $db_tz = db_query("SELECT @@global.time_zone;")->fetchField();
+
+  // If they don't match we set the global db to match the PHP timezone.
+  if ($db_tz != $php_tz) {
+    db_query("SET @@global.time_zone = :tz;", [':tz' => $php_tz]);
+  }
+}
+
+/**
  * Implements hook_form_FORM_ID_alter() for install_configure_form().
  *
  * Allows the profile to alter the site configuration form.
