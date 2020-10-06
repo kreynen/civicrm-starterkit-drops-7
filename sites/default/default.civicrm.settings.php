@@ -95,8 +95,6 @@ if (!defined('CIVICRM_UF_DSN') && CIVICRM_UF !== 'UnitTests') {
   }
 }
 
-// %%extraSettings%%
-
 /**
  * CiviCRM Database Settings
  *
@@ -294,7 +292,7 @@ if (isset($_ENV['PANTHEON_SITE'])) {
 }
 
 /**
- * Define any CiviCRM Settings Overrides per http://wiki.civicrm.org/confluence/display/CRMDOC/Override+CiviCRM+Settings
+ * Define any CiviCRM Settings Overrides per https://docs.civicrm.org/sysadmin/en/latest/customize/settings/
  *
  * Uncomment and edit the below as appropriate.
  */
@@ -411,7 +409,7 @@ if (isset($_ENV['PANTHEON_SITE'])) {
  * If you are using any CiviCRM script in the bin directory that
  * requires authentication, then you also need to set this key.
  * We recommend using a 16-32 bit alphanumeric/punctuation key.
- * More info at http://wiki.civicrm.org/confluence/display/CRMDOC/Command-line+Script+Configuration
+ * More info at https://docs.civicrm.org/sysadmin/en/latest/setup/site-key/
  */
 if (!defined('CIVICRM_SITE_KEY')) {
   define( 'CIVICRM_SITE_KEY', '%%siteKey%%');
@@ -592,7 +590,7 @@ if (!defined('CIVICRM_PSR16_STRICT')) {
  * # dpkg-reconfigure locales
  *
  * For more information:
- * http://wiki.civicrm.org/confluence/x/YABFBQ
+ * https://lab.civicrm.org/dev/translation/-/wikis/Administrator-Guide#native-gettext
  */
 // if (!defined('CIVICRM_GETTEXT_NATIVE')) {
 // define('CIVICRM_GETTEXT_NATIVE', 1);
@@ -615,16 +613,50 @@ define('CIVICRM_DEADLOCK_RETRIES', 3);
 // define('CIVICRM_MYSQL_STRICT', TRUE );
 // }
 
-/**
- * Specify whether the CRM_Core_BAO_Cache should use the legacy
- * direct-to-SQL-mode or the interim PSR-16 adapter.
- */
-define('CIVICRM_BAO_CACHE_ADAPTER', 'CRM_Core_BAO_Cache_Psr16');
-
 if (CIVICRM_UF === 'UnitTests') {
   if (!defined('CIVICRM_CONTAINER_CACHE')) define('CIVICRM_CONTAINER_CACHE', 'auto');
   if (!defined('CIVICRM_MYSQL_STRICT')) define('CIVICRM_MYSQL_STRICT', true);
 }
+
+/**
+ * Whether to include the hash in config log filenames. Defaults to TRUE.
+ * Disable only if you have configured the logfiles to be outside the docroot
+ * using the civicrm.log path setting.
+ *
+ */
+// if (!defined('CIVICRM_LOG_HASH'))  {
+//   define('CIVICRM_LOG_HASH', FALSE );
+// }
+
+/**
+ * The maximum size a log file may be before it's rotated, in bytes.
+ * Set to 0 to disable rotation (only recommended if you have an
+ * external logrotate configuration).
+ */
+// if (!defined('CIVICRM_LOG_ROTATESIZE')) {
+//   define('CIVICRM_LOG_ROTATESIZE', 0 );
+// }
+
+/**
+ * Which directories should we exclude when scanning the codebase for things
+ * like extension .info files, or .html partials or .xml files etc. This needs
+ * to be a valid preg_match() pattern.
+ *
+ * If you do not define it, a pattern that excludes dirs starting with a dot is
+ * used, e.g. to exclude .git/). Adding suitable patterns here can vastly speed
+ * up your container rebuilds and cache flushes. The pattern is matched against
+ * the absolute path. Remember to use your system's DIRECTORY_SEPARATOR the
+ * examples below assume /
+ *
+ * Example: This excludes node_modules (can be huge), various CiviCRM dirs that
+ * are unlikely to have anything we need to scan inside, and (what could be
+ * your) Drupal's private file storage area.
+ *
+ * '@/(\.|node_modules|js/|css/|bower_components|packages/|vendor/|sites/default/files/private)@'
+ */
+// if (!defined('CIVICRM_EXCLUDE_DIRS_PATTERN')) {
+//   define('CIVICRM_EXCLUDE_DIRS_PATTERN', '@/\.@');
+// }
 
 /**
  *
