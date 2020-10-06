@@ -14,6 +14,7 @@ return array(
     $vendorDir . '/pear/console_getopt',
     $vendorDir . '/pear/pear-core-minimal/src',
     $vendorDir . '/pear/mail',
+    $vendorDir . '/pear/mail_mime',
     $vendorDir . '/pear/net_socket',
     $vendorDir . '/pear/net_smtp',
     $vendorDir . '/pear/validate_finance_creditcard',

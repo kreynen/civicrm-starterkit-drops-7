@@ -45,9 +45,9 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
    * Skip duplicate check.
    *
    * This can be set using hook_civicrm_buildForm() to override the registration dupe check.
-   * CRM-7604
    *
    * @var bool
+   * @see https://issues.civicrm.org/jira/browse/CRM-7604
    */
   public $_skipDupeRegistrationCheck = FALSE;
 
@@ -629,6 +629,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
           }
         }
       }
+      $form->_priceSet['id'] = $form->_priceSet['id'] ?? $form->_priceSetId;
       $form->assign('priceSet', $form->_priceSet);
     }
     else {

@@ -367,8 +367,8 @@ class CRM_Contact_Form_Contact extends CRM_Core_Form {
       else {
         $contactSubType = $this->_contactSubType;
         // need contact sub type to build related grouptree array during post process
-        if (!empty($_POST['contact_sub_type'])) {
-          $contactSubType = $_POST['contact_sub_type'];
+        if (!empty($_POST['qfKey'])) {
+          $contactSubType = $_POST['contact_sub_type'] ?? NULL;
         }
         //only custom data has preprocess hence directly call it
         CRM_Custom_Form_CustomData::preProcess($this, NULL, $contactSubType,
@@ -870,8 +870,10 @@ class CRM_Contact_Form_Contact extends CRM_Core_Form {
     }
 
     $group = $params['group'] ?? NULL;
-    if (!empty($group) && is_array($group)) {
-      unset($params['group']);
+    $params['group'] = ($params['group'] == '') ? [] : $params['group'];
+    if (!empty($group)) {
+      $group = is_array($group) ? $group : explode(',', $group);
+      $params['group'] = [];
       foreach ($group as $key => $value) {
         $params['group'][$value] = 1;
       }

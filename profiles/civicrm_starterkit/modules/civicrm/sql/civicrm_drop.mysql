@@ -55,6 +55,7 @@ DROP TABLE IF EXISTS `civicrm_mailing_job`;
 DROP TABLE IF EXISTS `civicrm_mailing_trackable_url`;
 DROP TABLE IF EXISTS `civicrm_mailing_group`;
 DROP TABLE IF EXISTS `civicrm_mailing`;
+DROP TABLE IF EXISTS `civicrm_relationship_cache`;
 DROP TABLE IF EXISTS `civicrm_relationship`;
 DROP TABLE IF EXISTS `civicrm_dashboard_contact`;
 DROP TABLE IF EXISTS `civicrm_action_log`;

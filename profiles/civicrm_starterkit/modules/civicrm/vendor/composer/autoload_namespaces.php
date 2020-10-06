@@ -13,7 +13,7 @@ return array(
     'PHPUnit_' => array($baseDir . '/packages'),
     'Net' => array($vendorDir . '/phpseclib/phpseclib/phpseclib', $vendorDir . '/pear/net_socket', $vendorDir . '/pear/net_smtp'),
     'Math' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
-    'Mail' => array($vendorDir . '/pear/mail'),
+    'Mail' => array($vendorDir . '/pear/mail', $vendorDir . '/pear/mail_mime'),
     'Log' => array($vendorDir . '/pear/log'),
     'File' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
     'Dflydev\\ApacheMimeTypes' => array($vendorDir . '/dflydev/apache-mime-types/src'),

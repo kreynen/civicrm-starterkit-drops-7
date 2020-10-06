@@ -12,8 +12,7 @@
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2020
- * $Id$
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  * @param $filesDirectory
  */
 function civicrm_setup($filesDirectory) {
@@ -209,18 +208,6 @@ function civicrm_config(&$config) {
     'dbHost' => $config['mysql']['server'],
     'dbName' => addslashes($config['mysql']['database']),
   );
-  
-  // when running on Pantheon, part of $crmPath is set dynamically in civicrm_settings.php
-  //if civicrm is in a profile
-  if (strpos($crmPath , 'profile')) {
-    $modulePathParts = explode('profiles/', $crmPath);
-    $params['modulePath'] = 'profiles/' . $modulePathParts[1];
-  }
-  // if civicrm is not in profile, it is in sites 
-  if (!isset($params['modulePath'])) {
-    $modulePathParts = explode('sites/', $crmPath);
-    $params['modulePath'] = 'sites/' . $modulePathParts[1];
-  }
 
   $params['baseURL'] = $config['base_url'] ?? civicrm_cms_base();
   if ($installType == 'drupal' && defined('VERSION')) {
@@ -312,17 +299,14 @@ function civicrm_cms_base() {
     $url = 'http://' . $_SERVER['HTTP_HOST'];
   }
 
-  $baseURL = str_replace('//', '/', $_SERVER['SCRIPT_NAME']);
+  $baseURL = $_SERVER['SCRIPT_NAME'];
 
   if ($installType == 'drupal' || $installType == 'backdrop') {
     //don't assume 6 dir levels, as civicrm
     //may or may not be in sites/all/modules/
     //lets allow to install in custom dir. CRM-6840
     global $cmsPath;
-
-    // Clean up the filepath.
-    $script_filename = str_replace('//', '/', $_SERVER['SCRIPT_FILENAME']);
-    $crmDirLevels = str_replace($cmsPath, '', str_replace('\\', '/', $script_filename));
+    $crmDirLevels = str_replace($cmsPath, '', str_replace('\\', '/', $_SERVER['SCRIPT_FILENAME']));
     $baseURL = str_replace($crmDirLevels, '', str_replace('\\', '/', $baseURL));
   }
   elseif ($installType == 'wordpress') {

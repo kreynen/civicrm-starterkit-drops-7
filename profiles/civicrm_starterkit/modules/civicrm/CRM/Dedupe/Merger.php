@@ -541,6 +541,12 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
         continue;
       }
 
+      if ($table === 'civicrm_dashboard_contact') {
+        $sqls[] = "UPDATE IGNORE civicrm_dashboard_contact SET contact_id = $mainId WHERE contact_id = $otherId";
+        $sqls[] = "DELETE FROM civicrm_dashboard_contact WHERE contact_id = $otherId";
+        continue;
+      }
+
       if ($table === 'civicrm_dedupe_exception') {
         $sqls[] = "UPDATE IGNORE civicrm_dedupe_exception SET contact_id1 = $mainId WHERE contact_id1 = $otherId";
         $sqls[] = "UPDATE IGNORE civicrm_dedupe_exception SET contact_id2 = $mainId WHERE contact_id2 = $otherId";
@@ -616,8 +622,7 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
    * @throws \Civi\API\Exception\UnauthorizedException
    */
   protected static function filterRowBasedCustomDataFromCustomTables(array &$cidRefs) {
-    $customTables = (array) CustomGroup::get()
-      ->setCheckPermissions(FALSE)
+    $customTables = (array) CustomGroup::get(FALSE)
       ->setSelect(['table_name'])
       ->addWhere('is_multiple', '=', 0)
       ->addWhere('extends', 'IN', array_merge(['Contact'], CRM_Contact_BAO_ContactType::contactTypes()))
@@ -631,6 +636,30 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
         unset($cidRefs[$tableName]);
       }
     }
+  }
+
+  /**
+   * Update the contact with the new parameters.
+   *
+   * This function is intended as an interim function, with the intent being
+   * an apiv4 call.
+   *
+   * The function was calling the rather-terrifying createProfileContact. I copied all
+   * that code into this function and then removed all the parts that have no effect in this scenario.
+   *
+   * @param int $contactID
+   * @param array $params
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
+   * @throws \Civi\API\Exception\UnauthorizedException
+   */
+  protected static function createContact($contactID, $params) {
+    // This parameter causes blank fields to be be emptied out.
+    // We can probably remove.
+    $params['updateBlankLocInfo'] = TRUE;
+    list($data) = CRM_Contact_BAO_Contact::formatProfileContactParams($params, [], $contactID);
+    CRM_Contact_BAO_Contact::create($data);
   }
 
   /**
@@ -930,7 +959,8 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
           unset($dupePairs[$index]);
           continue;
         }
-        if (($result = self::dedupePair($dupes, $mode, $checkPermissions, $cacheKeyString)) === FALSE) {
+        CRM_Utils_Hook::merge('flip', $dupes, $dupes['dstID'], $dupes['srcID']);
+        if (($result = self::dedupePair((int) $dupes['dstID'], (int) $dupes['srcID'], $mode, $checkPermissions, $cacheKeyString)) === FALSE) {
           unset($dupePairs[$index]);
           continue;
         }
@@ -1000,7 +1030,11 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
   }
 
   /**
-   * Compare 2 addresses to see if they are the same.
+   * Compare 2 addresses to see if they are the effectively the same.
+   *
+   * Being the same would mean same location type and any populated fields that describe the locationn match.
+   *
+   * Metadata fields such as is_primary, on_hold, manual_geocode may differ.
    *
    * @param array $mainAddress
    * @param array $comparisonAddress
@@ -1018,6 +1052,39 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
       }
     }
     return TRUE;
+  }
+
+  /**
+   * Does the location array have valid data.
+   *
+   * While not UI-creatable some sites wind up with email or address rows with no actual email or address
+   * through non core-UI processes.
+   *
+   * @param array $location
+   *
+   * @return bool
+   */
+  public static function locationHasData($location) {
+    return !empty(self::getLocationDataFields($location));
+  }
+
+  /**
+   * Get the location data from a location array, filtering out metadata.
+   *
+   * This returns data like street_address but not metadata like is_primary, on_hold etc.
+   *
+   * @param array $location
+   *
+   * @return mixed
+   */
+  public static function getLocationDataFields($location) {
+    $keysToIgnore = array_merge(self::ignoredFields(), ['display', 'location_type_id']);
+    foreach ($location as $field => $value) {
+      if (in_array($field, $keysToIgnore, TRUE)) {
+        unset($location[$field]);
+      }
+    }
+    return $location;
   }
 
   /**
@@ -1092,9 +1159,6 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
    *
    *   elements => An array of form elements for the merge UI
    *
-   *   rel_table_elements => An array of form elements for the merge UI for
-   *     entities related to the contact (eg: checkbox to move 'mailings')
-   *
    *   rel_tables => Stores the tables that have related entities for the contact
    *     for example mailings, groups
    *
@@ -1124,7 +1188,7 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
 
     $compareFields = self::retrieveFields($main, $other);
 
-    $rows = $elements = $relTableElements = $migrationInfo = [];
+    $rows = $elements = $migrationInfo = [];
 
     foreach ($compareFields['contact'] as $field) {
       if ($field === 'contact_sub_type') {
@@ -1181,7 +1245,6 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
     $mergeHandler = new CRM_Dedupe_MergeHandler((int) $mainId, (int) $otherId);
     $relTables = $mergeHandler->getTablesRelatedToTheMergePair();
     foreach ($relTables as $name => $null) {
-      $relTableElements[] = ['checkbox', "move_$name"];
       $migrationInfo["move_$name"] = 1;
 
       $relTables[$name]['main_url'] = str_replace('$cid', $mainId, $relTables[$name]['url']);
@@ -1269,7 +1332,6 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
     $result = [
       'rows' => $rows,
       'elements' => $elements,
-      'rel_table_elements' => $relTableElements,
       'rel_tables' => $relTables,
       'main_details' => $main,
       'other_details' => $other,
@@ -1469,8 +1531,7 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
       if (!isset($submitted['suffix_id']) && !empty($migrationInfo['main_details']['suffix_id'])) {
         $submitted['suffix_id'] = $migrationInfo['main_details']['suffix_id'];
       }
-      $null = [];
-      CRM_Contact_BAO_Contact::createProfileContact($submitted, $null, $mainId);
+      self::createContact($mainId, $submitted);
     }
     $transaction->commit();
     CRM_Utils_Hook::post('merge', 'Contact', $mainId);
@@ -1863,26 +1924,22 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
   /**
    * Dedupe a pair of contacts.
    *
-   * @param array $dupes
+   * @param int $mainId Id of contact to keep.
+   * @param int $otherId Id of contact to delete.
    * @param string $mode
    * @param bool $checkPermissions
    * @param string $cacheKeyString
    *
    * @return bool|array
-   * @throws \CRM_Core_Exception
-   * @throws \CiviCRM_API3_Exception
    * @throws \API_Exception
+   * @throws \CRM_Core_Exception
+   * @throws \CRM_Core_Exception_ResourceConflictException
+   * @throws \CiviCRM_API3_Exception
+   * @throws \Civi\API\Exception\UnauthorizedException
    */
-  protected static function dedupePair($dupes, $mode = 'safe', $checkPermissions = TRUE, $cacheKeyString = NULL) {
-    CRM_Utils_Hook::merge('flip', $dupes, $dupes['dstID'], $dupes['srcID']);
-    $mainId = $dupes['dstID'];
-    $otherId = $dupes['srcID'];
+  protected static function dedupePair(int $mainId, int $otherId, $mode = 'safe', $checkPermissions = TRUE, $cacheKeyString = NULL) {
     $resultStats = [];
 
-    if (!$mainId || !$otherId) {
-      // return error
-      return FALSE;
-    }
     $migrationInfo = [];
     $conflicts = [];
     // Try to lock the contacts before we load the data as we don't want it changing under us.
@@ -2145,13 +2202,19 @@ INNER JOIN  civicrm_membership membership2 ON membership1.membership_type_id = m
           // If it exists on the 'main' contact already, skip it. Otherwise
           // if the location type exists already, log a conflict.
           foreach ($migrationInfo['main_details']['location_blocks'][$fieldName] as $mainAddressKey => $mainAddressRecord) {
+            if (!self::locationHasData($mainAddressRecord)) {
+              // Go ahead & overwrite the main address - it has no data in it.
+              // if it is the primary address then pass that honour to the address that actually has data.
+              $migrationInfo['location_blocks'][$fieldName][$mainAddressKey]['set_other_primary'] = $mainAddressRecord['is_primary'];
+              continue;
+            }
             if (self::locationIsSame($addressRecord, $mainAddressRecord)) {
               unset($migrationInfo[$key]);
-              break;
+              continue;
             }
-            elseif ($addressRecordLocTypeId == $mainAddressRecord['location_type_id']) {
+            if ($addressRecordLocTypeId == $mainAddressRecord['location_type_id']) {
               $conflicts[$key] = NULL;
-              break;
+              continue;
             }
           }
         }

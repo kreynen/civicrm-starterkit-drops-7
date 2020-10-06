@@ -13,7 +13,6 @@
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- *
  * Table naming rules:
  *   - MySQL imposes a 64 char limit.
  *   - All temp tables start with "civicrm_tmp".
@@ -136,24 +135,13 @@ class CRM_Utils_SQL_TempTable {
   /**
    * Get the utf8 string for the table.
    *
-   * If the db collation is already utf8 by default (either
-   * utf8 or utf84mb) then rely on that. Otherwise set to utf8.
-   *
-   * Respecting the DB collation supports utf8mb4 adopters, which is currently
-   * not the norm in civi installs.
+   * Our tables are either utf8_unicode_ci OR utf8mb8_unicode_ci - check the contact table
+   * to see which & use the matching one.
    *
    * @return string
    */
   public function getUtf8String() {
-    if (!$this->utf8) {
-      return '';
-    }
-    $dbUTF = CRM_Core_BAO_SchemaHandler::getDBCollation();
-    if (in_array($dbUTF, ['utf8_unicode_ci', 'utf8mb4_unicode_ci'])
-      && in_array($dbUTF, ['utf8', 'utf8mb4'])) {
-      return '';
-    }
-    return self::UTF8;
+    return $this->utf8 ? ('COLLATE ' . CRM_Core_BAO_SchemaHandler::getInUseCollation()) : '';
   }
 
   /**
@@ -169,7 +157,7 @@ class CRM_Utils_SQL_TempTable {
       $this->toSQL('CREATE'),
       $columns,
       $this->memory ? self::MEMORY : self::INNODB,
-      $this->utf8 ? self::UTF8 : ''
+      $this->getUtf8String()
     );
     CRM_Core_DAO::executeQuery($sql, [], TRUE, NULL, TRUE, FALSE);
     $this->createSql = $sql;

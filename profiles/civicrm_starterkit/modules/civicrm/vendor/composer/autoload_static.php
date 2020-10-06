@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit5d1590a84317c7221c13a6c8764590a7
+class ComposerStaticInitc0c306f7aec196654ddc587ff3d70d96
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -323,6 +323,7 @@ class ComposerStaticInit5d1590a84317c7221c13a6c8764590a7
             'Mail' => 
             array (
                 0 => __DIR__ . '/..' . '/pear/mail',
+                1 => __DIR__ . '/..' . '/pear/mail_mime',
             ),
         ),
         'L' => 
@@ -389,10 +390,10 @@ class ComposerStaticInit5d1590a84317c7221c13a6c8764590a7
         'CallbackParameterToReference' => __DIR__ . '/..' . '/electrolinux/phpquery/phpQuery/phpQuery/Callback.php',
         'CallbackReturnReference' => __DIR__ . '/..' . '/electrolinux/phpquery/phpQuery/phpQuery/Callback.php',
         'CallbackReturnValue' => __DIR__ . '/..' . '/electrolinux/phpquery/phpQuery/phpQuery/Callback.php',
-        'Cpdf' => __DIR__ . '/..' . '/dompdf/dompdf/lib/Cpdf.php',
         'DOMDocumentWrapper' => __DIR__ . '/..' . '/electrolinux/phpquery/phpQuery/phpQuery/DOMDocumentWrapper.php',
         'DOMEvent' => __DIR__ . '/..' . '/electrolinux/phpquery/phpQuery/phpQuery/DOMEvent.php',
         'Datamatrix' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/barcodes/datamatrix.php',
+        'Dompdf\\Cpdf' => __DIR__ . '/..' . '/dompdf/dompdf/lib/Cpdf.php',
         'HTML5_Data' => __DIR__ . '/..' . '/dompdf/dompdf/lib/html5lib/Data.php',
         'HTML5_InputStream' => __DIR__ . '/..' . '/dompdf/dompdf/lib/html5lib/InputStream.php',
         'HTML5_Parser' => __DIR__ . '/..' . '/dompdf/dompdf/lib/html5lib/Parser.php',
@@ -530,11 +531,11 @@ class ComposerStaticInit5d1590a84317c7221c13a6c8764590a7
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit5d1590a84317c7221c13a6c8764590a7::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit5d1590a84317c7221c13a6c8764590a7::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit5d1590a84317c7221c13a6c8764590a7::$prefixesPsr0;
-            $loader->fallbackDirsPsr0 = ComposerStaticInit5d1590a84317c7221c13a6c8764590a7::$fallbackDirsPsr0;
-            $loader->classMap = ComposerStaticInit5d1590a84317c7221c13a6c8764590a7::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitc0c306f7aec196654ddc587ff3d70d96::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitc0c306f7aec196654ddc587ff3d70d96::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInitc0c306f7aec196654ddc587ff3d70d96::$prefixesPsr0;
+            $loader->fallbackDirsPsr0 = ComposerStaticInitc0c306f7aec196654ddc587ff3d70d96::$fallbackDirsPsr0;
+            $loader->classMap = ComposerStaticInitc0c306f7aec196654ddc587ff3d70d96::$classMap;
 
         }, null, ClassLoader::class);
     }

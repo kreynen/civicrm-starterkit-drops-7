@@ -9,6 +9,10 @@
  +--------------------------------------------------------------------+
  */
 
+use Civi\Api4\Activity;
+use Civi\Api4\ContributionPage;
+use Civi\Api4\ContributionRecur;
+
 /**
  *
  * @package CRM
@@ -461,6 +465,7 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
    *
    * @return CRM_Contribute_BAO_Contribution
    *
+   * @throws \API_Exception
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    */
@@ -512,26 +517,33 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
 
     $transaction->commit();
 
-    $activity = civicrm_api3('Activity', 'get', [
-      'source_record_id' => $contribution->id,
-      'options' => ['limit' => 1],
-      'sequential' => 1,
-      'activity_type_id' => 'Contribution',
-      'return' => ['id', 'campaign'],
-    ]);
-
-    //CRM-18406: Update activity when edit contribution.
-    if ($activity['count']) {
-      // CRM-13237 : if activity record found, update it with campaign id of contribution
-      // @todo compare campaign ids first.
-      CRM_Core_DAO::setFieldValue('CRM_Activity_BAO_Activity', $activity['id'], 'campaign_id', $contribution->campaign_id);
-      $contribution->activity_id = $activity['id'];
-    }
-
     if (empty($contribution->contact_id)) {
       $contribution->find(TRUE);
     }
-    CRM_Activity_BAO_Activity::addActivity($contribution, 'Contribution');
+
+    $isCompleted = ('Completed' === CRM_Core_PseudoConstant::getName('CRM_Contribute_BAO_Contribution', 'contribution_status_id', $contribution->contribution_status_id));
+    if (!empty($params['on_behalf'])
+      ||  $isCompleted
+    ) {
+      $existingActivity = Activity::get(FALSE)->setWhere([
+        ['source_record_id', '=', $contribution->id],
+        ['activity_type_id:name', '=', 'Contribution'],
+      ])->execute()->first();
+
+      $campaignParams = isset($params['campaign_id']) ? ['campaign_id' => ($params['campaign_id'] ?? NULL)] : [];
+      Activity::save(FALSE)->addRecord(array_merge([
+        'activity_type_id:name' => 'Contribution',
+        'source_record_id' => $contribution->id,
+        'source_contact_id' => CRM_Core_Session::getLoggedInContactID() ?: $contribution->contact_id,
+        'target_contact_id' => CRM_Core_Session::getLoggedInContactID() ? [$contribution->contact_id] : [],
+        'activity_date_time' => $contribution->receive_date,
+        'is_test' => (bool) $contribution->is_test,
+        'status_id:name' => $isCompleted ? 'Completed' : 'Scheduled',
+        'skipRecentView' => TRUE,
+        'subject' => CRM_Activity_BAO_Activity::getActivitySubject($contribution),
+        'id' => $existingActivity['id'] ?? NULL,
+      ], $campaignParams))->execute();
+    }
 
     // do not add to recent items for import, CRM-4399
     if (empty($params['skipRecentView'])) {
@@ -1333,6 +1345,38 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
       $rows[] = $val;
     }
     return $rows;
+  }
+
+  /**
+   * Should an email receipt be sent for this contribution on completion.
+   *
+   * @param array $input
+   * @param int $contributionPageID
+   * @param int $recurringContributionID
+   *
+   * @return bool
+   * @throws \API_Exception
+   * @throws \Civi\API\Exception\UnauthorizedException
+   */
+  protected static function isEmailReceipt(array $input, $contributionPageID, $recurringContributionID): bool {
+    if (isset($input['is_email_receipt'])) {
+      return (bool) $input['is_email_receipt'];
+    }
+    if ($recurringContributionID) {
+      //CRM-13273 - is_email_receipt setting on recurring contribution should take precedence over contribution page setting
+      // but CRM-16124 if $input['is_email_receipt'] is set then that should not be overridden.
+      // dev/core#1245 this maybe not the desired effect because the default value for is_email_receipt is set to 0 rather than 1 in
+      // Instance that had the table added via an upgrade in 4.1
+      // see also https://github.com/civicrm/civicrm-svn/commit/7f39befd60bc735408d7866b02b3ac7fff1d4eea#diff-9ad8e290180451a2d6eacbd3d1ca7966R354
+      // https://lab.civicrm.org/dev/core/issues/1245
+      return (bool) ContributionRecur::get(FALSE)->addWhere('id', '=', $recurringContributionID)->addSelect('is_email_receipt')->execute()->first()['is_email_receipt'];
+    }
+    if ($contributionPageID) {
+      return (bool) ContributionPage::get(FALSE)->addWhere('id', '=', $contributionPageID)->addSelect('is_email_receipt')->execute()->first()['is_email_receipt'];
+    }
+    // This would be the case for backoffice (where is_email_receipt is not passed in) or events, where Event::sendMail will filter
+    // again anyway.
+    return TRUE;
   }
 
   /**
@@ -2565,12 +2609,11 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
    * @param CRM_Contribute_BAO_Contribution $contribution
    * @param array $input
    * @param array $contributionParams
-   * @param int $paymentProcessorID
    *
-   * @return bool
+   * @return bool|array
    * @throws CiviCRM_API3_Exception
    */
-  protected static function repeatTransaction(&$contribution, &$input, $contributionParams, $paymentProcessorID) {
+  protected static function repeatTransaction(&$contribution, &$input, $contributionParams) {
     if (!empty($contribution->id)) {
       return FALSE;
     }
@@ -2601,17 +2644,21 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
         ])
       );
       $input['line_item'] = $contributionParams['line_item'] = $templateContribution['line_item'];
-
       $contributionParams['status_id'] = 'Pending';
-      if (isset($contributionParams['financial_type_id'])) {
-        // Give precedence to passed in type.
+
+      if (isset($contributionParams['financial_type_id']) && count($input['line_item']) === 1) {
+        // We permit the financial type to be overridden for single line items.
+        // More comments on this are in getTemplateTransaction.
         $contribution->financial_type_id = $contributionParams['financial_type_id'];
       }
       else {
         $contributionParams['financial_type_id'] = $templateContribution['financial_type_id'];
       }
-      $contributionParams['contact_id'] = $templateContribution['contact_id'];
-      $contributionParams['source'] = empty($templateContribution['source']) ? ts('Recurring contribution') : $templateContribution['source'];
+      foreach (['contact_id', 'currency', 'source'] as $fieldName) {
+        $contributionParams[$fieldName] = $templateContribution[$fieldName];
+      }
+
+      $contributionParams['source'] = $contributionParams['source'] ?: ts('Recurring contribution');
 
       //CRM-18805 -- Contribution page not recorded on recurring transactions, Recurring contribution payments
       //do not create CC or BCC emails or profile notifications.
@@ -2626,9 +2673,9 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
 
       $createContribution = civicrm_api3('Contribution', 'create', $contributionParams);
       $contribution->id = $createContribution['id'];
-      CRM_Contribute_BAO_ContributionRecur::copyCustomValues($contributionParams['contribution_recur_id'], $contribution->id);
+      $contribution->copyCustomFields($templateContribution['id'], $contribution->id);
       self::handleMembershipIDOverride($contribution->id, $input);
-      return TRUE;
+      return $createContribution;
     }
   }
 
@@ -2917,7 +2964,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
 
     //not really sure what params might be passed in but lets merge em into values
     $values = array_merge($this->_gatherMessageValues($input, $values, $ids), $values);
-    $values['is_email_receipt'] = $this->isEmailReceipt($input, $values);
+    $values['is_email_receipt'] = !$returnMessageText;
     if (!empty($input['receipt_date'])) {
       $values['receipt_date'] = $input['receipt_date'];
     }
@@ -3099,7 +3146,11 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
       //get soft contributions
       $softContributions = CRM_Contribute_BAO_ContributionSoft::getSoftContribution($this->id, TRUE);
       if (!empty($softContributions)) {
-        $values['softContributions'] = $softContributions['soft_credit'];
+        // For pcp soft credit, there is no 'soft_credit' member it comes
+        // back in different array members, but shortly after returning from
+        // this function it calls _assignMessageVariablesToTemplate which does
+        // its own lookup of any pcp soft credit, so we can skip it here.
+        $values['softContributions'] = $softContributions['soft_credit'] ?? NULL;
       }
       if (isset($this->contribution_page_id)) {
         // This is a call we want to use less, in favour of loading related objects.
@@ -3915,6 +3966,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
       'Refunded' => ['Cancelled', 'Completed'],
       'Partially paid' => ['Completed'],
       'Pending refund' => ['Completed', 'Refunded'],
+      'Failed' => ['Pending'],
     ];
 
     if (!in_array($contributionStatuses[$fields['contribution_status_id']],
@@ -3930,7 +3982,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
   /**
    * Delete contribution of contact.
    *
-   * CRM-12155
+   * @see https://issues.civicrm.org/jira/browse/CRM-12155
    *
    * @param int $contactId
    *   Contact id.
@@ -3995,7 +4047,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
   /**
    * Validate financial type.
    *
-   * CRM-13231
+   * @see https://issues.civicrm.org/jira/browse/CRM-13231
    *
    * @param int $financialTypeId
    *   Financial Type id.
@@ -4391,8 +4443,6 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    * @param array $input
    * @param array $ids
    * @param array $objects
-   * @param CRM_Core_Transaction $transaction
-   *   It is not recommended to pass this in. The calling function handle it's own roll back if it wants it.
    * @param bool $isPostPaymentCreate
    *   Is this being called from the payment.create api. If so the api has taken care of financial entities.
    *   Note that our goal is that this would only ever be called from payment.create and never handle financials (only
@@ -4402,10 +4452,8 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    */
-  public static function completeOrder($input, &$ids, $objects, $transaction = NULL, $isPostPaymentCreate = FALSE) {
-    if (!$transaction) {
-      $transaction = new CRM_Core_Transaction();
-    }
+  public static function completeOrder($input, &$ids, $objects, $isPostPaymentCreate = FALSE) {
+    $transaction = new CRM_Core_Transaction();
     $contribution = $objects['contribution'];
     $primaryContributionID = $contribution->id ?? $objects['first_contribution']->id;
     // The previous details are used when calculating line items so keep it before any code that 'does something'
@@ -4425,10 +4473,8 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
       'contribution_status_id',
       'card_type_id',
       'pan_truncation',
+      'financial_type_id',
     ];
-    if (self::isSingleLineItem($primaryContributionID)) {
-      $inputContributionWhiteList[] = 'financial_type_id';
-    }
 
     $participant = $objects['participant'] ?? NULL;
     $recurContrib = $objects['contributionRecur'] ?? NULL;
@@ -4453,11 +4499,6 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
     ], array_intersect_key($input, array_fill_keys($inputContributionWhiteList, 1)
     ));
 
-    // CRM-20678 Ensure that the currency is correct in subseqent transcations.
-    if (empty($contributionParams['currency']) && isset($objects['first_contribution']->currency)) {
-      $contributionParams['currency'] = $objects['first_contribution']->currency;
-    }
-
     $contributionParams['payment_processor'] = $input['payment_processor'] = $paymentProcessorId;
 
     // If paymentProcessor is not set then the payment_instrument_id would not be correct.
@@ -4471,48 +4512,12 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
     }
     $changeDate = CRM_Utils_Array::value('trxn_date', $input, date('YmdHis'));
 
-    if (empty($contributionParams['receive_date']) && $changeDate) {
-      $contributionParams['receive_date'] = $changeDate;
-    }
-
-    self::repeatTransaction($contribution, $input, $contributionParams, $paymentProcessorId);
-    $contributionParams['financial_type_id'] = $contribution->financial_type_id;
-
-    $values = [];
-    if (isset($input['is_email_receipt'])) {
-      $values['is_email_receipt'] = $input['is_email_receipt'];
-    }
+    $contributionResult = self::repeatTransaction($contribution, $input, $contributionParams);
 
     if ($input['component'] == 'contribute') {
-      if ($contribution->contribution_page_id) {
-        // Figure out what we gain from this.
-        // Note that we may have overwritten the is_email_receipt input, fix that below.
-        CRM_Contribute_BAO_ContributionPage::setValues($contribution->contribution_page_id, $values);
-      }
-      elseif ($recurContrib && $recurringContributionID) {
-        $values['amount'] = $recurContrib->amount;
-        $values['financial_type_id'] = $objects['contributionType']->id;
-        $values['title'] = $source = ts('Offline Recurring Contribution');
-      }
-
-      if (isset($input['is_email_receipt'])) {
-        // CRM-19601 - we may have overwritten this above.
-        $values['is_email_receipt'] = $input['is_email_receipt'];
-      }
-      elseif ($recurContrib && $recurringContributionID) {
-        //CRM-13273 - is_email_receipt setting on recurring contribution should take precedence over contribution page setting
-        // but CRM-16124 if $input['is_email_receipt'] is set then that should not be overridden.
-        // dev/core#1245 this maybe not the desired effect because the default value for is_email_receipt is set to 0 rather than 1 in
-        // Instance that had the table added via an upgrade in 4.1
-        // see also https://github.com/civicrm/civicrm-svn/commit/7f39befd60bc735408d7866b02b3ac7fff1d4eea#diff-9ad8e290180451a2d6eacbd3d1ca7966R354
-        // https://lab.civicrm.org/dev/core/issues/1245
-        $values['is_email_receipt'] = $recurContrib->is_email_receipt;
-      }
-
       if ($contributionParams['contribution_status_id'] === $completedContributionStatusID) {
         self::updateMembershipBasedOnCompletionOfContribution(
           $contribution,
-          $primaryContributionID,
           $changeDate
         );
       }
@@ -4532,10 +4537,9 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
     $contributionParams['id'] = $contribution->id;
     $contributionParams['is_post_payment_create'] = $isPostPaymentCreate;
 
-    // CRM-19309 - if you update the contribution here with financial_type_id it can/will mess with $lineItem
-    // unsetting it here does NOT cause any other contribution test to fail!
-    unset($contributionParams['financial_type_id']);
-    $contributionResult = civicrm_api3('Contribution', 'create', $contributionParams);
+    if (!$contributionResult) {
+      $contributionResult = civicrm_api3('Contribution', 'create', $contributionParams);
+    }
 
     // Add new soft credit against current $contribution.
     if (!empty($objects['contributionRecur']) && $objects['contributionRecur']->id) {
@@ -4550,13 +4554,15 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
     }
     $contribution->contribution_status_id = $contributionParams['contribution_status_id'];
 
-    CRM_Core_Error::debug_log_message("Contribution record updated successfully");
+    CRM_Core_Error::debug_log_message('Contribution record updated successfully');
     $transaction->commit();
 
+    // @todo - check if Contribution::create does this, test, remove.
     CRM_Contribute_BAO_ContributionRecur::updateRecurLinkedPledge($contribution->id, $recurringContributionID,
       $contributionParams['contribution_status_id'], $input['amount']);
 
     // create an activity record
+    // @todo - check if Contribution::create does this, test, remove.
     if ($input['component'] == 'contribute') {
       //CRM-4027
       $targetContactID = NULL;
@@ -4567,11 +4573,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
       CRM_Activity_BAO_Activity::addActivity($contribution, NULL, $targetContactID);
     }
 
-    // CRM-9132 legacy behaviour was that receipts were sent out in all instances. Still sending
-    // when array_key 'is_email_receipt doesn't exist in case some instances where is needs setting haven't been set
-    if (!array_key_exists('is_email_receipt', $values) ||
-      $values['is_email_receipt'] == 1
-    ) {
+    if (self::isEmailReceipt($input, $contribution->contribution_page_id, $recurringContributionID)) {
       civicrm_api3('Contribution', 'sendconfirmation', [
         'id' => $contribution->id,
         'payment_processor_id' => $paymentProcessorId,
@@ -4596,8 +4598,6 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    * @param array $ids
    *   Related object IDs.
    * @param int $contributionID
-   * @param array $values
-   *   Values related to objects that have already been loaded.
    * @param bool $returnMessageText
    *   Should text be returned instead of sent. This.
    *   is because the function is also used to generate pdfs
@@ -4607,9 +4607,8 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    * @throws \CiviCRM_API3_Exception
    * @throws \Exception
    */
-  public static function sendMail(&$input, &$ids, $contributionID, &$values,
-                                  $returnMessageText = FALSE) {
-
+  public static function sendMail($input, $ids, $contributionID, $returnMessageText = FALSE) {
+    $values = [];
     $contribution = new CRM_Contribute_BAO_Contribution();
     $contribution->id = $contributionID;
     if (!$contribution->find(TRUE)) {
@@ -5211,13 +5210,12 @@ LEFT JOIN  civicrm_contribution on (civicrm_contribution.contact_id = civicrm_co
    * load them in this function. Code clean up would compensate for any minor performance implication.
    *
    * @param \CRM_Contribute_BAO_Contribution $contribution
-   * @param int $primaryContributionID
    * @param string $changeDate
    *
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    */
-  public static function updateMembershipBasedOnCompletionOfContribution($contribution, $primaryContributionID, $changeDate) {
+  public static function updateMembershipBasedOnCompletionOfContribution($contribution, $changeDate) {
     $memberships = self::getRelatedMemberships($contribution->id);
     foreach ($memberships as $membership) {
       $membershipParams = [
@@ -5254,10 +5252,11 @@ LIMIT 1;";
         // Passing num_terms to the api triggers date calculations, but for pending memberships these may be already calculated.
         // sigh - they should  be  consistent but removing the end date check causes test failures & maybe UI too?
         // The api assumes num_terms is a special sauce for 'is_renewal' so we need to not pass it when updating a pending to completed.
+        // ... except testCompleteTransactionMembershipPriceSetTwoTerms hits this line so the above is obviously not true....
         // @todo once apiv4 ships with core switch to that & find sanity.
         $membershipParams['num_terms'] = $contribution->getNumTermsByContributionAndMembershipType(
           $membershipParams['membership_type_id'],
-          $primaryContributionID
+          $contribution->id
         );
       }
       // @todo remove all this stuff in favour of letting the api call further down handle in
@@ -5273,6 +5272,8 @@ LIMIT 1;";
          * In BAO/Membership.php(renewMembership function), we skip the extend membership date and status
          * when Contribution mode is notify and membership is for renewal )
          */
+        // Test cover for this is in testRepeattransactionRenewMembershipOldMembership
+        // Be afraid.
         CRM_Member_BAO_Membership::fixMembershipStatusBeforeRenew($currentMembership, $changeDate);
 
         // @todo - we should pass membership_type_id instead of null here but not
@@ -5705,23 +5706,6 @@ LIMIT 1;";
         }
       }
     }
-  }
-
-  /**
-   * Should an email receipt be sent for this contribution when complete.
-   *
-   * @param array $input
-   *
-   * @return mixed
-   */
-  protected function isEmailReceipt($input) {
-    if (isset($input['is_email_receipt'])) {
-      return $input['is_email_receipt'];
-    }
-    if (!empty($this->_relatedObjects['contribution_page_id'])) {
-      return $this->_relatedObjects['contribution_page_id']->is_email_receipt;
-    }
-    return TRUE;
   }
 
   /**

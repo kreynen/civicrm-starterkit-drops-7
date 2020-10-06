@@ -68,6 +68,7 @@ DROP TABLE IF EXISTS `civicrm_mailing_job`;
 DROP TABLE IF EXISTS `civicrm_mailing_trackable_url`;
 DROP TABLE IF EXISTS `civicrm_mailing_group`;
 DROP TABLE IF EXISTS `civicrm_mailing`;
+DROP TABLE IF EXISTS `civicrm_relationship_cache`;
 DROP TABLE IF EXISTS `civicrm_relationship`;
 DROP TABLE IF EXISTS `civicrm_dashboard_contact`;
 DROP TABLE IF EXISTS `civicrm_action_log`;
@@ -1816,7 +1817,7 @@ CREATE TABLE `civicrm_custom_field` (
      `note_rows` int unsigned    COMMENT 'Number of rows in Note Field',
      `column_name` varchar(255)    COMMENT 'Name of the column that holds the values for this field.',
      `option_group_id` int unsigned    COMMENT 'For elements with options, the option group id that is used',
-     `serialize` int unsigned    COMMENT 'Serialization method - a non-null value indicates a multi-valued field.',
+     `serialize` int unsigned NOT NULL  DEFAULT 0 COMMENT 'Serialization method - a non-zero value indicates a multi-valued field.',
      `filter` varchar(255)    COMMENT 'Stores Contact Get API params contact reference custom fields. May be used for other filters in the future.',
      `in_selector` tinyint   DEFAULT 0 COMMENT 'Should the multi-record custom field values be displayed in tab table listing' 
 ,
@@ -3679,6 +3680,49 @@ CREATE TABLE `civicrm_relationship` (
  
  
 ,          CONSTRAINT FK_civicrm_relationship_contact_id_a FOREIGN KEY (`contact_id_a`) REFERENCES `civicrm_contact`(`id`) ON DELETE CASCADE,          CONSTRAINT FK_civicrm_relationship_contact_id_b FOREIGN KEY (`contact_id_b`) REFERENCES `civicrm_contact`(`id`) ON DELETE CASCADE,          CONSTRAINT FK_civicrm_relationship_relationship_type_id FOREIGN KEY (`relationship_type_id`) REFERENCES `civicrm_relationship_type`(`id`) ON DELETE CASCADE,          CONSTRAINT FK_civicrm_relationship_case_id FOREIGN KEY (`case_id`) REFERENCES `civicrm_case`(`id`) ON DELETE CASCADE  
+)  ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci  ;
+
+-- /*******************************************************
+-- *
+-- * civicrm_relationship_cache
+-- *
+-- * The cache permutes information from the relationship table to facilitate querying. Every relationship is mapped to multiple records in the cache. Joins should begin on the near side and extract info from the far side.
+-- *
+-- *******************************************************/
+CREATE TABLE `civicrm_relationship_cache` (
+
+
+     `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Relationship Cache ID',
+     `relationship_id` int unsigned NOT NULL   COMMENT 'id of the relationship (FK to civicrm_relationship.id)',
+     `relationship_type_id` int unsigned NOT NULL   COMMENT 'id of the relationship type',
+     `orientation` char(3) NOT NULL   COMMENT 'The cache record is a permutation of the original relationship record. The orientation indicates whether it is forward (a_b) or reverse (b_a) relationship.',
+     `near_contact_id` int unsigned NOT NULL   COMMENT 'id of the first contact',
+     `near_relation` varchar(64)    COMMENT 'name for relationship of near_contact to far_contact.',
+     `far_contact_id` int unsigned NOT NULL   COMMENT 'id of the second contact',
+     `far_relation` varchar(64)    COMMENT 'name for relationship of far_contact to near_contact.',
+     `is_active` tinyint   DEFAULT 1 COMMENT 'is the relationship active ?',
+     `start_date` date    COMMENT 'date when the relationship started',
+     `end_date` date    COMMENT 'date when the relationship ended' 
+,
+        PRIMARY KEY (`id`)
+ 
+    ,     UNIQUE INDEX `UI_relationship`(
+        relationship_id
+      , orientation
+  )
+  ,     INDEX `index_nearid_nearrelation`(
+        near_contact_id
+      , near_relation
+  )
+  ,     INDEX `index_nearid_farrelation`(
+        near_contact_id
+      , far_relation
+  )
+  ,     INDEX `index_near_relation`(
+        near_relation
+  )
+  
+,          CONSTRAINT FK_civicrm_relationship_cache_relationship_id FOREIGN KEY (`relationship_id`) REFERENCES `civicrm_relationship`(`id`) ON DELETE CASCADE,          CONSTRAINT FK_civicrm_relationship_cache_relationship_type_id FOREIGN KEY (`relationship_type_id`) REFERENCES `civicrm_relationship_type`(`id`) ON DELETE CASCADE,          CONSTRAINT FK_civicrm_relationship_cache_near_contact_id FOREIGN KEY (`near_contact_id`) REFERENCES `civicrm_contact`(`id`) ON DELETE CASCADE,          CONSTRAINT FK_civicrm_relationship_cache_far_contact_id FOREIGN KEY (`far_contact_id`) REFERENCES `civicrm_contact`(`id`) ON DELETE CASCADE  
 )  ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci  ;
 
 -- /*******************************************************

@@ -59,9 +59,8 @@ class CRM_Report_Form_Contribute_Detail extends CRM_Report_Form {
   /**
    * This report has been optimised for group filtering.
    *
-   * CRM-19170
-   *
    * @var bool
+   * @see https://issues.civicrm.org/jira/browse/CRM-19170
    */
   protected $groupFilterNotOptimised = FALSE;
 
@@ -411,6 +410,7 @@ class CRM_Report_Form_Contribute_Detail extends CRM_Report_Form {
    * @param $rows
    *
    * @return array
+   * @throws \CRM_Core_Exception
    */
   public function statistics(&$rows) {
     $statistics = parent::statistics($rows);
@@ -418,17 +418,21 @@ class CRM_Report_Form_Contribute_Detail extends CRM_Report_Form {
     $totalAmount = $average = $fees = $net = [];
     $count = 0;
     $select = "
-        SELECT COUNT({$this->_aliases['civicrm_contribution']}.total_amount ) as count,
-               SUM( {$this->_aliases['civicrm_contribution']}.total_amount ) as amount,
-               ROUND(AVG({$this->_aliases['civicrm_contribution']}.total_amount), 2) as avg,
-               {$this->_aliases['civicrm_contribution']}.currency as currency,
-               SUM( {$this->_aliases['civicrm_contribution']}.fee_amount ) as fees,
-               SUM( {$this->_aliases['civicrm_contribution']}.net_amount ) as net
+        SELECT COUNT(civicrm_contribution_total_amount ) as count,
+               SUM( civicrm_contribution_total_amount ) as amount,
+               ROUND(AVG(civicrm_contribution_total_amount), 2) as avg,
+               stats.currency as currency,
+               SUM( stats.fee_amount ) as fees,
+               SUM( stats.net_amount ) as net
         ";
 
-    $group = "\nGROUP BY {$this->_aliases['civicrm_contribution']}.currency";
-    $sql = "{$select} {$this->_from} {$this->_where} {$group}";
+    $group = "\nGROUP BY civicrm_contribution_currency";
+    $from = " FROM {$this->temporaryTables['civireport_contribution_detail_temp3']['name']} "
+    . "JOIN civicrm_contribution stats ON {$this->temporaryTables['civireport_contribution_detail_temp3']['name']}.civicrm_contribution_contribution_id = stats.id ";
+    $sql = "{$select} {$from} {$group} ";
+    CRM_Core_DAO::disableFullGroupByMode();
     $dao = CRM_Core_DAO::executeQuery($sql);
+    CRM_Core_DAO::reenableFullGroupByMode();
     $this->addToDeveloperTab($sql);
 
     while ($dao->fetch()) {

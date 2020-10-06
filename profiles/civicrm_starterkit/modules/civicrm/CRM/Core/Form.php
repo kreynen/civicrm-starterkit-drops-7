@@ -366,6 +366,9 @@ class CRM_Core_Form extends HTML_QuickForm_Page {
     $type, $name, $label = '',
     $attributes = '', $required = FALSE, $extra = NULL
   ) {
+    if ($type === 'radio') {
+      CRM_Core_Error::deprecatedFunctionWarning('CRM_Core_Form::addRadio');
+    }
     // Fudge some extra types that quickform doesn't support
     $inputType = $type;
     if ($type == 'wysiwyg' || in_array($type, self::$html5Types)) {
@@ -1202,7 +1205,13 @@ class CRM_Core_Form extends HTML_QuickForm_Page {
           }
         }
       }
-      $options[] = $this->createElement('radio', NULL, NULL, $var, $key, $optAttributes);
+      // We use a class here to avoid html5 issues with collapsed cutsomfield sets.
+      $optAttributes['class'] = $optAttributes['class'] ?? '';
+      if ($required) {
+        $optAttributes['class'] .= ' required';
+      }
+      $element = $this->createElement('radio', NULL, NULL, $var, $key, $optAttributes);
+      $options[] = $element;
     }
     $group = $this->addGroup($options, $name, $title, $separator);
 

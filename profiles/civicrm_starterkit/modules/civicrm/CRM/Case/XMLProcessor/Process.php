@@ -465,7 +465,7 @@ AND        a.is_deleted = 0
       ];
     }
 
-    $activityParams['assignee_contact_id'] = $this->getDefaultAssigneeForActivity($activityParams, $activityTypeXML);
+    $activityParams['assignee_contact_id'] = $this->getDefaultAssigneeForActivity($activityParams, $activityTypeXML, $params['caseID']);
 
     //parsing date to default preference format
     $params['activity_date_time'] = CRM_Utils_Date::processDate($params['activity_date_time']);
@@ -565,10 +565,11 @@ AND        a.is_deleted = 0
    *
    * @param array $activityParams
    * @param object $activityTypeXML
+   * @param int $caseId
    *
    * @return int|null the ID of the default assignee contact or null if none.
    */
-  protected function getDefaultAssigneeForActivity($activityParams, $activityTypeXML) {
+  protected function getDefaultAssigneeForActivity($activityParams, $activityTypeXML, $caseId) {
     if (!isset($activityTypeXML->default_assignee_type)) {
       return NULL;
     }
@@ -577,7 +578,7 @@ AND        a.is_deleted = 0
 
     switch ($activityTypeXML->default_assignee_type) {
       case $defaultAssigneeOptionsValues['BY_RELATIONSHIP']:
-        return $this->getDefaultAssigneeByRelationship($activityParams, $activityTypeXML);
+        return $this->getDefaultAssigneeByRelationship($activityParams, $activityTypeXML, $caseId);
 
       break;
       case $defaultAssigneeOptionsValues['SPECIFIC_CONTACT']:
@@ -622,10 +623,11 @@ AND        a.is_deleted = 0
    *
    * @param array $activityParams
    * @param object $activityTypeXML
+   * @param int $caseId
    *
    * @return int|null the ID of the default assignee contact or null if none.
    */
-  protected function getDefaultAssigneeByRelationship($activityParams, $activityTypeXML) {
+  protected function getDefaultAssigneeByRelationship($activityParams, $activityTypeXML, $caseId) {
     $isDefaultRelationshipDefined = isset($activityTypeXML->default_assignee_relationship)
       && preg_match('/\d+_[ab]_[ab]/', $activityTypeXML->default_assignee_relationship);
 
@@ -642,6 +644,8 @@ AND        a.is_deleted = 0
       'relationship_type_id' => $relTypeId,
       "contact_id_$b" => $targetContactId,
       'is_active' => 1,
+      'case_id' => $caseId,
+      'options' => ['limit' => 1],
     ];
 
     if ($this->isBidirectionalRelationshipType($relTypeId)) {
@@ -650,6 +654,10 @@ AND        a.is_deleted = 0
     }
 
     $relationships = civicrm_api3('Relationship', 'get', $params);
+    if (empty($relationships['count'])) {
+      $params['case_id'] = ['IS NULL' => 1];
+      $relationships = civicrm_api3('Relationship', 'get', $params);
+    }
 
     if ($relationships['count']) {
       $relationship = CRM_Utils_Array::first($relationships['values']);

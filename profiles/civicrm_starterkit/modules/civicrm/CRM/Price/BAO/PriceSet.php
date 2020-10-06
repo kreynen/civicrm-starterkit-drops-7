@@ -862,6 +862,7 @@ WHERE  id = %1";
         }
       }
     }
+    $form->_priceSet['id'] = $form->_priceSet['id'] ?? $priceSetId;
     $form->assign('priceSet', $form->_priceSet);
 
     $component = 'contribution';

@@ -56,6 +56,11 @@
     </div>
   {/if}
 
+  {if call_user_func(array('CRM_Core_Permission','check'), 'administer CiviCRM') }
+    {capture assign="buttonTitle"}{ts}Configure Contribution Page{/ts}{/capture}
+    {crmButton target="_blank" p="civicrm/admin/contribute/settings" q="reset=1&action=update&id=`$contributionPageID`" fb=1 title="$buttonTitle" icon="fa-wrench"}{ts}Configure{/ts}{/crmButton}
+    <div class='clear'></div>
+  {/if}
   {include file="CRM/common/TrackingFields.tpl"}
 
   <div class="crm-contribution-page-id-{$contributionPageID} crm-block crm-contribution-main-form-block">
@@ -333,15 +338,27 @@
       var isRecur = cj('input[id="is_recur"]:checked');
       var allowAutoRenew = {/literal}'{$allowAutoRenewMembership}'{literal};
       var quickConfig = {/literal}{$quickConfig}{literal};
-      if ( allowAutoRenew && cj("#auto_renew") && quickConfig) {
+      if (allowAutoRenew && cj("#auto_renew") && quickConfig) {
         showHideAutoRenew(null);
       }
+
+      var frequencyUnit = cj('#frequency_unit');
+      var frequencyInerval = cj('#frequency_interval');
+      var installments = cj('#installments');
+      isDisabled = false;
+
       if (isRecur.val() > 0) {
         cj('#recurHelp').show();
+        frequencyUnit.prop('disabled', false).addClass('required');
+        frequencyInerval.prop('disabled', false).addClass('required');
+        installments.prop('disabled', false);
         cj('#amount_sum_label').text('{/literal}{ts escape='js'}Regular amount{/ts}{literal}');
       }
       else {
         cj('#recurHelp').hide();
+        frequencyUnit.prop('disabled', true).removeClass('required');
+        frequencyInerval.prop('disabled', true).removeClass('required');
+        installments.prop('disabled', true);
         cj('#amount_sum_label').text('{/literal}{ts escape='js'}Total Amount{/ts}{literal}');
       }
     }

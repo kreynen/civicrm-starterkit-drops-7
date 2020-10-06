@@ -13,8 +13,6 @@
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
- * $Id$
- *
  */
 class CRM_Core_Key {
 
@@ -130,31 +128,20 @@ class CRM_Core_Key {
   }
 
   /**
-   * @param $key
+   * The original version of this function, added circa 2010 and untouched
+   * since then, seemed intended to check for a 32-digit hex string followed
+   * optionally by an underscore and 4-digit number. But it had a bug where
+   * the optional part was never checked ever. So have decided to remove that
+   * second check to keep it simple since it seems like pseudo-security.
+   *
+   * @param string $key
    *
    * @return bool
    *   TRUE if the signature ($key) is well-formed.
    */
   public static function valid($key) {
-    // a valid key is a hex number
-    // followed by an optional _ and a number between 1 and 10000
-    if (strpos('_', $key) !== FALSE) {
-      list($hash, $seq) = explode('_', $key);
-
-      // ensure seq is between 1 and 10000
-      if (!is_numeric($seq) ||
-        $seq < 1 ||
-        $seq > 10000
-      ) {
-        return FALSE;
-      }
-    }
-    else {
-      $hash = $key;
-    }
-
     // ensure that hash is a hex number (of expected length)
-    return preg_match('#[0-9a-f]{' . self::HASH_LENGTH . '}#i', $hash) ? TRUE : FALSE;
+    return preg_match('#[0-9a-f]{' . self::HASH_LENGTH . '}#i', $key) ? TRUE : FALSE;
   }
 
   /**
