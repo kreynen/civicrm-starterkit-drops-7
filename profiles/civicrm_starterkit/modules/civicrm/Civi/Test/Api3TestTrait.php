@@ -260,7 +260,6 @@ trait Api3TestTrait {
   public function callAPISuccessGetValue($entity, $params, $type = NULL) {
     $params += [
       'version' => $this->_apiversion,
-      'debug' => 1,
     ];
     $result = $this->civicrm_api($entity, 'getvalue', $params);
     if (is_array($result) && (!empty($result['is_error']) || isset($result['values']))) {
@@ -404,6 +403,9 @@ trait Api3TestTrait {
         // Being in the test class it's tested....
         $v3Params['option_group.name'] = $v3Params['option_group_id'];
         unset($v3Params['option_group_id']);
+      }
+      if (isset($field['pseudoconstant'], $v3Params[$name]) && $field['type'] === \CRM_Utils_Type::T_INT && !is_numeric($v3Params[$name])) {
+        $v3Params[$name] = \CRM_Core_PseudoConstant::getKey(\CRM_Core_DAO_AllCoreTables::getFullName($v3Entity), $name, $v3Params[$name]);
       }
     }
 

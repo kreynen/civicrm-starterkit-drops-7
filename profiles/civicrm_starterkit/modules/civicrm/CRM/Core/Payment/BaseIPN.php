@@ -92,9 +92,7 @@ class CRM_Core_Payment_BaseIPN {
     $contribution = new CRM_Contribute_BAO_Contribution();
     $contribution->id = $ids['contribution'];
     if (!$contribution->find(TRUE)) {
-      CRM_Core_Error::debug_log_message("Could not find contribution record: {$contribution->id} in IPN request: " . print_r($input, TRUE));
-      echo "Failure: Could not find contribution record for {$contribution->id}<p>";
-      return FALSE;
+      throw new CRM_Core_Exception('Failure: Could not find contribution record for ' . (int) $contribution->id, NULL, ['context' => "Could not find contribution record: {$contribution->id} in IPN request: " . print_r($input, TRUE)]);
     }
 
     // make sure contact exists and is valid
@@ -119,9 +117,6 @@ class CRM_Core_Payment_BaseIPN {
       }
     }
 
-    $contribution->receive_date = CRM_Utils_Date::isoToMysql($contribution->receive_date);
-    $contribution->receipt_date = CRM_Utils_Date::isoToMysql($contribution->receipt_date);
-
     $objects['contact'] = &$contact;
     $objects['contribution'] = &$contribution;
 
@@ -134,12 +129,6 @@ class CRM_Core_Payment_BaseIPN {
 
     if (!$this->loadObjects($input, $ids, $objects, $required, $paymentProcessorID)) {
       return FALSE;
-    }
-    //the process is that the loadObjects is kind of hacked by loading the objects for the original contribution and then somewhat inconsistently using them for the
-    //current contribution. Here we ensure that the original contribution is available to the complete transaction function
-    //we don't want to fix this in the payment processor classes because we would have to fix all of them - so better to fix somewhere central
-    if (isset($objects['contributionRecur'])) {
-      $objects['first_contribution'] = $objects['contribution'];
     }
     return TRUE;
   }
@@ -154,51 +143,16 @@ class CRM_Core_Payment_BaseIPN {
    * @param array $objects
    * @param bool $required
    * @param int $paymentProcessorID
-   * @param array $error_handling
    *
    * @return bool|array
+   * @throws \CRM_Core_Exception
    */
-  public function loadObjects($input, &$ids, &$objects, $required, $paymentProcessorID, $error_handling = NULL) {
-    if (empty($error_handling)) {
-      // default options are that we log an error & echo it out
-      // note that we should refactor this error handling into error code @ some point
-      // but for now setting up enough separation so we can do unit tests
-      $error_handling = [
-        'log_error' => 1,
-        'echo_error' => 1,
-      ];
-    }
+  public function loadObjects($input, &$ids, &$objects, $required, $paymentProcessorID) {
+    $contribution = &$objects['contribution'];
     $ids['paymentProcessor'] = $paymentProcessorID;
-    if (is_a($objects['contribution'], 'CRM_Contribute_BAO_Contribution')) {
-      $contribution = &$objects['contribution'];
-    }
-    else {
-      //legacy support - functions are 'used' to be able to pass in a DAO
-      $contribution = new CRM_Contribute_BAO_Contribution();
-      $contribution->id = $ids['contribution'] ?? NULL;
-      $contribution->find(TRUE);
-      $objects['contribution'] = &$contribution;
-    }
-    try {
-      $success = $contribution->loadRelatedObjects($input, $ids);
-      if ($required && empty($contribution->_relatedObjects['paymentProcessor'])) {
-        throw new CRM_Core_Exception("Could not find payment processor for contribution record: " . $contribution->id);
-      }
-    }
-    catch (Exception $e) {
-      $success = FALSE;
-      if (!empty($error_handling['log_error'])) {
-        CRM_Core_Error::debug_log_message($e->getMessage());
-      }
-      if (!empty($error_handling['echo_error'])) {
-        echo $e->getMessage();
-      }
-      if (!empty($error_handling['return_error'])) {
-        return [
-          'is_error' => 1,
-          'error_message' => ($e->getMessage()),
-        ];
-      }
+    $success = $contribution->loadRelatedObjects($input, $ids);
+    if ($required && empty($contribution->_relatedObjects['paymentProcessor'])) {
+      throw new CRM_Core_Exception("Could not find payment processor for contribution record: " . $contribution->id);
     }
     $objects = array_merge($objects, $contribution->_relatedObjects);
     return $success;
@@ -241,17 +195,15 @@ class CRM_Core_Payment_BaseIPN {
       CRM_Contribute_BAO_ContributionRecur::copyCustomValues($objects['contributionRecur']->id, $contribution->id);
     }
 
-    if (empty($input['IAmAHorribleNastyBeyondExcusableHackInTheCRMEventFORMTaskClassThatNeedsToBERemoved'])) {
-      if (!empty($memberships)) {
-        foreach ($memberships as $membership) {
-          // @fixme Should we cancel only Pending memberships? per cancelled()
-          $this->cancelMembership($membership, $membership->status_id, FALSE);
-        }
+    if (!empty($memberships)) {
+      foreach ($memberships as $membership) {
+        // @fixme Should we cancel only Pending memberships? per cancelled()
+        $this->cancelMembership($membership, $membership->status_id, FALSE);
       }
+    }
 
-      if ($participant) {
-        $this->cancelParticipant($participant->id);
-      }
+    if ($participant) {
+      $this->cancelParticipant($participant->id);
     }
 
     if ($transaction) {
@@ -311,9 +263,6 @@ class CRM_Core_Payment_BaseIPN {
       'flip' => 1,
     ]);
     $contribution->contribution_status_id = $contributionStatuses['Cancelled'];
-    $contribution->receive_date = CRM_Utils_Date::isoToMysql($contribution->receive_date);
-    $contribution->receipt_date = CRM_Utils_Date::isoToMysql($contribution->receipt_date);
-    $contribution->thankyou_date = CRM_Utils_Date::isoToMysql($contribution->thankyou_date);
     $contribution->cancel_date = self::$_now;
     $contribution->cancel_reason = $input['reasonCode'] ?? NULL;
     $contribution->save();
@@ -330,19 +279,18 @@ class CRM_Core_Payment_BaseIPN {
       CRM_Contribute_BAO_ContributionRecur::copyCustomValues($objects['contributionRecur']->id, $contribution->id);
     }
 
-    if (empty($input['IAmAHorribleNastyBeyondExcusableHackInTheCRMEventFORMTaskClassThatNeedsToBERemoved'])) {
-      if (!empty($memberships)) {
-        foreach ($memberships as $membership) {
-          if ($membership) {
-            $this->cancelMembership($membership, $membership->status_id);
-          }
+    if (!empty($memberships)) {
+      foreach ($memberships as $membership) {
+        if ($membership) {
+          $this->cancelMembership($membership, $membership->status_id);
         }
       }
-
-      if ($participant) {
-        $this->cancelParticipant($participant->id);
-      }
     }
+
+    if ($participant) {
+      $this->cancelParticipant($participant->id);
+    }
+
     if ($transaction) {
       $transaction->commit();
     }
@@ -473,8 +421,13 @@ class CRM_Core_Payment_BaseIPN {
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    */
-  public function completeTransaction(&$input, &$ids, &$objects) {
-    CRM_Contribute_BAO_Contribution::completeOrder($input, $ids, $objects);
+  public function completeTransaction($input, $ids, $objects) {
+    CRM_Core_Error::deprecatedFunctionWarning('Use Payment.create api');
+    CRM_Contribute_BAO_Contribution::completeOrder($input, [
+      'related_contact' => $ids['related_contact'] ?? NULL,
+      'participant' => !empty($objects['participant']) ? $objects['participant']->id : NULL,
+      'contributionRecur' => !empty($objects['contributionRecur']) ? $objects['contributionRecur']->id : NULL,
+    ], $objects);
   }
 
   /**

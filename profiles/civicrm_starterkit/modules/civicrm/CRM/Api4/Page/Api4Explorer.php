@@ -11,6 +11,7 @@
  */
 
 use Civi\Api4\Service\Schema\Joinable\Joinable;
+use Civi\Api4\Utils\CoreUtil;
 
 /**
  *
@@ -30,7 +31,7 @@ class CRM_Api4_Page_Api4Explorer extends CRM_Core_Page {
       });
     }
     $vars = [
-      'operators' => \CRM_Core_DAO::acceptedSQLOperators(),
+      'operators' => CoreUtil::getOperators(),
       'basePath' => Civi::resources()->getUrl('civicrm'),
       'schema' => (array) \Civi\Api4\Entity::get()->setChain(['fields' => ['$name', 'getFields']])->execute(),
       'links' => $entityLinks,
@@ -39,9 +40,9 @@ class CRM_Api4_Page_Api4Explorer extends CRM_Core_Page {
       'groupOptions' => array_column((array) $groupOptions, 'options', 'name'),
     ];
     Civi::resources()
+      ->addBundle('bootstrap3')
       ->addVars('api4', $vars)
       ->addPermissions(['access debug output', 'edit groups', 'administer reserved groups'])
-      ->addScriptFile('civicrm', 'js/load-bootstrap.js')
       ->addScriptFile('civicrm', 'bower_components/js-yaml/dist/js-yaml.min.js')
       ->addScriptFile('civicrm', 'bower_components/marked/marked.min.js')
       ->addScriptFile('civicrm', 'bower_components/google-code-prettify/bin/prettify.min.js')

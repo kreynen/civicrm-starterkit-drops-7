@@ -422,6 +422,22 @@ abstract class CRM_Utils_Hook {
   }
 
   /**
+   * Alter the contents of a resource bundle (ie a collection of JS/CSS/etc).
+   *
+   * TIP: $bundle->add*() and $bundle->filter() should be useful for
+   * adding/removing/updating items.
+   *
+   * @param CRM_Core_Resources_Bundle $bundle
+   * @return null
+   * @see CRM_Core_Resources_CollectionInterface::add()
+   * @see CRM_Core_Resources_CollectionInterface::filter()
+   */
+  public static function alterBundle($bundle) {
+    return self::singleton()
+      ->invoke(['bundle'], $bundle, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_alterBundle');
+  }
+
+  /**
    * This hook is invoked during the CiviCRM form preProcess phase.
    *
    * @param string $formName
@@ -806,23 +822,6 @@ abstract class CRM_Utils_Hook {
     return self::singleton()->invoke(['countryID', 'states'], $countryID, $states,
       self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject,
       'civicrm_buildStateProvinceForCountry'
-    );
-  }
-
-  /**
-   * This hook is called when rendering the tabs for a contact (q=civicrm/contact/view)c
-   *
-   * @param array $tabs
-   *   The array of tabs that will be displayed.
-   * @param int $contactID
-   *   The contactID for whom the dashboard is being rendered.
-   *
-   * @return null
-   * @deprecated Use tabset() instead.
-   */
-  public static function tabs(&$tabs, $contactID) {
-    return self::singleton()->invoke(['tabs', 'contactID'], $tabs, $contactID,
-      self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_tabs'
     );
   }
 
@@ -1269,6 +1268,28 @@ abstract class CRM_Utils_Hook {
   public static function caseTypes(&$caseTypes) {
     return self::singleton()
       ->invoke(['caseTypes'], $caseTypes, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_caseTypes');
+  }
+
+  /**
+   * This hook is called when getting case email subject patterns.
+   *
+   * All emails related to cases have case hash/id in the subject, e.g:
+   * [case #ab12efg] Magic moment
+   * [case #1234] Magic is here
+   *
+   * Using this hook you can replace/enrich default list with some other
+   * patterns, e.g. include case type categories (see CiviCase extension) like:
+   * [(case|project|policy initiative) #hash]
+   * [(case|project|policy initiative) #id]
+   *
+   * @param array $subjectPatterns
+   *   Cases related email subject regexp patterns.
+   *
+   * @return mixed
+   */
+  public static function caseEmailSubjectPatterns(&$subjectPatterns) {
+    return self::singleton()
+      ->invoke(['caseEmailSubjectPatterns'], $subjectPatterns, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, 'civicrm_caseEmailSubjectPatterns');
   }
 
   /**

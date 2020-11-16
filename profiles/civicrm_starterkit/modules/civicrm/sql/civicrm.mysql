@@ -103,7 +103,6 @@ DROP TABLE IF EXISTS `civicrm_group_nesting`;
 DROP TABLE IF EXISTS `civicrm_group_contact_cache`;
 DROP TABLE IF EXISTS `civicrm_subscription_history`;
 DROP TABLE IF EXISTS `civicrm_group`;
-DROP TABLE IF EXISTS `civicrm_acl_cache`;
 DROP TABLE IF EXISTS `civicrm_status_pref`;
 DROP TABLE IF EXISTS `civicrm_word_replacement`;
 DROP TABLE IF EXISTS `civicrm_print_label`;
@@ -167,6 +166,7 @@ DROP TABLE IF EXISTS `civicrm_relationship_type`;
 DROP TABLE IF EXISTS `civicrm_acl_contact_cache`;
 DROP TABLE IF EXISTS `civicrm_contact`;
 DROP TABLE IF EXISTS `civicrm_acl_entity_role`;
+DROP TABLE IF EXISTS `civicrm_acl_cache`;
 DROP TABLE IF EXISTS `civicrm_acl`;
 DROP TABLE IF EXISTS `civicrm_recurring_entity`;
 DROP TABLE IF EXISTS `civicrm_action_mapping`;
@@ -566,6 +566,36 @@ CREATE TABLE `civicrm_acl` (
 
 -- /*******************************************************
 -- *
+-- * civicrm_acl_cache
+-- *
+-- * Cache for acls and contacts
+-- *
+-- *******************************************************/
+CREATE TABLE `civicrm_acl_cache` (
+
+
+     `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Unique table ID',
+     `contact_id` int unsigned    COMMENT 'Foreign Key to Contact',
+     `acl_id` int unsigned NOT NULL   COMMENT 'Foreign Key to ACL',
+     `modified_date` timestamp NULL   COMMENT 'When was this cache entry last modified' 
+,
+        PRIMARY KEY (`id`)
+ 
+    ,     INDEX `index_contact_id`(
+        contact_id
+  )
+  ,     INDEX `index_acl_id`(
+        acl_id
+  )
+  ,     INDEX `index_modified_date`(
+        modified_date
+  )
+  
+,          CONSTRAINT FK_civicrm_acl_cache_acl_id FOREIGN KEY (`acl_id`) REFERENCES `civicrm_acl`(`id`) ON DELETE CASCADE  
+)  ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci  ;
+
+-- /*******************************************************
+-- *
 -- * civicrm_acl_entity_role
 -- *
 -- * Join table for Contacts and Groups to ACL Roles
@@ -744,7 +774,7 @@ CREATE TABLE `civicrm_acl_contact_cache` (
       , operation
   )
   
-,          CONSTRAINT FK_civicrm_acl_contact_cache_contact_id FOREIGN KEY (`contact_id`) REFERENCES `civicrm_contact`(`id`) ON DELETE CASCADE  
+ 
 )  ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci  ;
 
 -- /*******************************************************
@@ -2068,7 +2098,9 @@ CREATE TABLE `civicrm_mail_settings` (
      `password` varchar(255)    COMMENT 'password to use when polling',
      `is_ssl` tinyint    COMMENT 'whether to use SSL or not',
      `source` varchar(255)    COMMENT 'folder to poll from when using IMAP, path to poll from when using Maildir, etc.',
-     `activity_status` varchar(255)    COMMENT 'Name of status to use when creating email to activity.' 
+     `activity_status` varchar(255)    COMMENT 'Name of status to use when creating email to activity.',
+     `is_non_case_email_skipped` tinyint   DEFAULT 0 COMMENT 'Enabling this option will have CiviCRM skip any emails that do not have the Case ID or Case Hash so that the system will only process emails that can be placed on case records. Any emails that are not processed will be moved to the ignored folder.',
+     `is_contact_creation_disabled_if_no_match` tinyint   DEFAULT 0  
 ,
         PRIMARY KEY (`id`)
  
@@ -2569,33 +2601,6 @@ CREATE TABLE `civicrm_status_pref` (
 
 -- /*******************************************************
 -- *
--- * civicrm_acl_cache
--- *
--- * Cache for acls and contacts
--- *
--- *******************************************************/
-CREATE TABLE `civicrm_acl_cache` (
-
-
-     `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Unique table ID',
-     `contact_id` int unsigned    COMMENT 'Foreign Key to Contact',
-     `acl_id` int unsigned NOT NULL   COMMENT 'Foreign Key to ACL',
-     `modified_date` timestamp NULL   COMMENT 'When was this cache entry last modified' 
-,
-        PRIMARY KEY (`id`)
- 
-    ,     INDEX `index_acl_id`(
-        acl_id
-  )
-  ,     INDEX `index_modified_date`(
-        modified_date
-  )
-  
-,          CONSTRAINT FK_civicrm_acl_cache_contact_id FOREIGN KEY (`contact_id`) REFERENCES `civicrm_contact`(`id`) ON DELETE CASCADE,          CONSTRAINT FK_civicrm_acl_cache_acl_id FOREIGN KEY (`acl_id`) REFERENCES `civicrm_acl`(`id`) ON DELETE CASCADE  
-)  ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci  ;
-
--- /*******************************************************
--- *
 -- * civicrm_group
 -- *
 -- * Provide grouping of related contacts
@@ -2606,7 +2611,7 @@ CREATE TABLE `civicrm_group` (
 
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Group ID',
      `name` varchar(64)    COMMENT 'Internal name of Group.',
-     `title` varchar(64)    COMMENT 'Name of Group.',
+     `title` varchar(255)    COMMENT 'Name of Group.',
      `description` text    COMMENT 'Optional verbose description of the group.',
      `source` varchar(64)    COMMENT 'Module or process which created this group.',
      `saved_search_id` int unsigned    COMMENT 'FK to saved search table.',
@@ -2623,7 +2628,9 @@ CREATE TABLE `civicrm_group` (
      `is_hidden` tinyint   DEFAULT 0 COMMENT 'Is this group hidden?',
      `is_reserved` tinyint   DEFAULT 0 ,
      `created_id` int unsigned    COMMENT 'FK to contact table.',
-     `modified_id` int unsigned    COMMENT 'FK to contact table.' 
+     `modified_id` int unsigned    COMMENT 'FK to contact table.',
+     `frontend_title` varchar(255)   DEFAULT NULL COMMENT 'Alternative public title for this Group.',
+     `frontend_description` text   DEFAULT NULL COMMENT 'Alternative public description of the group.' 
 ,
         PRIMARY KEY (`id`)
  
@@ -3049,7 +3056,7 @@ CREATE TABLE `civicrm_membership_type` (
      `minimum_fee` decimal(18,9)   DEFAULT 0 COMMENT 'Minimum fee for this membership (0 for free/complimentary memberships).',
      `duration_unit` varchar(8)    COMMENT 'Unit in which membership period is expressed.',
      `duration_interval` int    COMMENT 'Number of duration units in membership period (e.g. 1 year, 12 months).',
-     `period_type` varchar(8)    COMMENT 'Rolling membership period starts on signup date. Fixed membership periods start on fixed_period_start_day.',
+     `period_type` varchar(8) NOT NULL   COMMENT 'Rolling membership period starts on signup date. Fixed membership periods start on fixed_period_start_day.',
      `fixed_period_start_day` int    COMMENT 'For fixed period memberships, month and day (mmdd) on which subscription/membership will start. Period start is back-dated unless after rollover day.',
      `fixed_period_rollover_day` int    COMMENT 'For fixed period memberships, signups after this day (mmdd) rollover to next period.',
      `relationship_type_id` varchar(64)    COMMENT 'FK to Relationship Type ID',
@@ -3257,7 +3264,7 @@ CREATE TABLE `civicrm_price_set` (
      `financial_type_id` int unsigned   DEFAULT NULL COMMENT 'FK to Financial Type(for membership price sets only).',
      `is_quick_config` tinyint   DEFAULT 0 COMMENT 'Is set if edited on Contribution or Event Page rather than through Manage Price Sets',
      `is_reserved` tinyint   DEFAULT 0 COMMENT 'Is this a predefined system price set  (i.e. it can not be deleted, edited)?',
-     `min_amount` int unsigned   DEFAULT 0 COMMENT 'Minimum Amount required for this set.' 
+     `min_amount` decimal(20,2)   DEFAULT 0.0 COMMENT 'Minimum Amount required for this set.' 
 ,
         PRIMARY KEY (`id`)
  
@@ -4808,7 +4815,7 @@ CREATE TABLE `civicrm_event` (
      `requires_approval` tinyint    COMMENT 'Whether participants require approval before they can finish registering.',
      `expiration_time` int unsigned    COMMENT 'Expire pending but unconfirmed registrations after this many hours.',
      `allow_selfcancelxfer` tinyint   DEFAULT 0 COMMENT 'Allow self service cancellation or transfer for event?',
-     `selfcancelxfer_time` int unsigned   DEFAULT 0 COMMENT 'Number of hours prior to event start date to allow self-service cancellation or transfer.',
+     `selfcancelxfer_time` int   DEFAULT 0 COMMENT 'Number of hours prior to event start date to allow self-service cancellation or transfer.',
      `waitlist_text` text    COMMENT 'Text to display when the event is full, but participants can signup for a waitlist.',
      `approval_req_text` text    COMMENT 'Text to display when the approval is required to complete registration for an event.',
      `is_template` tinyint NOT NULL  DEFAULT 0 COMMENT 'whether the event has template',

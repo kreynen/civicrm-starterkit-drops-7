@@ -18,7 +18,7 @@ function display(totalfee) {
   // go as a float - CRM-13491
   totalfee = Math.round(totalfee*100)/100;
   // note : some variables used used here are global variables defined inside Calculate.tpl
-  var totalEventFee  = formatMoney( totalfee, 2, seperator, thousandMarker);
+  var totalEventFee  = formatMoney( totalfee, 2, separator, thousandMarker);
   cj('#pricevalue').html("<b>"+symbol+"</b> "+totalEventFee);
   scriptfee   = totalfee;
   scriptarray = price;
@@ -67,7 +67,7 @@ function populatebalanceFee(updatedAmt, onlyStatusUpdate) {
   }
 
   if (!onlyStatusUpdate) {
-    balanceAmt = formatMoney(balanceAmt, 2, seperator, thousandMarker);
+    balanceAmt = formatMoney(balanceAmt, 2, separator, thousandMarker);
     cj('#balance-fee').text(symbol+" "+balanceAmt);
   }
 }
@@ -87,7 +87,7 @@ CRM.$(function($) {
   <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</div>
   {if !$email}
   <div class="messages status no-popup">
-    <i class="crm-i fa-info-circle" aria-hidden="true"></i>&nbsp;{ts}You will not be able to send an automatic email receipt for this payment because there is no email address recorded for this contact. If you want a receipt to be sent when this payment is recorded, click Cancel and then click Edit from the Summary tab to add an email address before recording the payment.{/ts}
+    <i class="crm-i fa-info-circle" aria-hidden="true"></i> {ts}You will not be able to send an automatic email receipt for this payment because there is no email address recorded for this contact. If you want a receipt to be sent when this payment is recorded, click Cancel and then click Edit from the Summary tab to add an email address before recording the payment.{/ts}
   </div>
   {/if}
   <table class="form-layout">

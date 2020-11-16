@@ -1890,6 +1890,7 @@ HERESQL;
         'case_id' => $dao->id,
         'case_type' => $dao->case_type,
         'client_name' => $clientView,
+        'status_id' => $dao->status_id,
         'case_status' => $statuses[$dao->status_id],
         'links' => $caseView,
       ];
@@ -2069,7 +2070,7 @@ SELECT  id
         CRM_Core_DAO::storeValues($otherActivity, $mainActVals);
         $mainActivity->copyValues($mainActVals);
         $mainActivity->id = NULL;
-        $mainActivity->activity_date_time = CRM_Utils_Date::isoToMysql($otherActivity->activity_date_time);
+        $mainActivity->activity_date_time = $otherActivity->activity_date_time;
         $mainActivity->source_record_id = CRM_Utils_Array::value($mainActivity->source_record_id,
           $activityMappingIds
         );

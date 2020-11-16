@@ -25,13 +25,4 @@ class CRM_Export_Form_Select_Case extends CRM_Export_Form_Select {
    */
   protected $queryMode = CRM_Contact_BAO_Query::MODE_CASE;
 
-  /**
-   * Use the form name to create the tpl file name.
-   *
-   * @return string
-   */
-  public function getTemplateFileName() {
-    return 'CRM/Export/Form/Select.tpl';
-  }
-
 }

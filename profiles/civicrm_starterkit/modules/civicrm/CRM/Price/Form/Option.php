@@ -75,7 +75,7 @@ class CRM_Price_Form_Option extends CRM_Core_Form {
 
       // fix the display of the monetary value, CRM-4038
       foreach ($this->_moneyFields as $field) {
-        $defaults[$field] = CRM_Utils_Money::format(CRM_Utils_Array::value($field, $defaults), NULL, '%a');
+        $defaults[$field] = isset($defaults[$field]) ? CRM_Utils_Money::formatLocaleNumericRoundedByOptionalPrecision($defaults[$field], 9) : '';
       }
     }
 
@@ -326,7 +326,6 @@ class CRM_Price_Form_Option extends CRM_Core_Form {
       return NULL;
     }
     else {
-      $params = $ids = [];
       $params = $this->controller->exportValues('Option');
       $fieldLabel = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceField', $this->_fid, 'label');
 

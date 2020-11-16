@@ -471,13 +471,15 @@ class CRM_Utils_Check_Component_Env extends CRM_Utils_Check_Component {
 
   /**
    * Checks if new versions are available
+   * @param bool $force
    * @return CRM_Utils_Check_Message[]
+   * @throws CRM_Core_Exception
    */
-  public function checkVersion() {
+  public function checkVersion($force = FALSE) {
     $messages = [];
     try {
       $vc = new CRM_Utils_VersionCheck();
-      $vc->initialize();
+      $vc->initialize($force);
     }
     catch (Exception $e) {
       $messages[] = new CRM_Utils_Check_Message(
@@ -492,7 +494,7 @@ class CRM_Utils_Check_Component_Env extends CRM_Utils_Check_Component {
     }
 
     // Show a notice if the version_check job is disabled
-    if (empty($vc->cronJob['is_active'])) {
+    if (!$force && empty($vc->cronJob['is_active'])) {
       $args = empty($vc->cronJob['id']) ? ['reset' => 1] : ['reset' => 1, 'action' => 'update', 'id' => $vc->cronJob['id']];
       $messages[] = new CRM_Utils_Check_Message(
         'checkVersionDisabled',
@@ -504,15 +506,9 @@ class CRM_Utils_Check_Component_Env extends CRM_Utils_Check_Component {
     }
 
     if ($vc->isInfoAvailable) {
-      $severities = [
-        'info' => CRM_Utils_Check::severityMap(\Psr\Log\LogLevel::INFO),
-        'notice' => CRM_Utils_Check::severityMap(\Psr\Log\LogLevel::NOTICE) ,
-        'warning' => CRM_Utils_Check::severityMap(\Psr\Log\LogLevel::WARNING) ,
-        'critical' => CRM_Utils_Check::severityMap(\Psr\Log\LogLevel::CRITICAL),
-      ];
       foreach ($vc->getVersionMessages() ?? [] as $msg) {
         $messages[] = new CRM_Utils_Check_Message(__FUNCTION__ . '_' . $msg['name'],
-          $msg['message'], $msg['title'], $severities[$msg['severity']], 'fa-cloud-upload');
+          $msg['message'], $msg['title'], $msg['severity'], 'fa-cloud-upload');
       }
     }
 
@@ -599,20 +595,6 @@ class CRM_Utils_Check_Component_Env extends CRM_Utils_Check_Component {
         $e->getMessage(),
         ts('Extension download error'),
         \Psr\Log\LogLevel::ERROR,
-        'fa-plug'
-      );
-      return $messages;
-    }
-
-    if (!$remotes) {
-      // CRM-13141 There may not be any compatible extensions available for the requested CiviCRM version + CMS. If so, $extdir is empty so just return a notice.
-      $messages[] = new CRM_Utils_Check_Message(
-        __FUNCTION__,
-        ts('There are currently no extensions on the CiviCRM public extension directory which are compatible with version %1. If you want to install an extension which is not marked as compatible, you may be able to download and install extensions manually (depending on access to your web server).', [
-          1 => CRM_Utils_System::majorVersion(),
-        ]) . '<br />' . CRM_Utils_System::docURL2('sysadmin/customize/extensions/#installing-a-new-extension'),
-        ts('No Extensions Available for this Version'),
-        \Psr\Log\LogLevel::NOTICE,
         'fa-plug'
       );
       return $messages;

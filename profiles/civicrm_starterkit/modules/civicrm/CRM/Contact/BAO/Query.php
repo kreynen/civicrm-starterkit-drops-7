@@ -1121,6 +1121,9 @@ class CRM_Contact_BAO_Query {
         }
 
         $field = $this->_fields[$elementName] ?? NULL;
+        if (isset($this->_pseudoConstantsSelect[$field['name']])) {
+          $this->_pseudoConstantsSelect[$name . '-' . $field['name']] = $this->_pseudoConstantsSelect[$field['name']];
+        }
 
         // hack for profile, add location id
         if (!$field) {
@@ -2186,7 +2189,7 @@ class CRM_Contact_BAO_Query {
         $name, $op, $value, $grouping,
         'CRM_Contact_DAO_Contact',
         $field,
-        $field['title'],
+        $field['html']['label'] ?? $field['title'],
         CRM_Utils_Type::typeToString($dataType)
       );
       if ($name === 'gender_id') {
@@ -6936,6 +6939,17 @@ AND   displayRelType.is_active = 1
       }
     }
     return $field;
+  }
+
+  /**
+   * Get the field datatype, using the type in the database rather than the pseudofield, if a pseudofield.
+   *
+   * @param string $fieldName
+   *
+   * @return string
+   */
+  public function getDataTypeForRealField($fieldName) {
+    return CRM_Utils_Type::typeToString($this->getMetadataForRealField($fieldName)['type']);
   }
 
   /**

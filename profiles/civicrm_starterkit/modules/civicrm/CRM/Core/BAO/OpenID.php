@@ -24,10 +24,31 @@ class CRM_Core_BAO_OpenID extends CRM_Core_DAO_OpenID {
    * Create or update OpenID record.
    *
    * @param array $params
+   *
    * @return CRM_Core_DAO_OpenID
+   *
+   * @throws \API_Exception
+   * @throws \CRM_Core_Exception
+   */
+  public static function create($params) {
+    CRM_Core_BAO_Block::handlePrimary($params, __CLASS__);
+    return self::writeRecord($params);
+  }
+
+  /**
+   * Create or update OpenID record.
+   *
+   * @deprecated
+   *
+   * @param array $params
+   *
+   * @return \CRM_Core_DAO|\CRM_Core_DAO_IM
+   * @throws \CRM_Core_Exception
+   * @throws \API_Exception
    */
   public static function add($params) {
-    return self::writeRecord($params);
+    CRM_Core_Error::deprecatedFunctionWarning('use the v4 api');
+    return self::create($params);
   }
 
   /**
@@ -38,26 +59,10 @@ class CRM_Core_BAO_OpenID extends CRM_Core_DAO_OpenID {
    *   Input parameters to find object.
    *
    * @return mixed
+   * @throws \CRM_Core_Exception
    */
   public static function &getValues($entityBlock) {
     return CRM_Core_BAO_Block::getValues('openid', $entityBlock);
-  }
-
-  /**
-   * Returns whether or not this OpenID is allowed to login.
-   *
-   * @param string $identity_url
-   *   The OpenID to check.
-   *
-   * @return bool
-   */
-  public static function isAllowedToLogin($identity_url) {
-    $openId = new CRM_Core_DAO_OpenID();
-    $openId->openid = $identity_url;
-    if ($openId->find(TRUE)) {
-      return $openId->allowed_to_login == 1;
-    }
-    return FALSE;
   }
 
   /**

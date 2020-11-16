@@ -137,14 +137,7 @@ class CRM_Group_Form_Edit extends CRM_Core_Form {
           'saved_search_id' => $this->_groupValues['saved_search_id'] ?? '',
         );
         if (isset($this->_groupValues['saved_search_id'])) {
-          $groupValues['mapping_id'] = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_SavedSearch',
-            $this->_groupValues['saved_search_id'],
-            'mapping_id'
-          );
-          $groupValues['search_custom_id'] = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_SavedSearch',
-            $this->_groupValues['saved_search_id'],
-            'search_custom_id'
-          );
+          $this->assign('editSmartGroupURL', CRM_Contact_BAO_SavedSearch::getEditSearchUrl($this->_groupValues['saved_search_id']));
         }
         if (!empty($this->_groupValues['created_id'])) {
           $groupValues['created_by'] = CRM_Core_DAO::getFieldValue("CRM_Contact_DAO_Contact", $this->_groupValues['created_id'], 'sort_name', 'id');
@@ -371,7 +364,8 @@ WHERE  title = %1
       );
 
       $group = CRM_Contact_BAO_Group::create($params);
-
+      // Set the entity id so it is available to postProcess hook consumers
+      $this->setEntityId($group->id);
       //Remove any parent groups requested to be removed
       if (!empty($this->_groupValues['parents'])) {
         $parentGroupIds = explode(',', $this->_groupValues['parents']);

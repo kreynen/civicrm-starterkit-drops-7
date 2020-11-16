@@ -635,7 +635,7 @@ class CRM_Member_BAO_MembershipType extends CRM_Member_DAO_MembershipType {
   }
 
   /**
-   * The function returns all the Organization for  all membershipTypes .
+   * The function returns all the Organization for all membershipTypes .
    *
    * @param int $membershipTypeId
    *
@@ -814,6 +814,8 @@ class CRM_Member_BAO_MembershipType extends CRM_Member_DAO_MembershipType {
    * Caching is by domain - if that hits any issues we should add a new function getDomainMembershipTypes
    * or similar rather than 'just add another param'! but this is closer to earlier behaviour so 'should' be OK.
    *
+   * @return array
+   *   List of membershipType details keyed by membershipTypeID
    * @throws \CiviCRM_API3_Exception
    */
   public static function getAllMembershipTypes() {
@@ -821,7 +823,7 @@ class CRM_Member_BAO_MembershipType extends CRM_Member_DAO_MembershipType {
     if (!Civi::cache('metadata')->has($cacheString)) {
       $types = civicrm_api3('MembershipType', 'get', ['options' => ['limit' => 0, 'sort' => 'weight']])['values'];
       $taxRates = CRM_Core_PseudoConstant::getTaxRates();
-      $keys = ['description', 'relationship_type_id', 'relationship_direction', 'max_related'];
+      $keys = ['description', 'relationship_type_id', 'relationship_direction', 'max_related', 'auto_renew'];
       // In order to avoid down-stream e-notices we undo api v3 filtering of NULL values. This is covered
       // in Unit tests & ideally we might switch to apiv4 but I would argue we should build caching
       // of metadata entities like this directly into apiv4.

@@ -225,7 +225,9 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
           $cMemTypes[] = $mem['membership_type_id'];
         }
         if (count($cMemTypes) > 0) {
-          $memberorgs = CRM_Member_BAO_MembershipType::getMemberOfContactByMemTypes($cMemTypes);
+          foreach ($cMemTypes as $memTypeID) {
+            $memberorgs[$memTypeID] = CRM_Member_BAO_MembershipType::getMembershipType($memTypeID)['member_of_contact_id'];
+          }
           $mems_by_org = [];
           foreach ($contactMemberships as $mem) {
             $mem['member_of_contact_id'] = $memberorgs[$mem['membership_type_id']] ?? NULL;
@@ -570,7 +572,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
         CRM_Member_StatusOverrideTypes::getSelectOptions()
       );
 
-      $this->add('datepicker', 'status_override_end_date', ts('Status Override End Date'), '', FALSE, ['minDate' => time(), 'time' => FALSE]);
+      $this->add('datepicker', 'status_override_end_date', ts('Status Override End Date'), '', FALSE, ['minDate' => date('Y-m-d'), 'time' => FALSE]);
 
       $this->addElement('checkbox', 'record_contribution', ts('Record Membership Payment?'));
 
@@ -759,8 +761,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
           $endDate = CRM_Utils_Date::processDate($params['end_date']);
         }
 
-        $membershipDetails = CRM_Member_BAO_MembershipType::getMembershipTypeDetails($memType);
-
+        $membershipDetails = CRM_Member_BAO_MembershipType::getMembershipType($memType);
         if ($startDate && CRM_Utils_Array::value('period_type', $membershipDetails) === 'rolling') {
           if ($startDate < $joinDate) {
             $errors['start_date'] = ts('Start date must be the same or later than Member since.');
@@ -822,7 +823,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
           $calcStatus = CRM_Member_BAO_MembershipStatus::getMembershipStatusByDate($startDate,
             $endDate,
             $joinDate,
-            'today',
+            'now',
             TRUE,
             $memType,
             $params
@@ -1058,7 +1059,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
     $isTest = ($this->_mode === 'test') ? 1 : 0;
     $this->storeContactFields($this->_params);
     $this->beginPostProcess();
-    $joinDate = $startDate = $endDate = NULL;
+    $endDate = NULL;
     $membershipTypes = $membership = $calcDate = [];
     $membershipType = NULL;
     $paymentInstrumentID = $this->_paymentProcessor['object']->getPaymentInstrumentID();
@@ -1177,15 +1178,9 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
       $params['exclude_is_admin'] = TRUE;
     }
 
-    // process date params to mysql date format.
-    $dateTypes = [
-      'join_date' => 'joinDate',
-      'start_date' => 'startDate',
-      'end_date' => 'endDate',
-    ];
-    foreach ($dateTypes as $dateField => $dateVariable) {
-      $$dateVariable = CRM_Utils_Date::processDate($formValues[$dateField]);
-    }
+    $joinDate = $formValues['join_date'];
+    $startDate = $formValues['start_date'];
+    $endDate = $formValues['end_date'];
 
     $memTypeNumTerms = empty($termsByType) ? CRM_Utils_Array::value('num_terms', $formValues) : NULL;
 
@@ -1200,7 +1195,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
     }
 
     foreach ($calcDates as $memType => $calcDate) {
-      foreach (array_keys($dateTypes) as $d) {
+      foreach (['join_date', 'start_date', 'end_date'] as $d) {
         //first give priority to form values then calDates.
         $date = $formValues[$d] ?? NULL;
         if (!$date) {

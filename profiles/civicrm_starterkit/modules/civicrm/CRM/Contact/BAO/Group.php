@@ -118,7 +118,7 @@ class CRM_Contact_BAO_Group extends CRM_Contact_DAO_Group {
    */
   public static function getGroupContacts($id) {
     $params = [['group', 'IN', [1 => $id], 0, 0]];
-    list($contacts, $_) = CRM_Contact_BAO_Query::apiQuery($params, ['contact_id']);
+    [$contacts] = CRM_Contact_BAO_Query::apiQuery($params, ['contact_id']);
     return $contacts;
   }
 
@@ -1223,6 +1223,14 @@ WHERE {$whereClause}";
       $clauses[] = '`groups`.parents IS NULL';
     }
 
+    $savedSearch = $params['savedSearch'] ?? NULL;
+    if ($savedSearch == 1) {
+      $clauses[] = '`groups`.saved_search_id IS NOT NULL';
+    }
+    elseif ($savedSearch == 2) {
+      $clauses[] = '`groups`.saved_search_id IS NULL';
+    }
+
     // only show child groups of a specific parent group
     $parent_id = $params['parent_id'] ?? NULL;
     if ($parent_id) {
@@ -1329,7 +1337,7 @@ WHERE {$whereClause}";
       $this->{$fieldName} = "NULL";
     }
     else {
-      parent::assignTestValues($fieldName, $fieldDef, $counter);
+      parent::assignTestValue($fieldName, $fieldDef, $counter);
     }
   }
 

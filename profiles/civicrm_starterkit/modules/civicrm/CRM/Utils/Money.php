@@ -17,6 +17,7 @@
 
 use Brick\Money\Money;
 use Brick\Money\Context\DefaultContext;
+use Brick\Money\Context\CustomContext;
 use Brick\Math\RoundingMode;
 
 /**
@@ -201,7 +202,15 @@ class CRM_Utils_Money {
    * @return string
    */
   protected static function formatLocaleNumericRounded($amount, $numberOfPlaces) {
-    return self::formatLocaleNumeric(round($amount, $numberOfPlaces));
+    if (!extension_loaded('intl')) {
+      self::missingIntlNotice();
+      return self::formatNumericByFormat($amount, '%!.' . $numberOfPlaces . 'i');
+    }
+    $money = Money::of($amount, CRM_Core_Config::singleton()->defaultCurrency, new CustomContext($numberOfPlaces), RoundingMode::CEILING);
+    $formatter = new \NumberFormatter(CRM_Core_I18n::getLocale(), NumberFormatter::CURRENCY);
+    $formatter->setSymbol(\NumberFormatter::CURRENCY_SYMBOL, '');
+    $formatter->setAttribute(\NumberFormatter::MIN_FRACTION_DIGITS, $numberOfPlaces);
+    return $money->formatWith($formatter);
   }
 
   /**
@@ -216,7 +225,42 @@ class CRM_Utils_Money {
    *   Formatted amount.
    */
   public static function formatLocaleNumericRoundedByCurrency($amount, $currency) {
-    $amount = self::formatLocaleNumericRounded($amount, self::getCurrencyPrecision($currency));
+    return self::formatLocaleNumericRoundedByPrecision($amount, self::getCurrencyPrecision($currency));
+  }
+
+  /**
+   * Format money for display (just numeric part) according to the current locale with rounding to the supplied precision.
+   *
+   * This handles both rounding & replacement of the currency separators for the locale.
+   *
+   * @param string $amount
+   * @param int $precision
+   *
+   * @return string
+   *   Formatted amount.
+   */
+  public static function formatLocaleNumericRoundedByPrecision($amount, $precision) {
+    $amount = self::formatLocaleNumericRounded($amount, $precision);
+    return self::replaceCurrencySeparators($amount);
+  }
+
+  /**
+   * Format money for display with rounding to the supplied precision but without padding.
+   *
+   * If the string is shorter than the precision trailing zeros are not added to reach the precision
+   * beyond the 2 required for normally currency formatting.
+   *
+   * This handles both rounding & replacement of the currency separators for the locale.
+   *
+   * @param string $amount
+   * @param int $precision
+   *
+   * @return string
+   *   Formatted amount.
+   */
+  public static function formatLocaleNumericRoundedByOptionalPrecision($amount, $precision) {
+    $decimalPlaces = strlen(substr($amount, strpos($amount, '.') + 1));
+    $amount = self::formatLocaleNumericRounded($amount, $precision > $decimalPlaces ? $decimalPlaces : $precision);
     return self::replaceCurrencySeparators($amount);
   }
 
@@ -269,6 +313,13 @@ class CRM_Utils_Money {
       setlocale(LC_MONETARY, $lc);
     }
     return $amount;
+  }
+
+  /**
+   * Emits a notice indicating we have fallen back to a less accurate way of formatting money due to missing intl extension
+   */
+  public static function missingIntlNotice() {
+    CRM_Core_Session::singleton()->setStatus(ts('As this system does not include the PHP intl extension, CiviCRM has fallen back onto a slightly less accurate and deprecated method to format money'), ts('Missing PHP INTL extension'));
   }
 
 }

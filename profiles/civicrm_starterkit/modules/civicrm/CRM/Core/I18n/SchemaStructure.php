@@ -92,7 +92,9 @@ class CRM_Core_I18n_SchemaStructure {
           'description' => "text COMMENT 'Optional description.'",
         ],
         'civicrm_group' => [
-          'title' => "varchar(64) COMMENT 'Name of Group.'",
+          'title' => "varchar(255) COMMENT 'Name of Group.'",
+          'frontend_title' => "varchar(255) DEFAULT NULL COMMENT 'Alternative public title for this Group.'",
+          'frontend_description' => "text DEFAULT NULL COMMENT 'Alternative public description of the group.'",
         ],
         'civicrm_contribution_page' => [
           'title' => "varchar(255) COMMENT 'Contribution Page title. For top of page display'",
@@ -412,6 +414,14 @@ class CRM_Core_I18n_SchemaStructure {
         'civicrm_group' => [
           'title' => [
             'type' => "Text",
+          ],
+          'frontend_title' => [
+            'type' => "Text",
+          ],
+          'frontend_description' => [
+            'type' => "TextArea",
+            'rows' => "2",
+            'cols' => "60",
           ],
         ],
         'civicrm_contribution_page' => [

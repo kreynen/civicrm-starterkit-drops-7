@@ -291,9 +291,10 @@ class CRM_Utils_System_Backdrop extends CRM_Utils_System_DrupalBase {
   public function authenticate($name, $password, $loadCMSBootstrap = FALSE, $realPath = NULL) {
     $config = CRM_Core_Config::singleton();
 
-    $dbBackdrop = DB::connect($config->userFrameworkDSN);
+    $ufDSN = CRM_Utils_SQL::autoSwitchDSN($config->userFrameworkDSN);
+    $dbBackdrop = DB::connect($ufDSN);
     if (DB::isError($dbBackdrop)) {
-      throw new CRM_Core_Exception("Cannot connect to Backdrop database via $config->userFrameworkDSN, " . $dbBackdrop->getMessage());
+      throw new CRM_Core_Exception("Cannot connect to Backdrop database via $ufDSN, " . $dbBackdrop->getMessage());
     }
 
     $account = $userUid = $userMail = NULL;
@@ -523,7 +524,9 @@ AND    u.status = 1
     }
     // load Backdrop bootstrap
     chdir($cmsPath);
-    define('BACKDROP_ROOT', $cmsPath);
+    if (!defined('BACKDROP_ROOT')) {
+      define('BACKDROP_ROOT', $cmsPath);
+    }
 
     // For Backdrop multi-site CRM-11313
     if ($realPath && strpos($realPath, 'sites/all/modules/') === FALSE) {

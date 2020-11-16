@@ -91,7 +91,7 @@ if (!defined('CIVICRM_UF_DSN') && CIVICRM_UF !== 'UnitTests') {
   if (isset($_ENV['PANTHEON_SITE'])) {
     define('CIVICRM_UF_DSN', $pantheon_db);
   } else {
-    define( 'CIVICRM_UF_DSN', 'mysql://cms_db_username:cms_db_password@db_server/cms_database?new_link=true');
+    define( 'CIVICRM_UF_DSN', 'mysql://cms_db_username:cms_db_password@db_server/cms_database?new_link=true%%CMSdbSSL%%');
   }
 }
 
@@ -126,7 +126,7 @@ if (!defined('CIVICRM_DSN')) {
     define('CIVICRM_DSN', $pantheon_db);
   }
   else {
-    define('CIVICRM_DSN', 'mysql://crm_db_username:crm_db_password@db_server/crm_database?new_link=true');
+    define('CIVICRM_DSN', 'mysql://crm_db_username:crm_db_password@db_server/crm_database?new_link=true%%dbSSL%%');
   }
 }
 

@@ -20,6 +20,7 @@
 namespace Civi\Api4\Action\Entity;
 
 use Civi\Api4\CustomGroup;
+use Civi\Api4\Service\Schema\Joinable\CustomGroupJoinable;
 
 /**
  * Get the names & docblocks of all APIv4 entities.
@@ -91,10 +92,12 @@ class Get extends \Civi\Api4\Generic\BasicGetAction {
       ->execute();
     foreach ($customEntities as $customEntity) {
       $fieldName = 'Custom_' . $customEntity['name'];
+      $baseEntity = '\Civi\Api4\\' . CustomGroupJoinable::getEntityFromExtends($customEntity['extends']);
       $entities[$fieldName] = [
         'name' => $fieldName,
         'title' => $customEntity['title'],
-        'description' => 'Custom group - extends ' . $customEntity['extends'],
+        'title_plural' => $customEntity['title'],
+        'description' => ts('Custom group for %1', [1 => $baseEntity::getInfo()['title_plural']]),
         'see' => [
           'https://docs.civicrm.org/user/en/latest/organising-your-data/creating-custom-fields/#multiple-record-fieldsets',
           '\\Civi\\Api4\\CustomGroup',

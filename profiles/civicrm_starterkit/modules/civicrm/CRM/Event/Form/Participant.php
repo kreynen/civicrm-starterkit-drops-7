@@ -99,11 +99,14 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
 
   /**
    * Are we operating in "single mode", i.e. adding / editing only
-   * one participant record, or is this a batch add operation
+   * one participant record, or is this a batch add operation.
+   *
+   * Note the goal is to disentangle all the non-single stuff
+   * to CRM_Event_Form_Task_Register and discontinue this param.
    *
    * @var bool
    */
-  public $_single = FALSE;
+  public $_single = TRUE;
 
   /**
    * If event is paid or unpaid.
@@ -335,57 +338,7 @@ class CRM_Event_Form_Participant extends CRM_Contribute_Form_AbstractEditPayment
       return CRM_Event_Form_EventFees::preProcess($this);
     }
 
-    //check the mode when this form is called either single or as
-    //search task action
-    if ($this->_id || $this->_contactId || $this->_context == 'standalone') {
-      $this->_single = TRUE;
-      $this->assign('urlPath', 'civicrm/contact/view/participant');
-      if (!$this->_id && !$this->_contactId) {
-        $breadCrumbs = [
-          [
-            'title' => ts('CiviEvent Dashboard'),
-            'url' => CRM_Utils_System::url('civicrm/event', 'reset=1'),
-          ],
-        ];
-
-        CRM_Utils_System::appendBreadCrumb($breadCrumbs);
-      }
-    }
-    else {
-      //set the appropriate action
-      $context = $this->get('context');
-      $urlString = 'civicrm/contact/search';
-      $this->_action = CRM_Core_Action::BASIC;
-      switch ($context) {
-        case 'advanced':
-          $urlString = 'civicrm/contact/search/advanced';
-          $this->_action = CRM_Core_Action::ADVANCED;
-          break;
-
-        case 'builder':
-          $urlString = 'civicrm/contact/search/builder';
-          $this->_action = CRM_Core_Action::PROFILE;
-          break;
-
-        case 'basic':
-          $urlString = 'civicrm/contact/search/basic';
-          $this->_action = CRM_Core_Action::BASIC;
-          break;
-
-        case 'custom':
-          $urlString = 'civicrm/contact/search/custom';
-          $this->_action = CRM_Core_Action::COPY;
-          break;
-      }
-      CRM_Contact_Form_Task::preProcessCommon($this);
-
-      $this->_single = FALSE;
-      $this->_contactId = NULL;
-
-      //set ajax path, this used for custom data building
-      $this->assign('urlPath', $urlString);
-      $this->assign('urlPathVar', "_qf_Participant_display=true&qfKey={$this->controller->_key}");
-    }
+    $this->assignUrlPath();
 
     $this->assign('single', $this->_single);
 
@@ -2326,6 +2279,23 @@ INNER JOIN civicrm_price_field_value value ON ( value.id = lineItem.price_field_
     }
 
     return $feeDetails;
+  }
+
+  /**
+   * Assign the url path to the template.
+   */
+  protected function assignUrlPath() {
+    $this->assign('urlPath', 'civicrm/contact/view/participant');
+    if (!$this->_id && !$this->_contactId) {
+      $breadCrumbs = [
+        [
+          'title' => ts('CiviEvent Dashboard'),
+          'url' => CRM_Utils_System::url('civicrm/event', 'reset=1'),
+        ],
+      ];
+
+      CRM_Utils_System::appendBreadCrumb($breadCrumbs);
+    }
   }
 
 }

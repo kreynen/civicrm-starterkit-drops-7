@@ -78,6 +78,13 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
   protected $_useForMember;
 
   /**
+   * Set the price Set Id (only used in tests)
+   */
+  public function setPriceSetId($priceSetId) {
+    $this->_sid = $priceSetId;
+  }
+
+  /**
    * Set variables up before form is built.
    */
   public function preProcess() {
@@ -174,7 +181,7 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
     $this->add('text', 'label', ts('Field Label'), CRM_Core_DAO::getAttribute('CRM_Price_DAO_PriceField', 'label'), TRUE);
 
     // html_type
-    $javascript = 'onchange="option_html_type(this.form)";';
+    $javascript = ['onchange' => 'option_html_type(this.form);'];
 
     $htmlTypes = CRM_Price_BAO_PriceField::htmlTypes();
 
@@ -376,10 +383,13 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
     if ($this->_action & CRM_Core_Action::VIEW) {
       $this->freeze();
       $url = CRM_Utils_System::url('civicrm/admin/price/field', 'reset=1&action=browse&sid=' . $this->_sid);
-      $this->addElement('button',
+      $this->addElement('xbutton',
         'done',
         ts('Done'),
-        ['onclick' => "location.href='$url'"]
+        [
+          'type' => 'button',
+          'onclick' => "location.href='$url'",
+        ]
       );
     }
   }
@@ -546,12 +556,12 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
             $foundDuplicate = FALSE;
             $orgIds = [];
             foreach ($memTypesIDS as $key => $val) {
-              $org = CRM_Member_BAO_MembershipType::getMembershipTypeOrganization($val);
-              if (in_array($org[$val], $orgIds)) {
+              $memTypeDetails = CRM_Member_BAO_MembershipType::getMembershipType($val);
+              if (in_array($memTypeDetails['member_of_contact_id'], $orgIds)) {
                 $foundDuplicate = TRUE;
                 break;
               }
-              $orgIds[$val] = $org[$val];
+              $orgIds[$val] = $memTypeDetails['member_of_contact_id'];
 
             }
             if ($foundDuplicate) {
@@ -563,7 +573,7 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
           $foundAutorenew = FALSE;
           foreach ($memTypesIDS as $key => $val) {
             // see if any price field option values in this price field are for memberships with autorenew
-            $memTypeDetails = CRM_Member_BAO_MembershipType::getMembershipTypeDetails($val);
+            $memTypeDetails = CRM_Member_BAO_MembershipType::getMembershipType($val);
             if (!empty($memTypeDetails['auto_renew'])) {
               $foundAutorenew = TRUE;
               break;
@@ -641,7 +651,29 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
   public function postProcess() {
     // store the submitted values in an array
     $params = $this->controller->exportValues('Field');
+    $params['id'] = $this->getEntityId();
+    $priceField = $this->submit($params);
+    if (!is_a($priceField, 'CRM_Core_Error')) {
+      // Required by extensions implementing the postProcess hook (to get the ID of new entities)
+      $this->setEntityId($priceField->id);
+      CRM_Core_Session::setStatus(ts('Price Field \'%1\' has been saved.', [1 => $priceField->label]), ts('Saved'), 'success');
+    }
+    $buttonName = $this->controller->getButtonName();
+    $session = CRM_Core_Session::singleton();
+    if ($buttonName == $this->getButtonName('next', 'new')) {
+      CRM_Core_Session::setStatus(ts(' You can add another price set field.'), '', 'info');
+      $session->replaceUserContext(CRM_Utils_System::url('civicrm/admin/price/field', 'reset=1&action=add&sid=' . $this->_sid));
+    }
+    else {
+      $session->replaceUserContext(CRM_Utils_System::url('civicrm/admin/price/field', 'reset=1&action=browse&sid=' . $this->_sid));
+    }
+  }
+
+  public function submit($params) {
     $params['price'] = CRM_Utils_Rule::cleanMoney($params['price']);
+    foreach ($params['option_amount'] as $key => $amount) {
+      $params['option_amount'][$key] = CRM_Utils_Rule::cleanMoney($amount);
+    }
 
     $params['is_display_amounts'] = CRM_Utils_Array::value('is_display_amounts', $params, FALSE);
     $params['is_required'] = CRM_Utils_Array::value('is_required', $params, FALSE);
@@ -683,26 +715,10 @@ class CRM_Price_Form_Field extends CRM_Core_Form {
       $params['option_visibility_id'] = [1 => CRM_Utils_Array::value('visibility_id', $params)];
     }
 
-    $params['id'] = $this->getEntityId();
-
     $params['membership_num_terms'] = (!empty($params['membership_type_id'])) ? CRM_Utils_Array::value('membership_num_terms', $params, 1) : NULL;
 
     $priceField = CRM_Price_BAO_PriceField::create($params);
-
-    if (!is_a($priceField, 'CRM_Core_Error')) {
-      // Required by extensions implementing the postProcess hook (to get the ID of new entities)
-      $this->setEntityId($priceField->id);
-      CRM_Core_Session::setStatus(ts('Price Field \'%1\' has been saved.', [1 => $priceField->label]), ts('Saved'), 'success');
-    }
-    $buttonName = $this->controller->getButtonName();
-    $session = CRM_Core_Session::singleton();
-    if ($buttonName == $this->getButtonName('next', 'new')) {
-      CRM_Core_Session::setStatus(ts(' You can add another price set field.'), '', 'info');
-      $session->replaceUserContext(CRM_Utils_System::url('civicrm/admin/price/field', 'reset=1&action=add&sid=' . $this->_sid));
-    }
-    else {
-      $session->replaceUserContext(CRM_Utils_System::url('civicrm/admin/price/field', 'reset=1&action=browse&sid=' . $this->_sid));
-    }
+    return $priceField;
   }
 
 }

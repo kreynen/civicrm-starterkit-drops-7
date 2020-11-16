@@ -56,7 +56,7 @@ class Container {
     $cacheMode = defined('CIVICRM_CONTAINER_CACHE') ? CIVICRM_CONTAINER_CACHE : 'auto';
 
     // In pre-installation environments, don't bother with caching.
-    if (!defined('CIVICRM_DSN') || $cacheMode === 'never' || \CRM_Utils_System::isInUpgradeMode()) {
+    if (!defined('CIVICRM_DSN') || defined('CIVICRM_TEST') || CIVICRM_UF === 'UnitTests' || $cacheMode === 'never' || \CRM_Utils_System::isInUpgradeMode()) {
       $containerBuilder = $this->createContainer();
       $containerBuilder->compile();
       return $containerBuilder;
@@ -206,8 +206,17 @@ class Container {
       []
     ))->setPublic(TRUE);
 
+    $container->setDefinition('bundle.bootstrap3', new Definition('CRM_Core_Resources_Bundle', ['bootstrap3']))
+      ->setFactory('CRM_Core_Resources_Common::createBootstrap3Bundle')->setPublic(TRUE);
+
+    $container->setDefinition('bundle.coreStyles', new Definition('CRM_Core_Resources_Bundle', ['coreStyles']))
+      ->setFactory('CRM_Core_Resources_Common::createStyleBundle')->setPublic(TRUE);
+
+    $container->setDefinition('bundle.coreResources', new Definition('CRM_Core_Resources_Bundle', ['coreResources']))
+      ->setFactory('CRM_Core_Resources_Common::createFullBundle')->setPublic(TRUE);
+
     $container->setDefinition('pear_mail', new Definition('Mail'))
-      ->setFactory('CRM_Utils_Mail::createMailer');
+      ->setFactory('CRM_Utils_Mail::createMailer')->setPublic(TRUE);
 
     if (empty(\Civi::$statics[__CLASS__]['boot'])) {
       throw new \RuntimeException('Cannot initialize container. Boot services are undefined.');
@@ -230,12 +239,17 @@ class Container {
       ))
         ->setFactory([$class, 'singleton'])->setPublic(TRUE);
     }
-    $container->setAlias('cache.short', 'cache.default');
+    $container->setAlias('cache.short', 'cache.default')->setPublic(TRUE);
 
     $container->setDefinition('resources', new Definition(
       'CRM_Core_Resources',
       [new Reference('service_container')]
     ))->setFactory([new Reference(self::SELF), 'createResources'])->setPublic(TRUE);
+
+    $container->setDefinition('resources.js_strings', new Definition(
+      'CRM_Core_Resources_Strings',
+      [new Reference('cache.js_strings')]
+    ))->setPublic(TRUE);
 
     $container->setDefinition('prevnext', new Definition(
       'CRM_Core_PrevNextCache_Interface',
@@ -450,7 +464,7 @@ class Container {
     $sys = \CRM_Extension_System::singleton();
     return new \CRM_Core_Resources(
       $sys->getMapper(),
-      $container->get('cache.js_strings'),
+      new \CRM_Core_Resources_Strings($container->get('cache.js_strings')),
       \CRM_Core_Config::isUpgradeMode() ? NULL : 'resCacheCode'
     );
   }

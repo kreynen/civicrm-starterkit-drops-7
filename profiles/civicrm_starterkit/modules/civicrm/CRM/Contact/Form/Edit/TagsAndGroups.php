@@ -88,12 +88,13 @@ class CRM_Contact_Form_Edit_TagsAndGroups {
       }
 
       if ($groupID || !empty($group)) {
-        $groups = CRM_Contact_BAO_Group::getGroupsHierarchy($ids);
+        $groups = CRM_Contact_BAO_Group::getGroupsHierarchy($ids, NULL, '- ');
 
         $attributes['skiplabel'] = TRUE;
         $elements = [];
         $groupsOptions = [];
-        foreach ($groups as $id => $group) {
+        foreach ($groups as $key => $group) {
+          $id = $group['id'];
           // make sure that this group has public visibility
           if ($visibility &&
             $group['visibility'] == 'User and User Admin Only'
@@ -102,7 +103,7 @@ class CRM_Contact_Form_Edit_TagsAndGroups {
           }
 
           if ($groupElementType == 'select') {
-            $groupsOptions[$id] = $group;
+            $groupsOptions[$key] = $group;
           }
           else {
             $form->_tagGroup[$fName][$id]['description'] = $group['description'];

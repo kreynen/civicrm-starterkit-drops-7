@@ -20,6 +20,7 @@
 namespace Civi\Api4\Generic;
 
 use Civi\Api4\Query\Api4SelectQuery;
+use Civi\Api4\Utils\CoreUtil;
 
 /**
  * Retrieve $ENTITIES based on criteria specified in the `where` parameter.
@@ -85,6 +86,13 @@ class DAOGetAction extends AbstractGetAction {
   protected $having = [];
 
   public function _run(Result $result) {
+    // Early return if table doesn't exist yet due to pending upgrade
+    $baoName = $this->getBaoName();
+    if (!$baoName::tableHasBeenAdded()) {
+      \Civi::log()->warning("Could not read from {$this->getEntityName()} before table has been added. Upgrade required.", ['civi.tag' => 'upgrade_needed']);
+      return;
+    }
+
     $this->setDefaultWhereClause();
     $this->expandSelectClauseWildcards();
     $this->getObjects($result);
@@ -147,7 +155,7 @@ class DAOGetAction extends AbstractGetAction {
    * @throws \API_Exception
    */
   public function addHaving(string $expr, string $op, $value = NULL) {
-    if (!in_array($op, \CRM_Core_DAO::acceptedSQLOperators())) {
+    if (!in_array($op, CoreUtil::getOperators())) {
       throw new \API_Exception('Unsupported operator');
     }
     $this->having[] = [$expr, $op, $value];

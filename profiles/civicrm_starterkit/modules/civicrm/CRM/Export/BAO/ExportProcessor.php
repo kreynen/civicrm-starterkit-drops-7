@@ -639,6 +639,12 @@ class CRM_Export_BAO_ExportProcessor {
     $queryFields['world_region']['context'] = 'country';
     $queryFields['state_province']['context'] = 'province';
     $queryFields['contact_id'] = ['title' => ts('Contact ID'), 'type' => CRM_Utils_Type::T_INT];
+    $queryFields['tags']['type'] = CRM_Utils_Type::T_LONGTEXT;
+    $queryFields['groups']['type'] = CRM_Utils_Type::T_LONGTEXT;
+    $queryFields['notes']['type'] = CRM_Utils_Type::T_LONGTEXT;
+    // Set the label to gender for gender_id as we it's ... magic (not in a good way).
+    // In other places the query object offers e.g contribution_status & contribution_status_id
+    $queryFields['gender_id']['title'] = ts('Gender');
     $this->queryFields = $queryFields;
   }
 
@@ -800,7 +806,7 @@ class CRM_Export_BAO_ExportProcessor {
 
     // CRM-13982 - check if is deleted
     foreach ($params as $value) {
-      if ($value[0] == 'contact_is_deleted') {
+      if ($value[0] === 'contact_is_deleted') {
         unset($whereClauses['trash_clause']);
       }
     }
@@ -822,10 +828,10 @@ class CRM_Export_BAO_ExportProcessor {
     }
 
     if (empty($where)) {
-      $where = "WHERE " . implode(' AND ', $whereClauses);
+      $where = 'WHERE ' . implode(' AND ', $whereClauses);
     }
     else {
-      $where .= " AND " . implode(' AND ', $whereClauses);
+      $where .= ' AND ' . implode(' AND ', $whereClauses);
     }
 
     $groupBy = $this->getGroupBy($query);
@@ -971,7 +977,6 @@ class CRM_Export_BAO_ExportProcessor {
     if ($this->isHouseholdToSkip($iterationDAO->contact_id)) {
       return FALSE;
     }
-    $phoneTypes = CRM_Core_PseudoConstant::get('CRM_Core_DAO_Phone', 'phone_type_id');
     $imProviders = CRM_Core_PseudoConstant::get('CRM_Core_DAO_IM', 'provider_id');
 
     $row = [];
@@ -1002,10 +1007,7 @@ class CRM_Export_BAO_ExportProcessor {
       if (property_exists($iterationDAO, $field)) {
         $fieldValue = $iterationDAO->$field;
         // to get phone type from phone type id
-        if ($field == 'phone_type_id' && isset($phoneTypes[$fieldValue])) {
-          $fieldValue = $phoneTypes[$fieldValue];
-        }
-        elseif ($field == 'provider_id' || $field == 'im_provider') {
+        if ($field == 'provider_id' || $field == 'im_provider') {
           $fieldValue = $imProviders[$fieldValue] ?? NULL;
         }
         elseif (strstr($field, 'master_id')) {
@@ -1152,7 +1154,7 @@ class CRM_Export_BAO_ExportProcessor {
             if (!empty($fieldSpec['context'])) {
               return $i18n->crm_translate($fieldValue, $fieldSpec);
             }
-            if (!empty($fieldSpec['pseudoconstant']) && !empty($fieldSpec['hasLocationType'])) {
+            if (!empty($fieldSpec['pseudoconstant']) && !empty($fieldSpec['hasLocationType']) && $fieldSpec['name'] !== 'phone_type_id') {
               if (!empty($fieldSpec['bao'])) {
                 $transformedValue = CRM_Core_PseudoConstant::getLabel($fieldSpec['bao'], $fieldSpec['name'], $fieldValue);
                 if ($transformedValue) {
@@ -1432,21 +1434,20 @@ class CRM_Export_BAO_ExportProcessor {
   public function getSqlColumnDefinition($fieldName, $columnName) {
 
     // early exit for master_id, CRM-12100
-    // in the DB it is an ID, but in the export, we retrive the display_name of the master record
-    // also for current_employer, CRM-16939
-    if ($columnName == 'master_id' || $columnName == 'current_employer') {
+    // in the DB it is an ID, but in the export, we retrieve the display_name of the master record
+    if ($columnName === 'master_id') {
       return "`$fieldName` varchar(128)";
     }
 
     $queryFields = $this->getQueryFields();
-    // @todo remove the enotice avoidance here, ensure all columns are declared.
+    // @todo remove the e-notice avoidance here, ensure all columns are declared.
     // tests will fail on the enotices until they all are & then all the 'else'
     // below can go.
     $fieldSpec = $queryFields[$columnName] ?? [];
-
+    $type = $fieldSpec['type'] ?? ($fieldSpec['data_type'] ?? '');
     // set the sql columns
-    if (isset($fieldSpec['type'])) {
-      switch ($fieldSpec['type']) {
+    if ($type) {
+      switch ($type) {
         case CRM_Utils_Type::T_INT:
         case CRM_Utils_Type::T_BOOLEAN:
           if (in_array(CRM_Utils_Array::value('data_type', $fieldSpec), ['Country', 'StateProvince', 'ContactReference'])) {
@@ -1455,11 +1456,22 @@ class CRM_Export_BAO_ExportProcessor {
           return "`$fieldName` varchar(16)";
 
         case CRM_Utils_Type::T_STRING:
-          if (isset($queryFields[$columnName]['maxlength'])) {
-            return "`$fieldName` varchar({$queryFields[$columnName]['maxlength']})";
+          if (isset($fieldSpec['maxlength'])) {
+            return "`$fieldName` varchar({$fieldSpec['maxlength']})";
           }
-          else {
-            return "`$fieldName` varchar(255)";
+          $dataType = $fieldSpec['data_type'] ?? '';
+          // set the sql columns for custom data
+          switch ($dataType) {
+            case 'String':
+              // May be option labels, which could be up to 512 characters
+              $length = max(512, CRM_Utils_Array::value('text_length', $fieldSpec));
+              return "`$fieldName` varchar($length)";
+
+            case 'Memo':
+              return "`$fieldName` text";
+
+            default:
+              return "`$fieldName` varchar(255)";
           }
 
         case CRM_Utils_Type::T_TEXT:
@@ -1482,47 +1494,10 @@ class CRM_Export_BAO_ExportProcessor {
       }
     }
     else {
-      if (substr($fieldName, -3, 3) == '_id') {
+      if (substr($fieldName, -3, 3) === '_id') {
         return "`$fieldName` varchar(255)";
       }
-      elseif (substr($fieldName, -5, 5) == '_note') {
-        return "`$fieldName` text";
-      }
-      else {
-        $changeFields = [
-          'groups',
-          'tags',
-          'notes',
-        ];
-
-        if (in_array($fieldName, $changeFields)) {
-          return "`$fieldName` text";
-        }
-        else {
-          // set the sql columns for custom data
-          if (isset($queryFields[$columnName]['data_type'])) {
-
-            switch ($queryFields[$columnName]['data_type']) {
-              case 'String':
-                // May be option labels, which could be up to 512 characters
-                $length = max(512, CRM_Utils_Array::value('text_length', $queryFields[$columnName]));
-                return "`$fieldName` varchar($length)";
-
-              case 'Link':
-                return "`$fieldName` varchar(255)";
-
-              case 'Memo':
-                return "`$fieldName` text";
-
-              default:
-                return "`$fieldName` varchar(255)";
-            }
-          }
-          else {
-            return "`$fieldName` text";
-          }
-        }
-      }
+      return "`$fieldName` text";
     }
   }
 
@@ -2171,10 +2146,7 @@ WHERE  id IN ( $deleteIDString )
     foreach ($value as $relationField => $relationValue) {
       if (is_object($relDAO) && property_exists($relDAO, $relationField)) {
         $fieldValue = $relDAO->$relationField;
-        if ($relationField == 'phone_type_id') {
-          $fieldValue = $phoneTypes[$relationValue];
-        }
-        elseif ($relationField == 'provider_id') {
+        if ($relationField == 'provider_id') {
           $fieldValue = $imProviders[$relationValue] ?? NULL;
         }
         // CRM-13995

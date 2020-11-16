@@ -92,12 +92,9 @@ abstract class CRM_Core_Form_Task extends CRM_Core_Form {
   public static function preProcessCommon(&$form) {
     $form->_entityIds = [];
 
-    $searchFormValues = $form->controller->exportValues($form->get('searchFormName'));
+    $searchFormValues = $form->getSearchFormValues();
 
     $form->_task = $searchFormValues['task'];
-    $className = 'CRM_' . ucfirst($form::$entityShortname) . '_Task';
-    $entityTasks = $className::tasks();
-    $form->assign('taskName', $entityTasks[$form->_task]);
 
     $entityIds = [];
     if ($searchFormValues['radio_ts'] == 'ts_sel') {
@@ -249,6 +246,27 @@ SELECT contact_id
    */
   public function orderBy() {
     return '';
+  }
+
+  /**
+   * Get the submitted values for the form.
+   *
+   * @return array
+   */
+  public function getSearchFormValues() {
+    if ($this->_action === CRM_Core_Action::ADVANCED) {
+      return $this->controller->exportValues('Advanced');
+    }
+    if ($this->_action === CRM_Core_Action::PROFILE) {
+      return $this->controller->exportValues('Builder');
+    }
+    if ($this->_action == CRM_Core_Action::COPY) {
+      return $this->controller->exportValues('Custom');
+    }
+    if ($this->get('entity') !== 'Contact') {
+      return $this->controller->exportValues('Search');
+    }
+    return $this->controller->exportValues('Basic');
   }
 
 }

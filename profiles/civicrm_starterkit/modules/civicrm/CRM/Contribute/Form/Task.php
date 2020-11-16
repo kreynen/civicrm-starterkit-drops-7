@@ -50,16 +50,16 @@ class CRM_Contribute_Form_Task extends CRM_Core_Form_Task {
   }
 
   /**
-   * @param CRM_Core_Form $form
+   * @param \CRM_Core_Form_Task $form
+   *
+   * @throws \CRM_Core_Exception
    */
   public static function preProcessCommon(&$form) {
     $form->_contributionIds = [];
 
-    $values = $form->controller->exportValues($form->get('searchFormName'));
+    $values = $form->getSearchFormValues();
 
     $form->_task = $values['task'] ?? NULL;
-    $contributeTasks = CRM_Contribute_Task::tasks();
-    $form->assign('taskName', CRM_Utils_Array::value($form->_task, $contributeTasks));
 
     $ids = [];
     if (isset($values['radio_ts']) && $values['radio_ts'] == 'ts_sel') {

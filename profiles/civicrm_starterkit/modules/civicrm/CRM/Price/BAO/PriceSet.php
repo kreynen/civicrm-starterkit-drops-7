@@ -574,7 +574,7 @@ WHERE  id = %1";
         switch ($entityTable) {
           case 'civicrm_event':
             $entity = 'participant';
-            if (CRM_Utils_System::getClassName($form) == 'CRM_Event_Form_Participant') {
+            if (in_array(CRM_Utils_System::getClassName($form), ['CRM_Event_Form_Participant', 'CRM_Event_Form_Task_Register'])) {
               $entityId = $form->_id;
             }
             else {
@@ -673,7 +673,7 @@ WHERE  id = %1";
         continue;
       }
 
-      list($params, $lineItem) = self::getLine($params, $lineItem, $priceSetID, $field, $id, $totalPrice);
+      list($params, $lineItem) = self::getLine($params, $lineItem, $priceSetID, $field, $id);
     }
 
     $amount_level = [];
@@ -1234,16 +1234,20 @@ INNER JOIN  civicrm_price_set pset    ON ( pset.id = field.price_set_id )
   }
 
   /**
-   * @param $ids
+   * Return a count of priceFieldValueIDs that are memberships by organisation and membership type
+   *
+   * @param string $priceFieldValueIDs
+   *   Comma separated string of priceFieldValue IDs
    *
    * @return array
+   *   Returns an array of counts by membership organisation
    */
-  public static function getMembershipCount($ids) {
+  public static function getMembershipCount($priceFieldValueIDs) {
     $queryString = "
 SELECT       count( pfv.id ) AS count, mt.member_of_contact_id AS id
 FROM         civicrm_price_field_value pfv
 INNER JOIN    civicrm_membership_type mt ON mt.id = pfv.membership_type_id
-WHERE        pfv.id IN ( $ids )
+WHERE        pfv.id IN ( $priceFieldValueIDs )
 GROUP BY     mt.member_of_contact_id ";
 
     $crmDAO = CRM_Core_DAO::executeQuery($queryString);
@@ -1690,11 +1694,10 @@ WHERE     ct.id = cp.financial_type_id AND
    * @param int $priceSetID
    * @param array $field
    * @param int $id
-   * @param float $totalPrice
    *
    * @return array
    */
-  public static function getLine(&$params, &$lineItem, $priceSetID, $field, $id, $totalPrice): array {
+  public static function getLine(&$params, &$lineItem, $priceSetID, $field, $id): array {
     $totalTax = 0;
     switch ($field['html_type']) {
       case 'Text':
@@ -1714,7 +1717,6 @@ WHERE     ct.id = cp.financial_type_id AND
         if (!empty($field['options'][$optionValueId]['tax_rate'])) {
           $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
         }
-        $totalPrice += $lineItem[$firstOption['id']]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[key($field['options'])]);
         break;
 
       case 'Radio':
@@ -1744,7 +1746,6 @@ WHERE     ct.id = cp.financial_type_id AND
             $lineItem[$optionValueId]['line_total'] = $lineItem[$optionValueId]['unit_price'] = CRM_Utils_Rule::cleanMoney($lineItem[$optionValueId]['line_total'] - $lineItem[$optionValueId]['tax_amount']);
           }
         }
-        $totalPrice += $lineItem[$optionValueId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionValueId]);
         break;
 
       case 'Select':
@@ -1755,7 +1756,6 @@ WHERE     ct.id = cp.financial_type_id AND
         if (!empty($field['options'][$optionValueId]['tax_rate'])) {
           $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
         }
-        $totalPrice += $lineItem[$optionValueId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionValueId]);
         break;
 
       case 'CheckBox':
@@ -1765,7 +1765,6 @@ WHERE     ct.id = cp.financial_type_id AND
           if (!empty($field['options'][$optionId]['tax_rate'])) {
             $lineItem = self::setLineItem($field, $lineItem, $optionId, $totalTax);
           }
-          $totalPrice += $lineItem[$optionId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionId]);
         }
         break;
     }

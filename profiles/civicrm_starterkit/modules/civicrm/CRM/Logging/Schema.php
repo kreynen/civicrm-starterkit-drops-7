@@ -158,11 +158,13 @@ AND    TABLE_NAME LIKE 'civicrm_%'
     $nonStandardTableNameString = $this->getNonStandardTableNameFilterString();
 
     if (defined('CIVICRM_LOGGING_DSN')) {
-      $dsn = DB::parseDSN(CIVICRM_LOGGING_DSN);
+      $dsn = CRM_Utils_SQL::autoSwitchDSN(CIVICRM_LOGGING_DSN);
+      $dsn = DB::parseDSN($dsn);
       $this->useDBPrefix = (CIVICRM_LOGGING_DSN != CIVICRM_DSN);
     }
     else {
-      $dsn = DB::parseDSN(CIVICRM_DSN);
+      $dsn = CRM_Utils_SQL::autoSwitchDSN(CIVICRM_DSN);
+      $dsn = DB::parseDSN($dsn);
       $this->useDBPrefix = FALSE;
     }
     $this->db = $dsn['database'];
@@ -439,10 +441,12 @@ AND    (TABLE_NAME LIKE 'log_civicrm_%' $nonStandardTableNameString )
     // should treat it as a modification.
     $this->resetSchemaCacheForTable("log_$table");
     $logTableSchema = $this->columnSpecsOf("log_$table");
-    foreach ($cols['ADD'] as $colKey => $col) {
-      if (array_key_exists($col, $logTableSchema)) {
-        $cols['MODIFY'][] = $col;
-        unset($cols['ADD'][$colKey]);
+    if (!empty($cols['ADD'])) {
+      foreach ($cols['ADD'] as $colKey => $col) {
+        if (array_key_exists($col, $logTableSchema)) {
+          $cols['MODIFY'][] = $col;
+          unset($cols['ADD'][$colKey]);
+        }
       }
     }
 

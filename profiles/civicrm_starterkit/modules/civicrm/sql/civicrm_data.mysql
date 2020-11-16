@@ -1496,7 +1496,7 @@ INSERT INTO civicrm_state_province (id, country_id, abbreviation, name) VALUES
 (2597, 1226, "AGB", "Argyll and Bute"),
 (2598, 1226, "ARM", "Co Armagh"),
 (2606, 1226, "BDF", "Bedfordshire"),
-(2612, 1226, "BGW", "Gwent"),
+(2612, 1226, "BGW", "Blaenau Gwent"),
 (2620, 1226, "BST", "Bristol, City of"),
 (2622, 1226, "BKM", "Buckinghamshire"),
 (2626, 1226, "CAM", "Cambridgeshire"),
@@ -1565,7 +1565,7 @@ INSERT INTO civicrm_state_province (id, country_id, abbreviation, name) VALUES
 (2786, 1226, "STG", "Stirling"),
 (2791, 1226, "SFK", "Suffolk"),
 (2793, 1226, "SRY", "Surrey"),
-(2804, 1226, "VGL", "Mid Glamorgan"),
+(2804, 1226, "VGL", "Vale of Glamorgan, The"),
 (2811, 1226, "WAR", "Warwickshire"),
 (2813, 1226, "WDU", "West Dunbartonshire"),
 (2814, 1226, "WLN", "West Lothian"),
@@ -3969,7 +3969,6 @@ INSERT INTO civicrm_state_province (id, country_id, abbreviation, name) VALUES
 
 -- new UK provinces (CRM-5224)
 (10013, 1226, "CWD", "Clwyd"),
-(10014, 1226, "DFD", "Dyfed"),
 (10015, 1226, "SGM", "South Glamorgan"),
 
 -- Haiti (CRM-5628)
@@ -4388,7 +4387,38 @@ INSERT INTO civicrm_state_province (id, country_id, abbreviation, name) VALUES
 (NULL, 1080, "09", "Woleu-Ntem"),
 
 -- dev/Core#131 Missing UK State
-(NULL, 1226, "MON", "Monmouthshire");
+(NULL, 1226, "MON", "Monmouthshire"),
+
+-- dev/core#2027 Missing subdivisions for Northern Ireland and Wales
+(NULL, 1226, "ANN", "Antrim and Newtownabbey"),
+(NULL, 1226, "AND", "Ards and North Down"),
+(NULL, 1226, "ABC", "Armagh City, Banbridge and Craigavon"),
+(NULL, 1226, "BFS", "Belfast"),
+(NULL, 1226, "CCG", "Causeway Coast and Glens"),
+(NULL, 1226, "DRS", "Derry City and Strabane"),
+(NULL, 1226, "FMO", "Fermanagh and Omagh"),
+(NULL, 1226, "LBC", "Lisburn and Castlereagh"),
+(NULL, 1226, "MEA", "Mid and East Antrim"),
+(NULL, 1226, "MUL", "Mid Ulster"),
+(NULL, 1226, "NMD", "Newry, Mourne and Down"),
+
+(NULL, 1226, "BGE", "Bridgend"),
+(NULL, 1226, "CAY", "Caerphilly"),
+(NULL, 1226, "CRF", "Cardiff"),
+(NULL, 1226, "CRF", "Carmarthenshire"),
+(NULL, 1226, "CGN", "Ceredigion"),
+(NULL, 1226, "CWY", "Conwy"),
+(NULL, 1226, "DEN", "Denbighshire"),
+(NULL, 1226, "FLN", "Flintshire"),
+(NULL, 1226, "AGY", "Isle of Anglesey"),
+(NULL, 1226, "MTY", "Merthyr Tydfil"),
+(NULL, 1226, "NTL", "Neath Port Talbot"),
+(NULL, 1226, "NWP", "Newport"),
+(NULL, 1226, "PEM", "Pembrokeshire"),
+(NULL, 1226, "RCT", "Rhondda, Cynon, Taff"),
+(NULL, 1226, "SWA", "Swansea"),
+(NULL, 1226, "TOF", "Torfaen"),
+(NULL, 1226, "WRX", "Wrexham");
 -- +--------------------------------------------------------------------+
 -- | Copyright CiviCRM LLC. All rights reserved.                        |
 -- |                                                                    |
@@ -4621,7 +4651,7 @@ SET @contactID := LAST_INSERT_ID();
 
 INSERT INTO civicrm_email (contact_id, location_type_id, email, is_primary, is_billing, on_hold, hold_date, reset_date)
 VALUES
-(@contactID, 1, 'fixme.domainemail@example.org', 0, 0, 0, NULL, NULL);
+(@contactID, 1, 'fixme.domainemail@example.org', 1, 0, 0, NULL, NULL);
 
 INSERT INTO civicrm_domain (name, version, contact_id) VALUES (@domainName, '2.2', @contactID);
 SELECT @domainID := id FROM civicrm_domain where name = 'Default Domain Name';
@@ -5945,7 +5975,6 @@ VALUES
  ('PayPal_Express',     'PayPal - Express',       NULL,1,0,'User Name','Password','Signature',NULL,'Payment_PayPalImpl','https://www.paypal.com/','https://api-3t.paypal.com/',NULL,'https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif','https://www.sandbox.paypal.com/','https://api-3t.sandbox.paypal.com/',NULL,'https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif',2, 1),
  ('AuthNet',            'Authorize.Net',          NULL,1,0,'API Login','Payment Key','MD5 Hash',NULL,'Payment_AuthorizeNet','https://secure2.authorize.net/gateway/transact.dll',NULL,'https://api2.authorize.net/xml/v1/request.api',NULL,'https://test.authorize.net/gateway/transact.dll',NULL,'https://apitest.authorize.net/xml/v1/request.api',NULL,1,1),
  ('PayJunction',        'PayJunction',            NULL,0,0,'User Name','Password',NULL,NULL,'Payment_PayJunction','https://payjunction.com/quick_link',NULL,NULL,NULL,'https://www.payjunctionlabs.com/quick_link',NULL,NULL,NULL,1,1),
- ('eWAY',               'eWAY (Single Currency)', NULL,0,0,'Customer ID',NULL,NULL,NULL,'Payment_eWAY','https://www.eway.com.au/gateway_cvn/xmlpayment.asp',NULL,NULL,NULL,'https://www.eway.com.au/gateway_cvn/xmltest/testpage.asp',NULL,NULL,NULL,1,0),
  ('Dummy',              'Dummy Payment Processor',NULL,1,1,'User Name',NULL,NULL,NULL,'Payment_Dummy',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,1),
  ('Elavon',             'Elavon Payment Processor','Elavon / Nova Virtual Merchant',0,0,'SSL Merchant ID ','SSL User ID','SSL PIN',NULL,'Payment_Elavon','https://www.myvirtualmerchant.com/VirtualMerchant/processxml.do',NULL,NULL,NULL,'https://www.myvirtualmerchant.com/VirtualMerchant/processxml.do',NULL,NULL,NULL,1,0),
  ('Realex',             'Realex Payment',         NULL,0,0,'Merchant ID', 'Password', NULL, 'Account', 'Payment_Realex', 'https://epage.payandshop.com/epage.cgi', NULL, NULL, NULL, 'https://epage.payandshop.com/epage-remote.cgi', NULL, NULL, NULL, 1, 0),
@@ -9408,29 +9437,28 @@ INSERT INTO civicrm_msg_template
                 <td style="text-align:right;white-space: nowrap"><b><font size="1">{ts 1=$defaultCurrency}TOTAL %1{/ts}</font></b></td>
                 <td style="text-align:right;"><font size="1">{$amount|crmMoney:$currency}</font></td>
               </tr>
-             {if $amountDue != 0}
-                <tr>
-                  <td colspan="3"></td>
-                  <td style="text-align:right;white-space: nowrap"><font size="1">
-                    {if $contribution_status_id == $refundedStatusId}
-                      {ts}Amount Credited{/ts}
-                    {else}
-                      {ts}Amount Paid{/ts}
-                    {/if}
-                   </font>
-                  </td>
-                  <td style="text-align:right;"><font size="1">{$amountPaid|crmMoney:$currency}</font></td>
-                </tr>
-                <tr>
-                  <td colspan="3"></td>
-                  <td colspan="2"><hr></hr></td>
-                </tr>
-                <tr>
-                  <td colspan="3"></td>
-                  <td style="text-align:right;white-space: nowrap" ><b><font size="1">{ts}AMOUNT DUE:{/ts}</font></b></td>
-                  <td style="text-align:right;"><b><font size="1">{$amountDue|crmMoney:$currency}</font></b></td>
-                </tr>
-              {/if}
+              <tr>
+                <td colspan="3"></td>
+                <td style="text-align:right;white-space: nowrap"><font size="1">
+                  {if $contribution_status_id == $refundedStatusId}
+                    {ts}Amount Credited{/ts}
+                  {else}
+                    {ts}Amount Paid{/ts}
+                  {/if}
+                 </font>
+                </td>
+                <td style="text-align:right;"><font size="1">{$amountPaid|crmMoney:$currency}</font></td>
+              </tr>
+              <tr>
+                <td colspan="3"></td>
+                <td colspan="2"><hr></hr></td>
+              </tr>
+              <tr>
+                <td colspan="3"></td>
+                <td style="text-align:right;white-space: nowrap" ><b><font size="1">{ts}AMOUNT DUE:{/ts}</font></b></td>
+                <td style="text-align:right;"><b><font size="1">{$amountDue|crmMoney:$currency}</font></b></td>
+              </tr>
+
               <br/><br/><br/>
               <tr>
                 <td colspan="5"></td>
@@ -9852,29 +9880,28 @@ INSERT INTO civicrm_msg_template
                 <td style="text-align:right;white-space: nowrap"><b><font size="1">{ts 1=$defaultCurrency}TOTAL %1{/ts}</font></b></td>
                 <td style="text-align:right;"><font size="1">{$amount|crmMoney:$currency}</font></td>
               </tr>
-             {if $amountDue != 0}
-                <tr>
-                  <td colspan="3"></td>
-                  <td style="text-align:right;white-space: nowrap"><font size="1">
-                    {if $contribution_status_id == $refundedStatusId}
-                      {ts}Amount Credited{/ts}
-                    {else}
-                      {ts}Amount Paid{/ts}
-                    {/if}
-                   </font>
-                  </td>
-                  <td style="text-align:right;"><font size="1">{$amountPaid|crmMoney:$currency}</font></td>
-                </tr>
-                <tr>
-                  <td colspan="3"></td>
-                  <td colspan="2"><hr></hr></td>
-                </tr>
-                <tr>
-                  <td colspan="3"></td>
-                  <td style="text-align:right;white-space: nowrap" ><b><font size="1">{ts}AMOUNT DUE:{/ts}</font></b></td>
-                  <td style="text-align:right;"><b><font size="1">{$amountDue|crmMoney:$currency}</font></b></td>
-                </tr>
-              {/if}
+              <tr>
+                <td colspan="3"></td>
+                <td style="text-align:right;white-space: nowrap"><font size="1">
+                  {if $contribution_status_id == $refundedStatusId}
+                    {ts}Amount Credited{/ts}
+                  {else}
+                    {ts}Amount Paid{/ts}
+                  {/if}
+                 </font>
+                </td>
+                <td style="text-align:right;"><font size="1">{$amountPaid|crmMoney:$currency}</font></td>
+              </tr>
+              <tr>
+                <td colspan="3"></td>
+                <td colspan="2"><hr></hr></td>
+              </tr>
+              <tr>
+                <td colspan="3"></td>
+                <td style="text-align:right;white-space: nowrap" ><b><font size="1">{ts}AMOUNT DUE:{/ts}</font></b></td>
+                <td style="text-align:right;"><b><font size="1">{$amountDue|crmMoney:$currency}</font></b></td>
+              </tr>
+
               <br/><br/><br/>
               <tr>
                 <td colspan="5"></td>
@@ -14393,7 +14420,7 @@ You were registered by: {$payer.name}
 {/if}
 
 {if $event.allow_selfcancelxfer }
-{ts 1=$event.selfcancelxfer_time}You may transfer your registration to another participant or cancel your registration up to %1 hours before the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
+{ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
    {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}"  h=0 a=1 fe=1}{/capture}
 {ts}Transfer or cancel your registration:{/ts} {$selfService}
 {/if}
@@ -14896,7 +14923,7 @@ You were registered by: {$payer.name}
     {if $event.allow_selfcancelxfer }
      <tr>
       <td colspan="2" {$valueStyle}>
-        {ts 1=$event.selfcancelxfer_time}You may transfer your registration to another participant or cancel your registration up to %1 hours before the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}<br />
+        {ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}<br />
         {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}"  h=0 a=1 fe=1}{/capture}
         <a href="{$selfService}">{ts}Click here to transfer or cancel your registration.{/ts}</a>
       </td>
@@ -15202,7 +15229,7 @@ You were registered by: {$payer.name}
 {/if}
 
 {if $event.allow_selfcancelxfer }
-{ts 1=$event.selfcancelxfer_time}You may transfer your registration to another participant or cancel your registration up to %1 hours before the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
+{ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
    {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}"  h=0 a=1 fe=1}{/capture}
 {ts}Transfer or cancel your registration:{/ts} {$selfService}
 {/if}
@@ -15705,7 +15732,7 @@ You were registered by: {$payer.name}
     {if $event.allow_selfcancelxfer }
      <tr>
       <td colspan="2" {$valueStyle}>
-        {ts 1=$event.selfcancelxfer_time}You may transfer your registration to another participant or cancel your registration up to %1 hours before the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}<br />
+        {ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}<br />
         {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}"  h=0 a=1 fe=1}{/capture}
         <a href="{$selfService}">{ts}Click here to transfer or cancel your registration.{/ts}</a>
       </td>
@@ -16609,7 +16636,7 @@ Click this link to go to a web page where you can confirm your registration onli
 {$confirmUrl}
 {/if}
 {if $event.allow_selfcancelxfer }
-{ts 1=$event.selfcancelxfer_time}You may transfer your registration to another participant or cancel your registration up to %1 hours before the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
+{ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
    {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}"  h=0 a=1 fe=1}{/capture}
 {ts}Transfer or cancel your registration:{/ts} {$selfService}
 {/if}
@@ -16845,7 +16872,7 @@ Click this link to go to a web page where you can confirm your registration onli
   {if $event.allow_selfcancelxfer }
    <tr>
      <td colspan="2" {$valueStyle}>
-       {ts 1=$event.selfcancelxfer_time}You may transfer your registration to another participant or cancel your registration up to %1 hours before the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}<br />
+       {ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}<br />
          {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}"  h=0 a=1 fe=1}{/capture}
        <a href="{$selfService}">{ts}Click here to transfer or cancel your registration.{/ts}</a>
      </td>
@@ -16879,7 +16906,7 @@ Click this link to go to a web page where you can confirm your registration onli
 {$confirmUrl}
 {/if}
 {if $event.allow_selfcancelxfer }
-{ts 1=$event.selfcancelxfer_time}You may transfer your registration to another participant or cancel your registration up to %1 hours before the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
+{ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
    {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}"  h=0 a=1 fe=1}{/capture}
 {ts}Transfer or cancel your registration:{/ts} {$selfService}
 {/if}
@@ -17115,7 +17142,7 @@ Click this link to go to a web page where you can confirm your registration onli
   {if $event.allow_selfcancelxfer }
    <tr>
      <td colspan="2" {$valueStyle}>
-       {ts 1=$event.selfcancelxfer_time}You may transfer your registration to another participant or cancel your registration up to %1 hours before the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}<br />
+       {ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}<br />
          {capture assign=selfService}{crmURL p=\'civicrm/event/selfsvcupdate\' q="reset=1&pid=`$participant.id`&{contact.checksum}"  h=0 a=1 fe=1}{/capture}
        <a href="{$selfService}">{ts}Click here to transfer or cancel your registration.{/ts}</a>
      </td>
@@ -23092,7 +23119,9 @@ VALUES
 -- in the setup routine based on their tags & using the standard extension install api.
 -- do not try this at home folks.
 INSERT IGNORE INTO civicrm_extension (type, full_name, name, label, file, is_active) VALUES ('module', 'sequentialcreditnotes', 'Sequential credit notes', 'Sequential credit notes', 'sequentialcreditnotes', 1);
+INSERT IGNORE INTO civicrm_extension (type, full_name, name, label, file, is_active) VALUES ('module', 'greenwich', 'Theme: Greenwich', 'Theme: Greenwich', 'greenwich', 1);
 INSERT IGNORE INTO civicrm_extension (type, full_name, name, label, file, is_active) VALUES ('module', 'eventcart', 'Event cart', 'Event cart', 'eventcart', 1);
+INSERT IGNORE INTO civicrm_extension (type, full_name, name, label, file, is_active) VALUES ('module', 'financialacls', 'Financial ACLs', 'Financial ACLs', 'financialacls', 1);
 -- +--------------------------------------------------------------------+
 -- | Copyright CiviCRM LLC. All rights reserved.                        |
 -- |                                                                    |
@@ -23897,4 +23926,4 @@ INSERT INTO `civicrm_report_instance`
     ( `domain_id`, `title`, `report_id`, `description`, `permission`, `form_values`)
 VALUES
     (  @domainID, 'Survey Details', 'survey/detail', 'Detailed report for canvassing, phone-banking, walk lists or other surveys.', 'access CiviReport', 'a:39:{s:6:"fields";a:2:{s:9:"sort_name";s:1:"1";s:6:"result";s:1:"1";}s:22:"assignee_contact_id_op";s:2:"eq";s:25:"assignee_contact_id_value";s:0:"";s:12:"sort_name_op";s:3:"has";s:15:"sort_name_value";s:0:"";s:17:"street_number_min";s:0:"";s:17:"street_number_max";s:0:"";s:16:"street_number_op";s:3:"lte";s:19:"street_number_value";s:0:"";s:14:"street_name_op";s:3:"has";s:17:"street_name_value";s:0:"";s:15:"postal_code_min";s:0:"";s:15:"postal_code_max";s:0:"";s:14:"postal_code_op";s:3:"lte";s:17:"postal_code_value";s:0:"";s:7:"city_op";s:3:"has";s:10:"city_value";s:0:"";s:20:"state_province_id_op";s:2:"in";s:23:"state_province_id_value";a:0:{}s:13:"country_id_op";s:2:"in";s:16:"country_id_value";a:0:{}s:12:"survey_id_op";s:2:"in";s:15:"survey_id_value";a:0:{}s:12:"status_id_op";s:2:"eq";s:15:"status_id_value";s:1:"1";s:11:"custom_1_op";s:2:"in";s:14:"custom_1_value";a:0:{}s:11:"custom_2_op";s:2:"in";s:14:"custom_2_value";a:0:{}s:17:"custom_3_relative";s:1:"0";s:13:"custom_3_from";s:0:"";s:11:"custom_3_to";s:0:"";s:11:"description";s:75:"Detailed report for canvassing, phone-banking, walk lists or other surveys.";s:13:"email_subject";s:0:"";s:8:"email_to";s:0:"";s:8:"email_cc";s:0:"";s:10:"permission";s:17:"access CiviReport";s:6:"groups";s:0:"";s:9:"domain_id";i:1;}');
-UPDATE civicrm_domain SET version = '5.29.1';
+UPDATE civicrm_domain SET version = '5.31.0';

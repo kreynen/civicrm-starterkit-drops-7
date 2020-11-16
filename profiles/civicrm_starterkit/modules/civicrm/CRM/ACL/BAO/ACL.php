@@ -204,36 +204,29 @@ SELECT      acl.*
   protected static function getGroupACLRoles($contact_id) {
     $contact_id = CRM_Utils_Type::escape($contact_id, 'Integer');
 
-    $rule = new CRM_ACL_BAO_ACL();
-
-    $aclRole = 'civicrm_acl_role';
-
-    $aclER = CRM_ACL_DAO_EntityRole::getTableName();
-    $c2g = CRM_Contact_BAO_GroupContact::getTableName();
-
     $query = "   SELECT          acl.*
                         FROM            civicrm_acl acl
                         INNER JOIN      civicrm_option_group og
                                 ON      og.name = 'acl_role'
                         INNER JOIN      civicrm_option_value ov
-                                ON      acl.entity_table   = '$aclRole'
+                                ON      acl.entity_table   = 'civicrm_acl_role'
                                 AND     ov.option_group_id  = og.id
                                 AND     acl.entity_id      = ov.value
                                 AND     ov.is_active        = 1
-                        INNER JOIN      $aclER
-                                ON      $aclER.acl_role_id = acl.entity_id
-                                AND     $aclER.is_active    = 1
-                        INNER JOIN  $c2g
-                                ON      $aclER.entity_id      = $c2g.group_id
-                                AND     $aclER.entity_table   = 'civicrm_group'
-                        WHERE       acl.entity_table       = '$aclRole'
+                        INNER JOIN      civicrm_acl_entity_role acl_entity_role
+                                ON      acl_entity_role.acl_role_id = acl.entity_id
+                                AND     acl_entity_role.is_active    = 1
+                        INNER JOIN  civicrm_group_contact group_contact
+                                ON      acl_entity_role.entity_id      = group_contact.group_id
+                                AND     acl_entity_role.entity_table   = 'civicrm_group'
+                        WHERE       acl.entity_table       = 'civicrm_acl_role'
                             AND     acl.is_active          = 1
-                            AND     $c2g.contact_id         = $contact_id
-                            AND     $c2g.status             = 'Added'";
+                            AND     group_contact.contact_id         = $contact_id
+                            AND     group_contact.status             = 'Added'";
 
     $results = [];
 
-    $rule->query($query);
+    $rule = CRM_Core_DAO::executeQuery($query);
 
     while ($rule->fetch()) {
       $results[$rule->id] = $rule->toArray();
@@ -254,7 +247,7 @@ SELECT acl.*
    AND acl.entity_table   = 'civicrm_acl_role'
 ";
 
-    $rule->query($query);
+    $rule = CRM_Core_DAO::executeQuery($query);
     while ($rule->fetch()) {
       $results[$rule->id] = $rule->toArray();
     }
@@ -484,10 +477,10 @@ SELECT g.*
       $aclKeys = array_keys($acls);
       $aclKeys = implode(',', $aclKeys);
 
-      $cacheKey = CRM_Utils_Cache::cleanKey("$tableName-$aclKeys");
+      $cacheKey = CRM_Utils_Cache::cleanKey("$type-$tableName-$aclKeys");
       $cache = CRM_Utils_Cache::singleton();
       $ids = $cache->get($cacheKey);
-      if (!$ids) {
+      if (!is_array($ids)) {
         $ids = [];
         $query = "
 SELECT   a.operation, a.object_id
