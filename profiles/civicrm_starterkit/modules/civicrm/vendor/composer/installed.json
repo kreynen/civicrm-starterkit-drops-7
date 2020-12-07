@@ -140,41 +140,37 @@
     },
     {
         "name": "cache/integration-tests",
-        "version": "0.16.0",
-        "version_normalized": "0.16.0.0",
+        "version": "0.17.0",
+        "version_normalized": "0.17.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/php-cache/integration-tests.git",
-            "reference": "a8d9538a44ed5a70d551f9b87f534c98dfe6b0ee"
+            "reference": "eda2e6b8bc5abcd623c8047e2345cda38dd6479e"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/php-cache/integration-tests/zipball/a8d9538a44ed5a70d551f9b87f534c98dfe6b0ee",
-            "reference": "a8d9538a44ed5a70d551f9b87f534c98dfe6b0ee",
+            "url": "https://api.github.com/repos/php-cache/integration-tests/zipball/eda2e6b8bc5abcd623c8047e2345cda38dd6479e",
+            "reference": "eda2e6b8bc5abcd623c8047e2345cda38dd6479e",
             "shasum": ""
         },
         "require": {
             "cache/tag-interop": "^1.0",
-            "php": "^5.4|^7",
+            "php": ">=5.5.9",
             "psr/cache": "~1.0"
         },
+        "conflict": {
+            "phpunit/phpunit": "<4.8.35|<5.4.3,>=5.0"
+        },
         "require-dev": {
-            "cache/cache": "dev-master",
-            "illuminate/cache": "^5.0",
-            "madewithlove/illuminate-psr-cache-bridge": "^1.0",
-            "phpunit/phpunit": "^4.0|^5.0",
-            "symfony/cache": "^3.1",
-            "tedivm/stash": "dev-master"
+            "cache/cache": "^1.0",
+            "illuminate/cache": "^5.4|^5.5|^5.6",
+            "mockery/mockery": "^1.0",
+            "symfony/cache": "^3.4.31|^4.3.4|^5.0",
+            "symfony/phpunit-bridge": "^5.1",
+            "tedivm/stash": "^0.14"
         },
-        "time": "2017-02-02T14:29:50+00:00",
+        "time": "2020-11-03T12:52:23+00:00",
         "type": "library",
-        "extra": {
-            "patches_applied": {
-                "Allow adding tests": "https://github.com/php-cache/integration-tests/commit/05f97174c09364dc10c084a38ba0cfd5124f4cec.patch",
-                "Support PHPUnit 6+": "https://github.com/php-cache/integration-tests/commit/1ec7362962185df91d3d749bc3fa7e7b99cb9fc7.patch",
-                "Add tests for binary data round trip": "https://github.com/php-cache/integration-tests/commit/89cd7068e83aa776774bfc44f6bcba858c085616.patch"
-            }
-        },
         "installation-source": "dist",
         "autoload": {
             "psr-4": {
@@ -194,7 +190,7 @@
             {
                 "name": "Tobias Nyholm",
                 "email": "tobias.nyholm@gmail.com",
-                "homepage": "https://github.com/Nyholm"
+                "homepage": "https://github.com/nyholm"
             }
         ],
         "description": "Integration tests for PSR-6 and PSR-16 cache implementations",
@@ -440,7 +436,7 @@
             "phpunit/phpunit": "^5.7",
             "totten/process-helper": "^1.0.1"
         },
-        "time": "2020-11-02T04:00:42+00:00",
+        "time": "2020-11-02T05:26:23+00:00",
         "type": "composer-plugin",
         "extra": {
             "class": "LastCall\\DownloadsPlugin\\Plugin"
@@ -469,28 +465,28 @@
     },
     {
         "name": "cweagans/composer-patches",
-        "version": "1.6.5",
-        "version_normalized": "1.6.5.0",
+        "version": "1.7.0",
+        "version_normalized": "1.7.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/cweagans/composer-patches.git",
-            "reference": "2ec4f00ff5fb64de584c8c4aea53bf9053ecb0b3"
+            "reference": "ae02121445ad75f4eaff800cc532b5e6233e2ddf"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/cweagans/composer-patches/zipball/2ec4f00ff5fb64de584c8c4aea53bf9053ecb0b3",
-            "reference": "2ec4f00ff5fb64de584c8c4aea53bf9053ecb0b3",
+            "url": "https://api.github.com/repos/cweagans/composer-patches/zipball/ae02121445ad75f4eaff800cc532b5e6233e2ddf",
+            "reference": "ae02121445ad75f4eaff800cc532b5e6233e2ddf",
             "shasum": ""
         },
         "require": {
-            "composer-plugin-api": "^1.0",
+            "composer-plugin-api": "^1.0 || ^2.0",
             "php": ">=5.3.0"
         },
         "require-dev": {
-            "composer/composer": "~1.0",
+            "composer/composer": "~1.0 || ~2.0",
             "phpunit/phpunit": "~4.6"
         },
-        "time": "2018-05-11T18:00:16+00:00",
+        "time": "2020-09-30T17:56:20+00:00",
         "type": "composer-plugin",
         "extra": {
             "class": "cweagans\\Composer\\Patches"
@@ -572,36 +568,38 @@
     },
     {
         "name": "dompdf/dompdf",
-        "version": "v0.8.5",
-        "version_normalized": "0.8.5.0",
+        "version": "v0.8.6",
+        "version_normalized": "0.8.6.0",
         "source": {
             "type": "git",
             "url": "https://github.com/dompdf/dompdf.git",
-            "reference": "6782abfc090b132134cd6cea0ec6d76f0fce2c56"
+            "reference": "db91d81866c69a42dad1d2926f61515a1e3f42c5"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/dompdf/dompdf/zipball/6782abfc090b132134cd6cea0ec6d76f0fce2c56",
-            "reference": "6782abfc090b132134cd6cea0ec6d76f0fce2c56",
+            "url": "https://api.github.com/repos/dompdf/dompdf/zipball/db91d81866c69a42dad1d2926f61515a1e3f42c5",
+            "reference": "db91d81866c69a42dad1d2926f61515a1e3f42c5",
             "shasum": ""
         },
         "require": {
             "ext-dom": "*",
             "ext-mbstring": "*",
-            "phenx/php-font-lib": "^0.5.1",
+            "phenx/php-font-lib": "^0.5.2",
             "phenx/php-svg-lib": "^0.3.3",
             "php": "^7.1"
         },
         "require-dev": {
+            "mockery/mockery": "^1.3",
             "phpunit/phpunit": "^7.5",
             "squizlabs/php_codesniffer": "^3.5"
         },
         "suggest": {
             "ext-gd": "Needed to process images",
             "ext-gmagick": "Improves image processing performance",
-            "ext-imagick": "Improves image processing performance"
+            "ext-imagick": "Improves image processing performance",
+            "ext-zlib": "Needed for pdf stream compression"
         },
-        "time": "2020-02-20T03:52:51+00:00",
+        "time": "2020-08-30T22:54:22+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -950,6 +948,127 @@
         ]
     },
     {
+        "name": "league/oauth2-client",
+        "version": "2.6.0",
+        "version_normalized": "2.6.0.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/thephpleague/oauth2-client.git",
+            "reference": "badb01e62383430706433191b82506b6df24ad98"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/thephpleague/oauth2-client/zipball/badb01e62383430706433191b82506b6df24ad98",
+            "reference": "badb01e62383430706433191b82506b6df24ad98",
+            "shasum": ""
+        },
+        "require": {
+            "guzzlehttp/guzzle": "^6.0 || ^7.0",
+            "paragonie/random_compat": "^1 || ^2 || ^9.99",
+            "php": "^5.6 || ^7.0 || ^8.0"
+        },
+        "require-dev": {
+            "mockery/mockery": "^1.3",
+            "php-parallel-lint/php-parallel-lint": "^1.2",
+            "phpunit/phpunit": "^5.7 || ^6.0 || ^9.3",
+            "squizlabs/php_codesniffer": "^2.3 || ^3.0"
+        },
+        "time": "2020-10-28T02:03:40+00:00",
+        "type": "library",
+        "extra": {
+            "branch-alias": {
+                "dev-2.x": "2.0.x-dev"
+            }
+        },
+        "installation-source": "dist",
+        "autoload": {
+            "psr-4": {
+                "League\\OAuth2\\Client\\": "src/"
+            }
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "Alex Bilbie",
+                "email": "hello@alexbilbie.com",
+                "homepage": "http://www.alexbilbie.com",
+                "role": "Developer"
+            },
+            {
+                "name": "Woody Gilk",
+                "homepage": "https://github.com/shadowhand",
+                "role": "Contributor"
+            }
+        ],
+        "description": "OAuth 2.0 Client Library",
+        "keywords": [
+            "Authentication",
+            "SSO",
+            "authorization",
+            "identity",
+            "idp",
+            "oauth",
+            "oauth2",
+            "single sign on"
+        ]
+    },
+    {
+        "name": "league/oauth2-google",
+        "version": "3.0.3",
+        "version_normalized": "3.0.3.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/thephpleague/oauth2-google.git",
+            "reference": "18d1889897a8b18d85ecadacf74c9274d678d943"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/thephpleague/oauth2-google/zipball/18d1889897a8b18d85ecadacf74c9274d678d943",
+            "reference": "18d1889897a8b18d85ecadacf74c9274d678d943",
+            "shasum": ""
+        },
+        "require": {
+            "league/oauth2-client": "^2.0"
+        },
+        "require-dev": {
+            "eloquent/phony-phpunit": "^2.0",
+            "php-coveralls/php-coveralls": "^2.1",
+            "phpunit/phpunit": "^6.0",
+            "squizlabs/php_codesniffer": "^2.0"
+        },
+        "time": "2020-07-24T15:16:12+00:00",
+        "type": "library",
+        "installation-source": "dist",
+        "autoload": {
+            "psr-4": {
+                "League\\OAuth2\\Client\\": "src/"
+            }
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "Woody Gilk",
+                "email": "woody.gilk@gmail.com",
+                "homepage": "http://shadowhand.me"
+            }
+        ],
+        "description": "Google OAuth 2.0 Client Provider for The PHP League OAuth2-Client",
+        "keywords": [
+            "Authentication",
+            "authorization",
+            "client",
+            "google",
+            "oauth",
+            "oauth2"
+        ]
+    },
+    {
         "name": "marcj/topsort",
         "version": "1.1.0",
         "version_normalized": "1.1.0.0",
@@ -1034,6 +1153,53 @@
             }
         ],
         "description": "CSS Autoprefixer written in pure PHP."
+    },
+    {
+        "name": "paragonie/random_compat",
+        "version": "v9.99.100",
+        "version_normalized": "9.99.100.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/paragonie/random_compat.git",
+            "reference": "996434e5492cb4c3edcb9168db6fbb1359ef965a"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/paragonie/random_compat/zipball/996434e5492cb4c3edcb9168db6fbb1359ef965a",
+            "reference": "996434e5492cb4c3edcb9168db6fbb1359ef965a",
+            "shasum": ""
+        },
+        "require": {
+            "php": ">= 7"
+        },
+        "require-dev": {
+            "phpunit/phpunit": "4.*|5.*",
+            "vimeo/psalm": "^1"
+        },
+        "suggest": {
+            "ext-libsodium": "Provides a modern crypto API that can be used to generate random bytes."
+        },
+        "time": "2020-10-15T08:29:30+00:00",
+        "type": "library",
+        "installation-source": "dist",
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "Paragon Initiative Enterprises",
+                "email": "security@paragonie.com",
+                "homepage": "https://paragonie.com"
+            }
+        ],
+        "description": "PHP 5.x polyfill for random_bytes() and random_int() from PHP 7",
+        "keywords": [
+            "csprng",
+            "polyfill",
+            "pseudorandom",
+            "random"
+        ]
     },
     {
         "name": "pclzip/pclzip",

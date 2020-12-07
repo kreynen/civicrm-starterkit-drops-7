@@ -279,7 +279,7 @@ index a89b04864..12c0069de 100644
 +
 +// Pantheon: if it's not the live site then send all emails to a log file
 +if (isset($_ENV['PANTHEON_SITE']) && $_ENV['PANTHEON_ENVIRONMENT'] != 'live') {
-+  define('CIVICRM_MAIL_LOG', '[civicrm.private]/ConfigAndLog/mail.log');
++  define('CIVICRM_MAIL_LOG', $pantheon_home . 'files/private/civicrm/ConfigAndLog/mail.log');
 +}
 +
 +// if (!isset($_ENV['PANTHEON_SITE']) && !defined('CIVICRM_MAIL_LOG')) {

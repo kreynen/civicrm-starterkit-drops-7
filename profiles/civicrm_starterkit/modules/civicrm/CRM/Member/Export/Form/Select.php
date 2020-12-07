@@ -20,4 +20,38 @@
  */
 class CRM_Member_Export_Form_Select extends CRM_Export_Form_Select {
 
+  /**
+   * Call the pre-processing function.
+   */
+  protected function callPreProcessing(): void {
+    CRM_Member_Form_Task::preProcessCommon($this);
+  }
+
+  /**
+   * Does this export offer contact merging.
+   *
+   * @return bool
+   */
+  protected function isShowContactMergeOptions() {
+    return FALSE;
+  }
+
+  /**
+   * Get the name of the table for the relevant entity.
+   *
+   * @return string
+   */
+  public function getTableName() {
+    return 'civicrm_membership';
+  }
+
+  /**
+   * Get the group by clause for the component.
+   *
+   * @return string
+   */
+  public function getEntityAliasField() {
+    return 'membership_id';
+  }
+
 }

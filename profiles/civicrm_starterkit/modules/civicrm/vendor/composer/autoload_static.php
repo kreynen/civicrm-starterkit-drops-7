@@ -4,19 +4,19 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit48a04dd099c7551f9f6464ca07a76900
+class ComposerStaticInit5d94345bc4ed259a7a79dbedea6a29ee
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
         '25072dd6e2470089de65ae7bf11d3109' => __DIR__ . '/..' . '/symfony/polyfill-php72/bootstrap.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
-        'decc78cc4436b1292c6c0d151b19445c' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/bootstrap.php',
-        '3919eeb97e98d4648304477f8ef734ba' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/Crypt/Random.php',
         'f598d06aa772fa33d905e87be6398fb1' => __DIR__ . '/..' . '/symfony/polyfill-intl-idn/bootstrap.php',
         'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
         'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
+        'decc78cc4436b1292c6c0d151b19445c' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/bootstrap.php',
+        '3919eeb97e98d4648304477f8ef734ba' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/Crypt/Random.php',
         '9e4824c5afbdc1482b6025ce3d4dfde8' => __DIR__ . '/..' . '/league/csv/src/functions_include.php',
         'def43f6c87e4f8dfd0c9e1b1bab14fe8' => __DIR__ . '/..' . '/symfony/polyfill-iconv/bootstrap.php',
         '667aeda72477189d0494fecd327c3641' => __DIR__ . '/..' . '/symfony/var-dumper/Resources/functions/dump.php',
@@ -84,6 +84,7 @@ class ComposerStaticInit48a04dd099c7551f9f6464ca07a76900
         ),
         'L' => 
         array (
+            'League\\OAuth2\\Client\\' => 21,
             'League\\Csv\\' => 11,
             'LastCall\\DownloadsPlugin\\' => 25,
         ),
@@ -241,6 +242,11 @@ class ComposerStaticInit48a04dd099c7551f9f6464ca07a76900
         'MJS\\TopSort\\' => 
         array (
             0 => __DIR__ . '/..' . '/marcj/topsort/src',
+        ),
+        'League\\OAuth2\\Client\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/league/oauth2-client/src',
+            1 => __DIR__ . '/..' . '/league/oauth2-google/src',
         ),
         'League\\Csv\\' => 
         array (
@@ -577,11 +583,11 @@ class ComposerStaticInit48a04dd099c7551f9f6464ca07a76900
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit48a04dd099c7551f9f6464ca07a76900::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit48a04dd099c7551f9f6464ca07a76900::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit48a04dd099c7551f9f6464ca07a76900::$prefixesPsr0;
-            $loader->fallbackDirsPsr0 = ComposerStaticInit48a04dd099c7551f9f6464ca07a76900::$fallbackDirsPsr0;
-            $loader->classMap = ComposerStaticInit48a04dd099c7551f9f6464ca07a76900::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit5d94345bc4ed259a7a79dbedea6a29ee::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit5d94345bc4ed259a7a79dbedea6a29ee::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit5d94345bc4ed259a7a79dbedea6a29ee::$prefixesPsr0;
+            $loader->fallbackDirsPsr0 = ComposerStaticInit5d94345bc4ed259a7a79dbedea6a29ee::$fallbackDirsPsr0;
+            $loader->classMap = ComposerStaticInit5d94345bc4ed259a7a79dbedea6a29ee::$classMap;
 
         }, null, ClassLoader::class);
     }

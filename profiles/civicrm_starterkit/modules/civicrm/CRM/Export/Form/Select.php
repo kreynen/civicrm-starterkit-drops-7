@@ -95,19 +95,8 @@ class CRM_Export_Form_Select extends CRM_Core_Form_Task {
       throw new CRM_Core_Exception('Unreachable code');
     }
     $this->_exportMode = constant('CRM_Export_Form_Select::' . strtoupper($entityShortname) . '_EXPORT');
-    $formTaskClassName = "CRM_{$entityShortname}_Form_Task";
-    $taskClassName = "CRM_{$entityShortname}_Task";
-    if (isset($formTaskClassName::$entityShortname)) {
-      $this::$entityShortname = $formTaskClassName::$entityShortname;
-      if (isset($formTaskClassName::$tableName)) {
-        $this::$tableName = $formTaskClassName::$tableName;
-      }
-    }
-    else {
-      $this::$entityShortname = $entityShortname;
-      $this::$tableName = CRM_Core_DAO_AllCoreTables::getTableForClass(CRM_Core_DAO_AllCoreTables::getFullName($this->getDAOName()));
-    }
 
+    $this::$entityShortname = strtolower($entityShortname);
     $values = $this->getSearchFormValues();
 
     $count = 0;
@@ -124,17 +113,13 @@ class CRM_Export_Form_Select extends CRM_Core_Form_Task {
       }
     }
 
-    $formTaskClassName::preProcessCommon($this);
+    $this->callPreProcessing();
 
     // $component is used on CRM/Export/Form/Select.tpl to display extra information for contact export
     ($this->_exportMode == self::CONTACT_EXPORT) ? $component = FALSE : $component = TRUE;
     $this->assign('component', $component);
 
-    // Set the task title
-    $componentTasks = $taskClassName::taskTitles();
-    $this->_task = $values['task'];
-    $taskName = $componentTasks[$this->_task];
-    $this->assign('taskName', $taskName);
+    $this->assign('isShowMergeOptions', $this->isShowContactMergeOptions());
 
     if ($this->_componentTable) {
       $query = "
@@ -163,7 +148,14 @@ FROM   {$this->_componentTable}
     $this->set('selectAll', $this->_selectAll);
     $this->set('exportMode', $this->_exportMode);
     $this->set('componentClause', $this->_componentClause);
-    $this->set('componentTable', $this->_componentTable);
+    $this->set('componentTable', $this->getTableName());
+  }
+
+  /**
+   * Get the name of the table for the relevant entity.
+   */
+  public function getTableName() {
+    throw new CRM_Core_Exception('should be over-riden');
   }
 
   /**
@@ -439,6 +431,20 @@ FROM   {$this->_componentTable}
    */
   public function getQueryMode() {
     return (int) ($this->queryMode ?: $this->controller->get('component_mode'));
+  }
+
+  /**
+   * Call the pre-processing function.
+   */
+  protected function callPreProcessing(): void {
+    throw new CRM_Core_Exception('This must be over-ridden');
+  }
+
+  /**
+   * Assign the title of the task to the tpl.
+   */
+  protected function isShowContactMergeOptions() {
+    throw new CRM_Core_Exception('This must be over-ridden');
   }
 
   /**

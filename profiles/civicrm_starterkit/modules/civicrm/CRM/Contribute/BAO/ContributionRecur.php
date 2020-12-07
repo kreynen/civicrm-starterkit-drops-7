@@ -163,6 +163,7 @@ class CRM_Contribute_BAO_ContributionRecur extends CRM_Contribute_DAO_Contributi
    *   (since it still makes sense to update / cancel
    */
   public static function getPaymentProcessorObject($id) {
+    CRM_Core_Error::deprecatedFunctionWarning('Use Civi\Payment\System');
     $processor = self::getPaymentProcessor($id);
     return is_array($processor) ? $processor['object'] : NULL;
   }
@@ -528,6 +529,7 @@ INNER JOIN civicrm_contribution       con ON ( con.id = mp.contribution_id )
    * @param bool $isFirstOrLastRecurringPayment
    */
   public static function sendRecurringStartOrEndNotification($ids, $recur, $isFirstOrLastRecurringPayment) {
+    CRM_Core_Error::deprecatedFunctionWarning('use CRM_Contribute_BAO_ContributionPage::recurringNotify');
     if ($isFirstOrLastRecurringPayment) {
       $autoRenewMembership = FALSE;
       if ($recur->id &&
@@ -555,6 +557,7 @@ INNER JOIN civicrm_contribution       con ON ( con.id = mp.contribution_id )
    * @param int $targetContributionId
    */
   public static function copyCustomValues($recurId, $targetContributionId) {
+    CRM_Core_Error::deprecatedFunctionWarning('no alternative');
     if ($recurId && $targetContributionId) {
       // get the initial contribution id of recur id
       $sourceContributionId = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $recurId, 'id', 'contribution_recur_id');
@@ -837,7 +840,7 @@ INNER JOIN civicrm_contribution       con ON ( con.id = mp.contribution_id )
    *
    * @throws \CiviCRM_API3_Exception
    */
-  public static function updateOnNewPayment($recurringContributionID, $paymentStatus, $effectiveDate) {
+  public static function updateOnNewPayment($recurringContributionID, $paymentStatus, string $effectiveDate = 'now') {
 
     if (!in_array($paymentStatus, ['Completed', 'Failed'])) {
       return;

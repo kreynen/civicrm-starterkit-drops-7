@@ -13,17 +13,42 @@
 .crm-flex-box > .crm-flex-4 {
   flex: 4;
 }
+.crm-draggable {
+  cursor: move;
+}
+
 #bootstrap-theme #crm-search-results-page-size {
   width: 5em;
 }
 #bootstrap-theme .crm-search-results {
   min-height: 200px;
 }
-.crm-search-results thead th[ng-repeat] {
-  cursor: pointer;
+
+#bootstrap-theme.crm-search .nav-stacked {
+  margin-left: 0;
+  margin-right: 20px;
 }
-.crm-search-results thead th[ng-repeat] > span {
-  cursor: move;
+
+#bootstrap-theme.crm-search ul.nav-stacked {
+  margin-top: 20px;
+}
+
+#bootstrap-theme.crm-search input.ng-invalid {
+  border-color: #8A1F11;
+}
+#bootstrap-theme.crm-search input.ng-invalid::placeholder {
+  color: #8A1F11;
+}
+
+#bootstrap-theme.crm-search ul.nav-stacked li {
+  cursor: default;
+}
+
+#bootstrap-theme.crm-search ul.nav-stacked li a[disabled] {
+  text-decoration: line-through !important;
+  color: grey;
+  cursor: default;
+  pointer-events: none;
 }
 
 #bootstrap-theme.crm-search fieldset {
@@ -150,4 +175,10 @@
 
 #bootstrap-theme.crm-search th.crm-search-result-select {
   padding-right: 10px;
+}
+
+#bootstrap-theme .crm-search-delete-display {
+  position: absolute;
+  right: 0;
+  top: 0;
 }

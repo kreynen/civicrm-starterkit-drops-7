@@ -503,23 +503,23 @@ class CRM_Contact_BAO_Group extends CRM_Contact_DAO_Group {
   }
 
   /**
-   * Defines a new smart group.
+   * Takes a sloppy mismash of params and creates two entities: a Group and a SavedSearch
+   * Currently only used by unit tests.
    *
    * @param array $params
-   *   Associative array of parameters.
-   *
    * @return CRM_Contact_BAO_Group|NULL
-   *   The new group BAO (if created)
+   * @deprecated
    */
-  public static function createSmartGroup(&$params) {
+  public static function createSmartGroup($params) {
     if (!empty($params['formValues'])) {
       $ssParams = $params;
-      unset($ssParams['id']);
-      if (isset($ssParams['saved_search_id'])) {
-        $ssParams['id'] = $ssParams['saved_search_id'];
+      // Remove group parameters from sloppy mismash
+      unset($ssParams['id'], $ssParams['name'], $ssParams['title'], $ssParams['formValues'], $ssParams['saved_search_id']);
+      if (isset($params['saved_search_id'])) {
+        $ssParams['id'] = $params['saved_search_id'];
       }
-      $params['form_values'] = $params['formValues'];
-      $savedSearch = CRM_Contact_BAO_SavedSearch::create($params);
+      $ssParams['form_values'] = $params['formValues'];
+      $savedSearch = CRM_Contact_BAO_SavedSearch::create($ssParams);
 
       $params['saved_search_id'] = $savedSearch->id;
     }
@@ -1030,6 +1030,7 @@ class CRM_Contact_BAO_Group extends CRM_Contact_DAO_Group {
    * @param string $parents
    * @param string $spacer
    * @param bool $titleOnly
+   * @param bool $public
    *
    * @return array
    */
@@ -1037,7 +1038,8 @@ class CRM_Contact_BAO_Group extends CRM_Contact_DAO_Group {
     $groupIDs,
     $parents = NULL,
     $spacer = '<span class="child-indent"></span>',
-    $titleOnly = FALSE
+    $titleOnly = FALSE,
+    $public = FALSE
   ) {
     if (empty($groupIDs)) {
       return [];
@@ -1055,7 +1057,7 @@ class CRM_Contact_BAO_Group extends CRM_Contact_DAO_Group {
     $groups = [];
     $args = [1 => [$groupIdString, 'String']];
     $query = "
-SELECT id, title, description, visibility, parents, saved_search_id
+SELECT id, title, frontend_title, description, frontend_description, visibility, parents, saved_search_id
 FROM   civicrm_group
 WHERE  id IN $groupIdString
 ";
@@ -1076,22 +1078,32 @@ WHERE  id IN $groupIdString
     $roots = [];
     $tree = [];
     while ($dao->fetch()) {
+      $title = $dao->title;
+      $description = $dao->description;
+      if ($public) {
+        if (!empty($dao->frontend_title)) {
+          $title = $dao->frontend_title;
+        }
+        if (!empty($dao->frontend_description)) {
+          $description = $dao->frontend_description;
+        }
+      }
       if ($dao->parents) {
         $parentArray = explode(',', $dao->parents);
         $parent = self::filterActiveGroups($parentArray);
         $tree[$parent][] = [
           'id' => $dao->id,
-          'title' => empty($dao->saved_search_id) ? $dao->title : '* ' . $dao->title,
+          'title' => empty($dao->saved_search_id) ? $title : '* ' . $title,
           'visibility' => $dao->visibility,
-          'description' => $dao->description,
+          'description' => $description,
         ];
       }
       else {
         $roots[] = [
           'id' => $dao->id,
-          'title' => empty($dao->saved_search_id) ? $dao->title : '* ' . $dao->title,
+          'title' => empty($dao->saved_search_id) ? $title : '* ' . $title,
           'visibility' => $dao->visibility,
-          'description' => $dao->description,
+          'description' => $description,
         ];
       }
     }

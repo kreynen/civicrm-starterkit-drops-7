@@ -7,6 +7,12 @@
   <add>1.1</add>
   <log>true</log>
   <icon>fa-tasks</icon>
+  <paths>
+    <add>civicrm/activity?reset=1&amp;action=add&amp;context=standalone</add>
+    <view>civicrm/activity?reset=1&amp;action=view&amp;id=[id]</view>
+    <update>civicrm/activity/add?reset=1&amp;action=update&amp;id=[id]</update>
+    <delete>civicrm/activity?reset=1&amp;action=delete&amp;id=[id]</delete>
+  </paths>
   <field>
     <name>id</name>
     <uniqueName>activity_id</uniqueName>

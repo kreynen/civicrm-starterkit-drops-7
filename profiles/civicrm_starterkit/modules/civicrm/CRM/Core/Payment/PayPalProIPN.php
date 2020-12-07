@@ -9,14 +9,14 @@
  +--------------------------------------------------------------------+
  */
 
+use Civi\Api4\Contribution;
+
 /**
  *
  * @package CRM
  * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
-
-  public static $_paymentProcessor = NULL;
 
   /**
    * Input parameters from payment processor. Store these so that
@@ -107,7 +107,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
       // p has been overloaded & could mean contribution page or participant id. Clearly we need an
       // alphabet with more letters.
       // the mode will always be resolved before the mystery p is reached
-      if ($rpValueArray[1] == 'contribute') {
+      if ($rpValueArray[1] === 'contribute') {
         $mapping['p'] = 'contribution_page_id';
       }
     }
@@ -275,32 +275,14 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
       return;
     }
 
-    if (!$first) {
-      //check if this contribution transaction is already processed
-      //if not create a contribution and then get it processed
-      $contribution = new CRM_Contribute_BAO_Contribution();
-      $contribution->trxn_id = $input['trxn_id'];
-      if ($contribution->trxn_id && $contribution->find()) {
-        Civi::log()->debug('PayPalProIPN: Returning since contribution has already been handled.');
-        echo "Success: Contribution has already been handled<p>";
-        return;
-      }
-
-      $contribution->contact_id = $recur->contact_id;
-      $contribution->financial_type_id = $objects['contributionType']->id;
-      $contribution->contribution_page_id = $ids['contributionPage'];
-      $contribution->contribution_recur_id = $ids['contributionRecur'];
-      $contribution->currency = $objects['contribution']->currency;
-      $contribution->payment_instrument_id = $objects['contribution']->payment_instrument_id;
-      $contribution->amount_level = $objects['contribution']->amount_level;
-      $contribution->campaign_id = $objects['contribution']->campaign_id;
-      $objects['contribution'] = &$contribution;
-      $contribution->invoice_id = md5(uniqid(rand(), TRUE));
-    }
     // CRM-13737 - am not aware of any reason why payment_date would not be set - this if is a belt & braces
     $objects['contribution']->receive_date = !empty($input['payment_date']) ? date('YmdHis', strtotime($input['payment_date'])) : $now;
 
-    $this->single($input, $ids, $objects, TRUE, $first);
+    $this->single($input, [
+      'related_contact' => $ids['related_contact'] ?? NULL,
+      'participant' => !empty($objects['participant']) ? $objects['participant']->id : NULL,
+      'contributionRecur' => !empty($objects['contributionRecur']) ? $objects['contributionRecur']->id : NULL,
+    ], $objects, TRUE, $first);
   }
 
   /**
@@ -347,8 +329,12 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
       Civi::log()->debug('Returning since contribution status is Pending');
       return;
     }
-    elseif ($status === 'Refunded' || $status === 'Reversed') {
-      $this->cancelled($objects);
+    if ($status === 'Refunded' || $status === 'Reversed') {
+      Contribution::update(FALSE)->setValues([
+        'cancel_date' => 'now',
+        'contribution_status_id:name' => 'Cancelled',
+      ])->addWhere('id', '=', $contribution->id)->execute();
+      Civi::log()->debug("Setting contribution status to Cancelled");
       return;
     }
     elseif ($status !== 'Completed') {
@@ -364,11 +350,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
       return;
     }
 
-    CRM_Contribute_BAO_Contribution::completeOrder($input, [
-      'related_contact' => $ids['related_contact'] ?? NULL,
-      'participant' => !empty($objects['participant']) ? $objects['participant']->id : NULL,
-      'contributionRecur' => !empty($objects['contributionRecur']) ? $objects['contributionRecur']->id : NULL,
-    ], $objects);
+    CRM_Contribute_BAO_Contribution::completeOrder($input, $ids, $objects['contribution']);
   }
 
   /**
@@ -464,23 +446,22 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
 
       $input['payment_processor_id'] = $paymentProcessorID;
 
-      self::$_paymentProcessor = &$objects['paymentProcessor'];
-      //?? how on earth would we not have component be one of these?
-      // they are the only valid settings & this IPN file can't even be called without one of them
-      // grepping for this class doesn't find other paths to call this class
-      if ($this->_component == 'contribute' || $this->_component == 'event') {
-        if ($ids['contributionRecur']) {
-          // check if first contribution is completed, else complete first contribution
-          $first = TRUE;
-          $completedStatusId = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed');
-          if ($objects['contribution']->contribution_status_id == $completedStatusId) {
-            $first = FALSE;
-          }
-          $this->recur($input, $ids, $objects, $first);
-          return;
+      if ($ids['contributionRecur']) {
+        // check if first contribution is completed, else complete first contribution
+        $first = TRUE;
+        $completedStatusId = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed');
+        if ($objects['contribution']->contribution_status_id == $completedStatusId) {
+          $first = FALSE;
         }
+        $this->recur($input, $ids, $objects, $first);
+        return;
       }
-      $this->single($input, $ids, $objects, FALSE, FALSE);
+
+      $this->single($input, [
+        'related_contact' => $ids['related_contact'] ?? NULL,
+        'participant' => $ids['participant'] ?? NULL,
+        'contributionRecur' => $ids['contributionRecur'] ?? NULL,
+      ], $objects, FALSE, FALSE);
     }
     catch (CRM_Core_Exception $e) {
       Civi::log()->debug($e->getMessage());

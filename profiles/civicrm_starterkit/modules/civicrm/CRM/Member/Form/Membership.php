@@ -470,8 +470,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
     $selOrgMemType[0][0] = $selMemTypeOrg[0] = ts('- select -');
 
     // Throw status bounce when no Membership type or priceset is present
-    if (CRM_Financial_BAO_FinancialType::isACLFinancialTypeStatus()
-      && empty($this->allMembershipTypeDetails) && empty($priceSets)
+    if (empty($this->allMembershipTypeDetails) && empty($priceSets)
     ) {
       CRM_Core_Error::statusBounce(ts('You do not have all the permissions needed for this page.'));
     }
@@ -995,9 +994,9 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
     $form->assign('formValues', $formValues);
 
     if (empty($lineItem)) {
-      $form->assign('mem_start_date', CRM_Utils_Date::customFormat($membership->start_date, '%B %E%f, %Y'));
+      $form->assign('mem_start_date', CRM_Utils_Date::formatDateOnlyLong($membership->start_date));
       if (!CRM_Utils_System::isNull($membership->end_date)) {
-        $form->assign('mem_end_date', CRM_Utils_Date::customFormat($membership->end_date, '%B %E%f, %Y'));
+        $form->assign('mem_end_date', CRM_Utils_Date::formatDateOnlyLong($membership->end_date));
       }
       $form->assign('membership_name', CRM_Member_PseudoConstant::membershipType($membership->membership_type_id));
     }
@@ -1128,7 +1127,6 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
 
     // BEGIN Fix for dev/core/issues/860
     // Prepare fee block and call buildAmount hook - based on CRM_Price_BAO_PriceSet::buildPriceSet().
-    CRM_Price_BAO_PriceSet::applyACLFinancialTypeStatusToFeeBlock($this->_priceSet['fields']);
     CRM_Utils_Hook::buildAmount('membership', $this, $this->_priceSet['fields']);
     // END Fix for dev/core/issues/860
 
@@ -1504,6 +1502,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
         $params['contribution_id'] = $this->_onlinePendingContributionId;
         $params['componentId'] = $params['id'];
         $params['componentName'] = 'contribute';
+        // Only available statuses are Pending and completed so cancel or failed is not possible here.
         $result = CRM_Contribute_BAO_Contribution::transitionComponents($params, TRUE);
         if (!empty($result) && !empty($params['contribution_id'])) {
           $lineItem = [];
@@ -1570,15 +1569,6 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
             $params['receive_date'] = date('Y-m-d H:i:s');
           }
           $membershipParams = array_merge($params, $membershipTypeValues[$memType]);
-          if (!empty($formValues['int_amount'])) {
-            $init_amount = [];
-            foreach ($formValues as $key => $value) {
-              if (strstr($key, 'txt-price')) {
-                $init_amount[$key] = $value;
-              }
-            }
-            $membershipParams['init_amount'] = $init_amount;
-          }
 
           if (!empty($softParams)) {
             $membershipParams['soft_credit'] = $softParams;
@@ -1601,7 +1591,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
       $this->addStatusMessage($this->getStatusMessageForUpdate($membership, $endDate));
     }
     elseif (($this->_action & CRM_Core_Action::ADD)) {
-      $this->addStatusMessage($this->getStatusMessageForCreate($endDate, $membershipTypes, $createdMemberships,
+      $this->addStatusMessage($this->getStatusMessageForCreate($endDate, $createdMemberships,
         $isRecur, $calcDates));
     }
 
@@ -1611,8 +1601,8 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
       $totalTaxAmount = 0;
       foreach ($lineItem[$this->_priceSetId] as & $priceFieldOp) {
         if (!empty($priceFieldOp['membership_type_id'])) {
-          $priceFieldOp['start_date'] = $membershipTypeValues[$priceFieldOp['membership_type_id']]['start_date'] ? CRM_Utils_Date::customFormat($membershipTypeValues[$priceFieldOp['membership_type_id']]['start_date'], '%B %E%f, %Y') : '-';
-          $priceFieldOp['end_date'] = $membershipTypeValues[$priceFieldOp['membership_type_id']]['end_date'] ? CRM_Utils_Date::customFormat($membershipTypeValues[$priceFieldOp['membership_type_id']]['end_date'], '%B %E%f, %Y') : '-';
+          $priceFieldOp['start_date'] = $membershipTypeValues[$priceFieldOp['membership_type_id']]['start_date'] ? CRM_Utils_Date::formatDateOnlyLong($membershipTypeValues[$priceFieldOp['membership_type_id']]['start_date']) : '-';
+          $priceFieldOp['end_date'] = $membershipTypeValues[$priceFieldOp['membership_type_id']]['end_date'] ? CRM_Utils_Date::formatDateOnlyLong($membershipTypeValues[$priceFieldOp['membership_type_id']]['end_date']) : '-';
         }
         else {
           $priceFieldOp['start_date'] = $priceFieldOp['end_date'] = 'N/A';
@@ -1819,35 +1809,34 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
    * Get status message for create action.
    *
    * @param string $endDate
-   * @param array $membershipTypes
    * @param array $createdMemberships
    * @param bool $isRecur
    * @param array $calcDates
    *
    * @return array|string
    */
-  protected function getStatusMessageForCreate($endDate, $membershipTypes, $createdMemberships,
+  protected function getStatusMessageForCreate($endDate, $createdMemberships,
                                                $isRecur, $calcDates) {
     // FIX ME: fix status messages
 
     $statusMsg = [];
-    foreach ($membershipTypes as $memType => $membershipType) {
-      $statusMsg[$memType] = ts('%1 membership for %2 has been added.', [
-        1 => $membershipType,
+    foreach ($this->_memTypeSelected as $membershipTypeID) {
+      $statusMsg[$membershipTypeID] = ts('%1 membership for %2 has been added.', [
+        1 => $this->allMembershipTypeDetails[$membershipTypeID]['name'],
         2 => $this->_memberDisplayName,
       ]);
 
-      $membership = $createdMemberships[$memType];
+      $membership = $createdMemberships[$membershipTypeID];
       $memEndDate = $membership->end_date ?: $endDate;
 
       //get the end date from calculated dates.
       if (!$memEndDate && !$isRecur) {
-        $memEndDate = $calcDates[$memType]['end_date'] ?? NULL;
+        $memEndDate = $calcDates[$membershipTypeID]['end_date'] ?? NULL;
       }
 
       if ($memEndDate && $memEndDate !== 'null') {
-        $memEndDate = CRM_Utils_Date::customFormat($memEndDate);
-        $statusMsg[$memType] .= ' ' . ts('The new membership End Date is %1.', [1 => $memEndDate]);
+        $memEndDate = CRM_Utils_Date::formatDateOnlyLong($memEndDate);
+        $statusMsg[$membershipTypeID] .= ' ' . ts('The new membership End Date is %1.', [1 => $memEndDate]);
       }
     }
     $statusMsg = implode('<br/>', $statusMsg);

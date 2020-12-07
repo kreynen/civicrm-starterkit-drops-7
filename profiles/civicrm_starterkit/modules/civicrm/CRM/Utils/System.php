@@ -349,6 +349,10 @@ class CRM_Utils_System {
         $e->url = $mkRouteUri('civicrm/mailing/url', $e->query);
         break;
 
+      case 'router:extern/widget':
+        $e->url = $mkRouteUri('civicrm/contribute/widget', $e->query);
+        break;
+
       // Otherwise, keep the default.
     }
   }
@@ -1872,6 +1876,7 @@ class CRM_Utils_System {
    *   - query: array
    *   - title: string
    *   - url: string
+   * @deprecated
    */
   public static function createDefaultCrudLink($crudLinkSpec) {
     $crudLinkSpec['action'] = CRM_Utils_Array::value('action', $crudLinkSpec, CRM_Core_Action::VIEW);

@@ -1311,7 +1311,7 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
    * @throws \CiviCRM_API3_Exception
    */
   public static function createRelatedMemberships($params, $dao) {
-
+    unset($params['membership_id']);
     $membership = new CRM_Member_DAO_Membership();
     $membership->id = $dao->id;
 
@@ -1448,11 +1448,10 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
         // CRM-20966: Do not create membership_payment record for inherited membership.
         unset($params['relate_contribution_id']);
 
-        $ids = [];
         if (($params['status_id'] == $deceasedStatusId) || ($params['status_id'] == $expiredStatusId)) {
           // related membership is not active so does not count towards maximum
           if (!self::hasExistingInheritedMembership($params)) {
-            CRM_Member_BAO_Membership::create($params);
+            civicrm_api3('Membership', 'create', $params);
           }
         }
         else {
@@ -1513,7 +1512,10 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
   }
 
   /**
-   * Build an array of available membership types.
+   * Build an array of available membership types in the current context.
+   *
+   * While core does not do anything context specific extensions may filter
+   * or alter amounts based on user details.
    *
    * @param CRM_Core_Form $form
    * @param array $membershipTypeID
@@ -1528,7 +1530,7 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
    */
   public static function buildMembershipTypeValues($form, $membershipTypeID = [], $activeOnly = FALSE) {
     $membershipTypeIDS = (array) $membershipTypeID;
-    $membershipTypeValues = CRM_Member_BAO_MembershipType::getPermissionedMembershipTypes();
+    $membershipTypeValues = CRM_Member_BAO_MembershipType::getAllMembershipTypes();
 
     // MembershipTypes are already filtered by domain, filter as appropriate by is_active & a passed in list of ids.
     foreach ($membershipTypeValues as $id => $type) {
@@ -1540,13 +1542,6 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
     }
 
     CRM_Utils_Hook::membershipTypeValues($form, $membershipTypeValues);
-
-    if (is_numeric($membershipTypeID) &&
-      $membershipTypeID > 0
-    ) {
-      CRM_Core_Error::deprecatedFunctionWarning('Non arrays deprecated');
-      return $membershipTypeValues[$membershipTypeID];
-    }
     return $membershipTypeValues;
   }
 
@@ -1751,7 +1746,7 @@ INNER JOIN  civicrm_contact contact ON ( contact.id = membership.contact_id AND 
    * @param int $contributionRecurID
    * @param $membershipSource
    * @param $isPayLater
-   * @param int $campaignId
+   * @param array $memParams
    * @param array $formDates
    * @param null|CRM_Contribute_BAO_Contribution $contribution
    * @param array $lineItems
@@ -1760,7 +1755,7 @@ INNER JOIN  civicrm_contact contact ON ( contact.id = membership.contact_id AND 
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
    */
-  public static function processMembership($contactID, $membershipTypeID, $is_test, $changeToday, $modifiedID, $customFieldsFormatted, $numRenewTerms, $membershipID, $pending, $contributionRecurID, $membershipSource, $isPayLater, $campaignId, $formDates = [], $contribution = NULL, $lineItems = []) {
+  public static function processMembership($contactID, $membershipTypeID, $is_test, $changeToday, $modifiedID, $customFieldsFormatted, $numRenewTerms, $membershipID, $pending, $contributionRecurID, $membershipSource, $isPayLater, $memParams = [], $formDates = [], $contribution = NULL, $lineItems = []) {
     $renewalMode = $updateStatusId = FALSE;
     $allStatus = CRM_Member_PseudoConstant::membershipStatus();
     $format = '%Y%m%d';
@@ -1786,7 +1781,7 @@ INNER JOIN  civicrm_contact contact ON ( contact.id = membership.contact_id AND 
         array_search('Cancelled', CRM_Member_PseudoConstant::membershipStatus(NULL, " name = 'Cancelled' ", 'name', FALSE, TRUE)),
       ])) {
 
-        $memParams = [
+        $memParams = array_merge([
           'id' => $currentMembership['id'],
           'contribution' => $contribution,
           'status_id' => $currentMembership['status_id'],
@@ -1797,7 +1792,7 @@ INNER JOIN  civicrm_contact contact ON ( contact.id = membership.contact_id AND 
           'membership_type_id' => $membershipTypeID,
           'max_related' => !empty($membershipTypeDetails['max_related']) ? $membershipTypeDetails['max_related'] : NULL,
           'membership_activity_status' => ($pending || $isPayLater) ? 'Scheduled' : 'Completed',
-        ];
+        ], $memParams);
         if ($contributionRecurID) {
           $memParams['contribution_recur_id'] = $contributionRecurID;
         }
@@ -1836,7 +1831,7 @@ INNER JOIN  civicrm_contact contact ON ( contact.id = membership.contact_id AND 
         if (!empty($currentMembership['id'])) {
           $ids['membership'] = $currentMembership['id'];
         }
-        $memParams = $currentMembership;
+        $memParams = array_merge($currentMembership, $memParams);
         $memParams['membership_type_id'] = $membershipTypeID;
 
         //set the log start date.
@@ -1856,7 +1851,6 @@ INNER JOIN  civicrm_contact contact ON ( contact.id = membership.contact_id AND 
         );
 
         // Insert renewed dates for CURRENT membership
-        $memParams = [];
         $memParams['join_date'] = CRM_Utils_Date::isoToMysql($membership->join_date);
         $memParams['start_date'] = $formDates['start_date'] ?? CRM_Utils_Date::isoToMysql($membership->start_date);
         $memParams['end_date'] = $formDates['end_date'] ?? NULL;
@@ -1887,10 +1881,10 @@ INNER JOIN  civicrm_contact contact ON ( contact.id = membership.contact_id AND 
     }
     else {
       // NEW Membership
-      $memParams = [
+      $memParams = array_merge([
         'contact_id' => $contactID,
         'membership_type_id' => $membershipTypeID,
-      ];
+      ], $memParams);
 
       if (!$pending) {
         $dates = CRM_Member_BAO_MembershipType::getDatesForMembershipType($membershipTypeID, NULL, NULL, NULL, $numRenewTerms);
@@ -1952,11 +1946,6 @@ INNER JOIN  civicrm_contact contact ON ( contact.id = membership.contact_id AND 
       $memParams['is_for_organization'] = TRUE;
     }
     $params['modified_id'] = $modifiedID ?? $contactID;
-
-    //inherit campaign from contrib page.
-    if (isset($campaignId)) {
-      $memParams['campaign_id'] = $campaignId;
-    }
 
     $memParams['contribution'] = $contribution;
     $memParams['custom'] = $customFieldsFormatted;

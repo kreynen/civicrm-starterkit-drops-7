@@ -272,43 +272,6 @@ ALTER TABLE {$tableName}
   }
 
   /**
-   * @deprecated
-   *
-   * @param array $params
-   * @param bool $indexExist
-   * @param bool $triggerRebuild
-   *
-   * @return bool
-   */
-  public static function alterFieldSQL($params, $indexExist = FALSE, $triggerRebuild = TRUE) {
-    CRM_Core_Error::deprecatedFunctionWarning('function no longer in use / supported');
-    // lets suppress the required flag, since that can cause sql issue
-    $params['required'] = FALSE;
-
-    $sql = self::buildFieldChangeSql($params, $indexExist);
-
-    // CRM-7007: do not i18n-rewrite this query
-    CRM_Core_DAO::executeQuery($sql, [], TRUE, NULL, FALSE, FALSE);
-
-    $config = CRM_Core_Config::singleton();
-    if ($config->logging) {
-      // CRM-16717 not sure why this was originally limited to add.
-      // For example custom tables can have field length changes - which need to flow through to logging.
-      // Are there any modifies we DON'T was to call this function for (& shouldn't it be clever enough to cope?)
-      if ($params['operation'] == 'add' || $params['operation'] == 'modify') {
-        $logging = new CRM_Logging_Schema();
-        $logging->fixSchemaDifferencesFor($params['table_name'], [trim(strtoupper($params['operation'])) => [$params['name']]]);
-      }
-    }
-
-    if ($triggerRebuild) {
-      Civi::service('sql_triggers')->rebuild($params['table_name'], TRUE);
-    }
-
-    return TRUE;
-  }
-
-  /**
    * Delete a CiviCRM-table.
    *
    * @param string $tableName
@@ -432,6 +395,8 @@ ADD UNIQUE INDEX `unique_entity_id` ( `entity_id` )";
           }
         }
 
+        $indexType = $createIndexPrefix === 'UI' ? 'UNIQUE' : '';
+
         // the index doesn't exist, so create it
         // if we're multilingual and the field is internationalised, do it for every locale
         // @todo remove is_array check & add multilingual support for combined indexes and add a test.
@@ -439,11 +404,11 @@ ADD UNIQUE INDEX `unique_entity_id` ( `entity_id` )";
         // entity_id + entity_table which are not multilingual.
         if (!is_array($field) && !CRM_Utils_System::isNull($locales) and isset($columns[$table][$fieldName])) {
           foreach ($locales as $locale) {
-            $queries[] = "CREATE INDEX {$createIndexPrefix}_{$fieldName}{$lengthName}_{$locale} ON {$table} ({$fieldName}_{$locale}{$lengthSize})";
+            $queries[] = "CREATE $indexType INDEX {$createIndexPrefix}_{$fieldName}{$lengthName}_{$locale} ON {$table} ({$fieldName}_{$locale}{$lengthSize})";
           }
         }
         else {
-          $queries[] = "CREATE INDEX {$createIndexPrefix}_{$fieldName}{$lengthName} ON {$table} (" . implode(',', (array) $field) . "{$lengthSize})";
+          $queries[] = "CREATE $indexType INDEX {$createIndexPrefix}_{$fieldName}{$lengthName} ON {$table} (" . implode(',', (array) $field) . "{$lengthSize})";
         }
       }
     }

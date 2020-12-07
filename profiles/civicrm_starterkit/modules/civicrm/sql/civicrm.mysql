@@ -823,6 +823,8 @@ CREATE TABLE `civicrm_saved_search` (
 
 
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Saved Search ID',
+     `name` varchar(255)   DEFAULT NULL COMMENT 'Unique name of saved search',
+     `label` varchar(255)   DEFAULT NULL COMMENT 'Administrative label for search',
      `form_values` text    COMMENT 'Submitted form values for this search',
      `mapping_id` int unsigned    COMMENT 'Foreign key to civicrm_mapping used for saved search-builder searches.',
      `search_custom_id` int unsigned    COMMENT 'Foreign key to civicrm_option value table used for saved custom searches.',
@@ -831,7 +833,10 @@ CREATE TABLE `civicrm_saved_search` (
 ,
         PRIMARY KEY (`id`)
  
- 
+    ,     UNIQUE INDEX `UI_name`(
+        name
+  )
+  
 ,          CONSTRAINT FK_civicrm_saved_search_mapping_id FOREIGN KEY (`mapping_id`) REFERENCES `civicrm_mapping`(`id`) ON DELETE SET NULL  
 )  ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci  ;
 

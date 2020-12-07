@@ -246,7 +246,7 @@ class CRM_Core_BAO_UFGroup extends CRM_Core_DAO_UFGroup {
    * and format for use with buildProfile. This is the SQL analog of
    * formatUFFields().
    *
-   * @param mix $id
+   * @param int $id
    *   The id of the UF group or ids of ufgroup.
    * @param bool|int $register are we interested in registration fields
    * @param int $action
@@ -2026,7 +2026,7 @@ AND    ( entity_id IS NULL OR entity_id <= 0 )
       CRM_Contact_Form_Edit_TagsAndGroups::buildQuickForm($form, $contactId,
         CRM_Contact_Form_Edit_TagsAndGroups::GROUP,
         TRUE, $required,
-        $title, NULL, $name
+        $title, NULL, $name, 'checkbox', TRUE
       );
     }
     elseif ($fieldName === 'tag') {

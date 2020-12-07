@@ -9,6 +9,8 @@
  +--------------------------------------------------------------------+
  */
 
+use Civi\Api4\Contribution;
+
 /**
  * Class CRM_Core_Payment_BaseIPN.
  */
@@ -162,13 +164,11 @@ class CRM_Core_Payment_BaseIPN {
    * Set contribution to failed.
    *
    * @param array $objects
-   * @param object $transaction
-   * @param array $input
    *
    * @return bool
-   * @throws \CiviCRM_API3_Exception
+   * @throws \CiviCRM_API3_Exception|\CRM_Core_Exception
    */
-  public function failed(&$objects, $transaction = NULL, $input = []) {
+  public function failed($objects) {
     $contribution = &$objects['contribution'];
     $memberships = [];
     if (!empty($objects['membership'])) {
@@ -188,13 +188,6 @@ class CRM_Core_Payment_BaseIPN {
       CRM_Contribute_BAO_ContributionRecur::addRecurLineItems($objects['contributionRecur']->id, $contribution);
     }
 
-    //add new soft credit against current contribution id and
-    //copy initial contribution custom fields for recurring contributions
-    if (!empty($objects['contributionRecur']) && $objects['contributionRecur']->id) {
-      CRM_Contribute_BAO_ContributionRecur::addrecurSoftCredit($objects['contributionRecur']->id, $contribution->id);
-      CRM_Contribute_BAO_ContributionRecur::copyCustomValues($objects['contributionRecur']->id, $contribution->id);
-    }
-
     if (!empty($memberships)) {
       foreach ($memberships as $membership) {
         // @fixme Should we cancel only Pending memberships? per cancelled()
@@ -206,9 +199,6 @@ class CRM_Core_Payment_BaseIPN {
       $this->cancelParticipant($participant->id);
     }
 
-    if ($transaction) {
-      $transaction->commit();
-    }
     Civi::log()->debug("Setting contribution status to Failed");
     return TRUE;
   }
@@ -234,66 +224,66 @@ class CRM_Core_Payment_BaseIPN {
   /**
    * Process cancelled payment outcome.
    *
+   * @deprecated The intended replacement code is
+   *
+   * Contribution::update(FALSE)->setValues([
+   *  'cancel_date' => 'now',
+   *  'contribution_status_id:name' => 'Cancelled',
+   * ])->addWhere('id', '=', $contribution->id)->execute();
+   *
    * @param array $objects
-   * @param CRM_Core_Transaction $transaction
-   * @param array $input
    *
    * @return bool
-   * @throws \CiviCRM_API3_Exception
+   * @throws \CiviCRM_API3_Exception|\CRM_Core_Exception
    */
-  public function cancelled(&$objects, $transaction = NULL, $input = []) {
+  public function cancelled($objects) {
+    CRM_Core_Error::deprecatedFunctionWarning('Use Contribution create api to cancel the contribution');
     $contribution = &$objects['contribution'];
-    $memberships = [];
-    if (!empty($objects['membership'])) {
-      $memberships = &$objects['membership'];
-      if (is_numeric($memberships)) {
-        $memberships = [$objects['membership']];
-      }
-    }
 
-    $addLineItems = FALSE;
     if (empty($contribution->id)) {
+      // This code is believed to be unreachable.
+      // this entire function is due to be deprecated in the near future so
+      // this code will live in a deprecated function until it gets removed.
       $addLineItems = TRUE;
-    }
-    $participant = &$objects['participant'];
-
-    // CRM-15546
-    $contributionStatuses = CRM_Core_PseudoConstant::get('CRM_Contribute_DAO_Contribution', 'contribution_status_id', [
-      'labelColumn' => 'name',
-      'flip' => 1,
-    ]);
-    $contribution->contribution_status_id = $contributionStatuses['Cancelled'];
-    $contribution->cancel_date = self::$_now;
-    $contribution->cancel_reason = $input['reasonCode'] ?? NULL;
-    $contribution->save();
-
-    // Add line items for recurring payments.
-    if (!empty($objects['contributionRecur']) && $objects['contributionRecur']->id && $addLineItems) {
-      CRM_Contribute_BAO_ContributionRecur::addRecurLineItems($objects['contributionRecur']->id, $contribution);
-    }
-
-    //add new soft credit against current $contribution and
-    //copy initial contribution custom fields for recurring contributions
-    if (!empty($objects['contributionRecur']) && $objects['contributionRecur']->id) {
-      CRM_Contribute_BAO_ContributionRecur::addrecurSoftCredit($objects['contributionRecur']->id, $contribution->id);
-      CRM_Contribute_BAO_ContributionRecur::copyCustomValues($objects['contributionRecur']->id, $contribution->id);
-    }
-
-    if (!empty($memberships)) {
-      foreach ($memberships as $membership) {
-        if ($membership) {
-          $this->cancelMembership($membership, $membership->status_id);
+      // CRM-15546
+      $contributionStatuses = CRM_Core_PseudoConstant::get('CRM_Contribute_DAO_Contribution', 'contribution_status_id', [
+        'labelColumn' => 'name',
+        'flip' => 1,
+      ]);
+      $contribution->contribution_status_id = $contributionStatuses['Cancelled'];
+      $contribution->cancel_date = self::$_now;
+      $contribution->save();
+      // Add line items for recurring payments.
+      if (!empty($objects['contributionRecur']) && $objects['contributionRecur']->id && $addLineItems) {
+        CRM_Contribute_BAO_ContributionRecur::addRecurLineItems($objects['contributionRecur']->id, $contribution);
+      }
+      $memberships = [];
+      if (!empty($objects['membership'])) {
+        $memberships = &$objects['membership'];
+        if (is_numeric($memberships)) {
+          $memberships = [$objects['membership']];
         }
       }
+      if (!empty($memberships)) {
+        foreach ($memberships as $membership) {
+          if ($membership) {
+            $this->cancelMembership($membership, $membership->status_id);
+          }
+        }
+      }
+      $participant = &$objects['participant'];
+
+      if ($participant) {
+        $this->cancelParticipant($participant->id);
+      }
+    }
+    else {
+      Contribution::update(FALSE)->setValues([
+        'cancel_date' => 'now',
+        'contribution_status_id:name' => 'Cancelled',
+      ])->addWhere('id', '=', $contribution->id)->execute();
     }
 
-    if ($participant) {
-      $this->cancelParticipant($participant->id);
-    }
-
-    if ($transaction) {
-      $transaction->commit();
-    }
     Civi::log()->debug("Setting contribution status to Cancelled");
     return TRUE;
   }
@@ -320,6 +310,8 @@ class CRM_Core_Payment_BaseIPN {
    * Logic to cancel a participant record when the related contribution changes to failed/cancelled.
    * @todo This is part of a bigger refactor for dev/core/issues/927 - "duplicate" functionality exists in CRM_Contribute_BAO_Contribution::cancel()
    *
+   * @deprecated
+   *
    * @param $participantID
    *
    * @throws \CiviCRM_API3_Exception
@@ -339,9 +331,10 @@ class CRM_Core_Payment_BaseIPN {
    * @param boolean $onlyCancelPendingMembership
    *   Do we only cancel pending memberships? OR memberships in any status? (see CRM-18688)
    * @fixme Historically failed() cancelled membership in any status, cancelled() cancelled only pending memberships so we retain that behaviour for now.
-   *
+   * @deprecated
    */
   private function cancelMembership($membership, $membershipStatusID, $onlyCancelPendingMembership = TRUE) {
+    CRM_Core_Error::deprecatedFunctionWarning('use the api');
     // @fixme https://lab.civicrm.org/dev/core/issues/927 Cancelling membership etc is not desirable for all use-cases and we should be able to disable it
     // Cancel only Pending memberships
     $pendingMembershipStatusId = CRM_Core_PseudoConstant::getKey('CRM_Member_BAO_Membership', 'status_id', 'Pending');
@@ -427,7 +420,7 @@ class CRM_Core_Payment_BaseIPN {
       'related_contact' => $ids['related_contact'] ?? NULL,
       'participant' => !empty($objects['participant']) ? $objects['participant']->id : NULL,
       'contributionRecur' => !empty($objects['contributionRecur']) ? $objects['contributionRecur']->id : NULL,
-    ], $objects);
+    ], $objects['contribution']);
   }
 
   /**

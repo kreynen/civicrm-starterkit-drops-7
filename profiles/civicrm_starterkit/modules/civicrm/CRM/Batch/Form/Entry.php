@@ -433,7 +433,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
       $this->processContribution($params);
     }
     elseif ($this->_batchInfo['type_id'] == $batchTypes['Membership']) {
-      $this->processMembership($params);
+      $params['actualBatchTotal'] = $this->processMembership($params);
     }
 
     // update batch to close status
@@ -623,7 +623,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
         //process premiums
         if (!empty($value['product_name'])) {
           if ($value['product_name'][0] > 0) {
-            list($products, $options) = CRM_Contribute_BAO_Premium::getPremiumProductInfo();
+            [$products, $options] = CRM_Contribute_BAO_Premium::getPremiumProductInfo();
 
             $value['hidden_Premium'] = 1;
             $value['product_option'] = CRM_Utils_Array::value(
@@ -663,13 +663,16 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
    * Process membership records.
    *
    * @param array $params
-   *   Associated array of submitted values.
+   *   Array of submitted values.
    *
+   * @return float
+   *   batch total monetary amount.
    *
-   * @return bool
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
-  private function processMembership(&$params) {
-
+  private function processMembership(array $params) {
+    $batchTotal = 0;
     // get the price set associated with offline membership
     $priceSetId = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', 'default_membership_type_amount', 'id', 'name');
     $this->_priceSet = $priceSets = current(CRM_Price_BAO_PriceSet::getSetDetail($priceSetId));
@@ -755,7 +758,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
           $value['total_amount'] = (float) $value['total_amount'];
         }
 
-        $params['actualBatchTotal'] += $value['total_amount'];
+        $batchTotal += $value['total_amount'];
 
         unset($value['financial_type']);
         unset($value['payment_instrument']);
@@ -821,13 +824,6 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
           $this->_params = $params;
           $value['is_renew'] = TRUE;
           $isPayLater = $params['is_pay_later'] ?? NULL;
-          $campaignId = NULL;
-          if (isset($this->_values) && is_array($this->_values) && !empty($this->_values)) {
-            $campaignId = $this->_params['campaign_id'] ?? NULL;
-            if (!array_key_exists('campaign_id', $this->_params)) {
-              $campaignId = $this->_values['campaign_id'] ?? NULL;
-            }
-          }
 
           $formDates = [
             'end_date' => $value['membership_end_date'] ?? NULL,
@@ -838,7 +834,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
             $value['contact_id'], $value['membership_type_id'], FALSE,
             //$numTerms should be default to 1.
             NULL, NULL, $value['custom'], 1, NULL, FALSE,
-            NULL, $membershipSource, $isPayLater, $campaignId, $formDates
+            NULL, $membershipSource, $isPayLater, ['campaign_id' => $value['member_campaign_id'] ?? NULL], $formDates
           );
 
           // make contribution entry
@@ -849,45 +845,16 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
           CRM_Member_BAO_Membership::recordMembershipContribution($contrbutionParams);
         }
         else {
-          $dateTypes = [
-            'membership_join_date' => 'joinDate',
-            'membership_start_date' => 'startDate',
-            'membership_end_date' => 'endDate',
-          ];
-
-          $dates = [
-            'join_date',
-            'start_date',
-            'end_date',
-            'reminder_date',
-          ];
-          foreach ($dateTypes as $dateField => $dateVariable) {
-            $$dateVariable = CRM_Utils_Date::processDate($value[$dateField]);
-            $fDate[$dateField] = $value[$dateField] ?? NULL;
-          }
-
-          $calcDates = [];
-          $calcDates[$membershipTypeId] = CRM_Member_BAO_MembershipType::getDatesForMembershipType($membershipTypeId,
-            $joinDate, $startDate, $endDate
+          $calcDates = CRM_Member_BAO_MembershipType::getDatesForMembershipType($membershipTypeId,
+            $value['membership_join_date'] ?? NULL, $value['membership_start_date'] ?? NULL, $value['membership_end_date'] ?? NULL
           );
-
-          foreach ($calcDates as $memType => $calcDate) {
-            foreach ($dates as $d) {
-              //first give priority to form values then calDates.
-              $date = $value[$d] ?? NULL;
-              if (!$date) {
-                $date = $calcDate[$d] ?? NULL;
-              }
-
-              $value[$d] = CRM_Utils_Date::processDate($date);
-            }
-          }
+          $value['join_date'] = $value['membership_join_date'] ?? $calcDates['join_date'];
+          $value['start_date'] = $value['membership_start_date'] ?? $calcDates['start_date'];
+          $value['end_date'] = $value['membership_end_date'] ?? $calcDates['end_date'];
 
           unset($value['membership_start_date']);
           unset($value['membership_end_date']);
-          $ids = [];
-          // @todo stop passing empty $ids
-          $membership = CRM_Member_BAO_Membership::create($value, $ids);
+          $membership = CRM_Member_BAO_Membership::create($value);
         }
 
         //process premiums
@@ -926,7 +893,7 @@ class CRM_Batch_Form_Entry extends CRM_Core_Form {
         }
       }
     }
-    return TRUE;
+    return $batchTotal;
   }
 
   /**

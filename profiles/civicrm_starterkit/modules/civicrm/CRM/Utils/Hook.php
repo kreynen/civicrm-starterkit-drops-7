@@ -1043,6 +1043,24 @@ abstract class CRM_Utils_Hook {
   }
 
   /**
+   * When adding a new "Mail Account" (`MailSettings`), present a menu of setup
+   * options.
+   *
+   * @param array $setupActions
+   *   Each item has a symbolic-key, and it has the properties:
+   *     - title: string
+   *     - callback: string|array, the function which starts the setup process.
+   *        The function is expected to return a 'url' for the config screen.
+   * @return mixed
+   */
+  public static function mailSetupActions(&$setupActions) {
+    return self::singleton()->invoke(['setupActions'], $setupActions, self::$_nullObject, self::$_nullObject,
+      self::$_nullObject, self::$_nullObject, self::$_nullObject,
+      'civicrm_mailSetupActions'
+    );
+  }
+
+  /**
    * This hook is called when composing a mailing. You can include / exclude other groups as needed.
    *
    * @param mixed $form
@@ -1198,6 +1216,33 @@ abstract class CRM_Utils_Hook {
     return self::singleton()->invoke(['params', 'context'], $params, $context,
       self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject,
       'civicrm_alterMailParams'
+    );
+  }
+
+  /**
+   * This hook is called when loading a mail-store (e.g. IMAP, POP3, or Maildir).
+   *
+   * @param array $params
+   *   Most fields correspond to data in the MailSettings entity:
+   *   - id: int
+   *   - server: string
+   *   - username: string
+   *   - password: string
+   *   - is_ssl: bool
+   *   - source: string
+   *   - local_part: string
+   *
+   *   With a few supplements
+   *   - protocol: string, symbolic protocol name (e.g. "IMAP")
+   *   - factory: callable, the function which instantiates the driver class
+   *   - auth: string, (for some drivers) specify the authentication method (eg "Password" or "XOAuth2")
+   *
+   * @return mixed
+   */
+  public static function alterMailStore(&$params) {
+    return self::singleton()->invoke(['params'], $params, $context,
+      self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject,
+      'civicrm_alterMailStore'
     );
   }
 
@@ -2381,6 +2426,7 @@ abstract class CRM_Utils_Hook {
    *   - url: string (used in lieu of "path"/"query")
    *      Note: if making "url" CRM_Utils_System::url(), set $htmlize=false
    * @return mixed
+   * @deprecated
    */
   public static function crudLink($spec, $bao, &$link) {
     return self::singleton()->invoke(['spec', 'bao', 'link'], $spec, $bao, $link,

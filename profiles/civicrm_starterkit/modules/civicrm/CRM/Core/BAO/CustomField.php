@@ -114,7 +114,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
    * @throws \CiviCRM_API3_Exception
    */
   public static function bulkSave($bulkParams, $defaults = []) {
-    $addedColumns = $sql = $tables = $customFields = [];
+    $addedColumns = $sql = $customFields = [];
     foreach ($bulkParams as $index => $fieldParams) {
       $params = array_merge($defaults, $fieldParams);
       $customField = self::createCustomFieldRecord($params);
@@ -122,17 +122,9 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
       if (!isset($params['custom_group_id'])) {
         $params['custom_group_id'] = civicrm_api3('CustomField', 'getvalue', ['id' => $customField->id, 'return' => 'custom_group_id']);
       }
-      if (!isset($params['table_name'])) {
-        if (!isset($tables[$params['custom_group_id']])) {
-          $tables[$params['custom_group_id']] = civicrm_api3('CustomGroup', 'getvalue', [
-            'id' => $params['custom_group_id'],
-            'return' => 'table_name',
-          ]);
-        }
-        $params['table_name'] = $tables[$params['custom_group_id']];
-      }
-      $sql[$params['table_name']][] = $fieldSQL;
-      $addedColumns[$params['table_name']][] = $customField->name;
+      $tableName = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_CustomGroup', $customField->custom_group_id, 'table_name');
+      $sql[$tableName][] = $fieldSQL;
+      $addedColumns[$tableName][] = $customField->name;
       $customFields[$index] = $customField;
     }
 
@@ -145,7 +137,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
         $logging->fixSchemaDifferencesFor($tableName, ['ADD' => $addedColumns[$tableName]]);
       }
 
-      Civi::service('sql_triggers')->rebuild($params['table_name'], TRUE);
+      Civi::service('sql_triggers')->rebuild($tableName, TRUE);
     }
     CRM_Utils_System::flushCache();
     foreach ($customFields as $index => $customField) {
@@ -365,7 +357,6 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
       $fields = Civi::Cache('fields')->get("custom importableFields $cacheKey");
 
       if ($fields === NULL) {
-        $cfTable = self::getTableName();
 
         $extends = '';
         if (is_array($customDataType)) {
@@ -398,37 +389,37 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
         // Temporary hack - in 5.27 a new field is added to civicrm_custom_field. There is a high
         // risk this function is called before the upgrade page can be reached and if
         // so it will potentially result in fatal error.
-        $serializeField = CRM_Core_BAO_Domain::isDBVersionAtLeast('5.27.alpha1') ? "$cfTable.serialize," : '';
+        $serializeField = CRM_Core_BAO_Domain::isDBVersionAtLeast('5.27.alpha1') ? "custom_field.serialize," : '';
 
-        $query = "SELECT $cfTable.id, $cfTable.label,
+        $query = "SELECT custom_field.id, custom_field.label,
                             $cgTable.title,
-                            $cfTable.data_type,
-                            $cfTable.html_type,
-                            $cfTable.default_value,
-                            $cfTable.options_per_line, $cfTable.text_length,
-                            $cfTable.custom_group_id,
-                            $cfTable.is_required,
-                            $cfTable.column_name,
-                            $cgTable.extends, $cfTable.is_search_range,
+                            custom_field.data_type,
+                            custom_field.html_type,
+                            custom_field.default_value,
+                            custom_field.options_per_line, custom_field.text_length,
+                            custom_field.custom_group_id,
+                            custom_field.is_required,
+                            custom_field.column_name,
+                            $cgTable.extends, custom_field.is_search_range,
                             $cgTable.extends_entity_column_value,
                             $cgTable.extends_entity_column_id,
-                            $cfTable.is_view,
-                            $cfTable.option_group_id,
-                            $cfTable.date_format,
-                            $cfTable.time_format,
+                            custom_field.is_view,
+                            custom_field.option_group_id,
+                            custom_field.date_format,
+                            custom_field.time_format,
                             $cgTable.is_multiple,
                             $serializeField
                             $cgTable.table_name,
                             og.name as option_group_name
-                     FROM $cfTable
+                     FROM civicrm_custom_field custom_field
                      INNER JOIN $cgTable
-                       ON $cfTable.custom_group_id = $cgTable.id
+                       ON custom_field.custom_group_id = $cgTable.id
                      LEFT JOIN civicrm_option_group og
-                       ON $cfTable.option_group_id = og.id
+                       ON custom_field.option_group_id = og.id
                      WHERE ( 1 ) ";
 
         if (!$showAll) {
-          $query .= " AND $cfTable.is_active = 1 AND $cgTable.is_active = 1 ";
+          $query .= " AND custom_field.is_active = 1 AND $cgTable.is_active = 1 ";
         }
 
         if ($inline) {
@@ -465,7 +456,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
 
         $query .= " $extends AND $permissionClause
                         ORDER BY $cgTable.weight, $cgTable.title,
-                                 $cfTable.weight, $cfTable.label";
+                                 custom_field.weight, custom_field.label";
 
         $dao = CRM_Core_DAO::executeQuery($query);
 
@@ -894,7 +885,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
           $fieldAttributes += [
             'entity' => 'OptionValue',
             'placeholder' => $placeholder,
-            'multiple' => $search,
+            'multiple' => $search ? TRUE : !empty($field->serialize),
             'api' => [
               'params' => ['option_group_id' => $field->option_group_id, 'is_active' => 1],
             ],
@@ -1453,6 +1444,11 @@ SELECT id
       }
     }
     elseif (self::isSerialized($customFields[$customFieldId])) {
+      // Select2 v3 returns a comma-separated string.
+      if ($customFields[$customFieldId]['html_type'] == 'Autocomplete-Select' && is_string($value)) {
+        $value = explode(',', $value);
+      }
+
       $value = $value ? CRM_Utils_Array::implodePadded($value) : '';
     }
 

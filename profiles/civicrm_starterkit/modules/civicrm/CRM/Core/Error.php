@@ -603,15 +603,12 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    * @param string $string
    */
   public static function debug_query($string) {
-    if (!defined('CIVICRM_DEBUG_LOG_QUERY')) {
-      // TODO: When its updated to support getenv(), call CRM_Utils_Constant::value('CIVICRM_DEBUG_LOG_QUERY', FALSE)
-      define('CIVICRM_DEBUG_LOG_QUERY', getenv('CIVICRM_DEBUG_LOG_QUERY'));
-    }
-    if (CIVICRM_DEBUG_LOG_QUERY === 'backtrace') {
+    $debugLogQuery = CRM_Utils_Constant::value('CIVICRM_DEBUG_LOG_QUERY', FALSE);
+    if ($debugLogQuery === 'backtrace') {
       CRM_Core_Error::backtrace($string, TRUE);
     }
-    elseif (CIVICRM_DEBUG_LOG_QUERY) {
-      CRM_Core_Error::debug_var('Query', $string, TRUE, TRUE, 'sql_log' . CIVICRM_DEBUG_LOG_QUERY, PEAR_LOG_DEBUG);
+    elseif ($debugLogQuery) {
+      CRM_Core_Error::debug_var('Query', $string, TRUE, TRUE, 'sql_log' . $debugLogQuery, PEAR_LOG_DEBUG);
     }
   }
 
@@ -820,11 +817,11 @@ class CRM_Core_Error extends PEAR_ErrorStack {
   /**
    * Render an exception as HTML string.
    *
-   * @param Exception $e
+   * @param Throwable $e
    * @return string
    *   printable HTML text
    */
-  public static function formatHtmlException(Exception $e) {
+  public static function formatHtmlException(Throwable $e) {
     $msg = '';
 
     // Exception metadata
@@ -859,11 +856,11 @@ class CRM_Core_Error extends PEAR_ErrorStack {
   /**
    * Write details of an exception to the log.
    *
-   * @param Exception $e
+   * @param Throwable $e
    * @return string
    *   printable plain text
    */
-  public static function formatTextException(Exception $e) {
+  public static function formatTextException(Throwable $e) {
     $msg = get_class($e) . ": \"" . $e->getMessage() . "\"\n";
 
     $ei = $e;
