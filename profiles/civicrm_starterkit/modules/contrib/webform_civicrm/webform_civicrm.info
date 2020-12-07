@@ -7,8 +7,8 @@ dependencies[] = civicrm (>=5.12)
 dependencies[] = webform (>=4.19)
 dependencies[] = options_element
 
-; Information added by Drupal.org packaging script on 2020-09-28
-version = "7.x-5.3"
+; Information added by Drupal.org packaging script on 2020-11-28
+version = "7.x-5.4"
 core = "7.x"
 project = "webform_civicrm"
-datestamp = "1601316899"
+datestamp = "1606588230"
