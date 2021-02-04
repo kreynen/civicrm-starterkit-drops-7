@@ -5,6 +5,17 @@
   angular.module('crmSearchDisplay', CRM.angRequires('crmSearchDisplay'))
 
     .factory('searchDisplayUtils', function() {
+
+      function replaceTokens(str, data) {
+        if (!str) {
+          return '';
+        }
+        _.each(data, function(value, key) {
+          str = str.replace('[' + key + ']', value);
+        });
+        return str;
+      }
+
       function getUrl(link, row) {
         var url = replaceTokens(link, row);
         if (url.slice(0, 1) !== '/' && url.slice(0, 4) !== 'http') {
@@ -13,19 +24,12 @@
         return _.escape(url);
       }
 
-      function replaceTokens(str, data) {
-        _.each(data, function(value, key) {
-          str = str.replace('[' + key + ']', value);
-        });
-        return str;
-      }
-
       function formatSearchValue(row, col, value) {
         var type = col.dataType,
           result = value;
         if (_.isArray(value)) {
           return _.map(value, function(val) {
-            return formatSearchValue(col, val);
+            return formatSearchValue(row, col, val);
           }).join(', ');
         }
         if (value && (type === 'Date' || type === 'Timestamp') && /^\d{4}-\d{2}-\d{2}/.test(value)) {
@@ -79,7 +83,7 @@
         _.each(params.join, function(join) {
           var joinEntity = join[0].split(' AS ')[1],
             idField = joinEntity + '.id';
-          if (!_.includes(params.select, idField) && !searchDisplayUtils.canAggregate('id', joinEntity + '.', params)) {
+          if (!_.includes(params.select, idField) && !canAggregate('id', joinEntity + '.', params)) {
             params.select.push(idField);
           }
         });
@@ -99,7 +103,8 @@
         formatSearchValue: formatSearchValue,
         canAggregate: canAggregate,
         prepareColumns: prepareColumns,
-        prepareParams: prepareParams
+        prepareParams: prepareParams,
+        replaceTokens: replaceTokens
       };
     });
 

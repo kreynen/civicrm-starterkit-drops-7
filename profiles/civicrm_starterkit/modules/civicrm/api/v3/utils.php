@@ -334,6 +334,7 @@ function _civicrm_api3_get_DAO($name) {
   if ($name === 'Im' || $name === 'Acl' || $name === 'Pcp') {
     $name = strtoupper($name);
   }
+
   $dao = CRM_Core_DAO_AllCoreTables::getFullName($name);
   if ($dao || !$name) {
     return $dao;
@@ -2186,11 +2187,6 @@ function _civicrm_api3_validate_html(&$params, &$fieldName, $fieldInfo) {
   if (strpos($op, 'NULL') || strpos($op, 'EMPTY')) {
     return;
   }
-  if ($fieldValue) {
-    if (!CRM_Utils_Rule::xssString($fieldValue)) {
-      throw new API_Exception('Input contains illegal SCRIPT tag.', ["field" => $fieldName, "error_code" => "xss"]);
-    }
-  }
 }
 
 /**
@@ -2219,11 +2215,6 @@ function _civicrm_api3_validate_string(&$params, &$fieldName, &$fieldInfo, $enti
 
   if ($fieldValue) {
     foreach ((array) $fieldValue as $key => $value) {
-      foreach ([$fieldValue, $key, $value] as $input) {
-        if (!CRM_Utils_Rule::xssString($input)) {
-          throw new Exception('Input contains illegal SCRIPT tag.');
-        }
-      }
       if ($fieldName == 'currency') {
         //When using IN operator $fieldValue is a array of currency codes
         if (!CRM_Utils_Rule::currencyCode($value)) {

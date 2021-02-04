@@ -155,7 +155,7 @@ abstract class CRM_Utils_Hook {
     if (!is_array($names)) {
       // We were called with the old contract wherein $names is actually an int.
       // Symfony dispatcher requires some kind of name.
-      Civi::log()->warning("hook_$fnSuffix should be updated to pass an array of parameter names to CRM_Utils_Hook::invoke().", ['civi.tag' => 'deprecated']);
+      CRM_Core_Error::deprecatedWarning("hook_$fnSuffix should be updated to pass an array of parameter names to CRM_Utils_Hook::invoke().");
       $compatNames = ['arg1', 'arg2', 'arg3', 'arg4', 'arg5', 'arg6'];
       $names = array_slice($compatNames, 0, (int) $names);
     }
@@ -339,7 +339,7 @@ abstract class CRM_Utils_Hook {
    * @return null
    *   the return value is ignored
    */
-  public static function pre($op, $objectName, $id, &$params) {
+  public static function pre($op, $objectName, $id, &$params = []) {
     $event = new \Civi\Core\Event\PreEvent($op, $objectName, $id, $params);
     \Civi::dispatcher()->dispatch('hook_civicrm_pre', $event);
     return $event->getReturnValues();
@@ -1760,6 +1760,26 @@ abstract class CRM_Utils_Hook {
   }
 
   /**
+   * Register cryptographic resources, such as keys and cipher-suites.
+   *
+   * Ex: $crypto->addSymmetricKey([
+   *   'key' => hash_hkdf('sha256', 'abcd1234'),
+   *   'suite' => 'aes-cbc-hs',
+   * ]);
+   *
+   * @param \Civi\Crypto\CryptoRegistry $crypto
+   *
+   * @return mixed
+   */
+  public static function crypto($crypto) {
+    return self::singleton()->invoke(['crypto'], $crypto, self::$_nullObject,
+      self::$_nullObject, self::$_nullObject, self::$_nullObject,
+      self::$_nullObject,
+      'civicrm_crypto'
+    );
+  }
+
+  /**
    * This hook collects the trigger definition from all components.
    *
    * @param $info
@@ -2000,7 +2020,7 @@ abstract class CRM_Utils_Hook {
   }
 
   /**
-   * This hook is called when loading CMS permissions; use this hook to modify
+   * This hook is called when exporting Civi's permission to the CMS. Use this hook to modify
    * the array of system permissions for CiviCRM.
    *
    * @param array $permissions
@@ -2014,6 +2034,31 @@ abstract class CRM_Utils_Hook {
     return self::singleton()->invoke(['permissions'], $permissions,
       self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject,
       'civicrm_permission'
+    );
+  }
+
+  /**
+   * This hook is used to enumerate the list of available permissions. It may
+   * include concrete permissions defined by Civi, concrete permissions defined
+   * by the CMS, and/or synthetic permissions.
+   *
+   * @param array $permissions
+   *   Array of permissions, keyed by symbolic name. Each is an array with fields:
+   *     - group: string (ex: "civicrm", "cms")
+   *     - title: string (ex: "CiviEvent: Register for events")
+   *     - description: string (ex: "Register for events online")
+   *     - is_synthetic: bool (TRUE for synthetic permissions with a bespoke evaluation. FALSE for concrete permissions that registered+granted in the UF user-management layer.
+   *        Default TRUE iff name begins with '@')
+   *     - is_active: bool (TRUE if this permission is defined by. Default: TRUE)
+   *
+   * @return null
+   *   The return value is ignored
+   * @see Civi\Api4\Permission::get()
+   */
+  public static function permissionList(&$permissions) {
+    return self::singleton()->invoke(['permissions'], $permissions,
+      self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject, self::$_nullObject,
+      'civicrm_permissionList'
     );
   }
 
@@ -2035,6 +2080,47 @@ abstract class CRM_Utils_Hook {
     return self::singleton()->invoke(['permission', 'granted', 'contactId'], $permission, $granted, $contactId,
       self::$_nullObject, self::$_nullObject, self::$_nullObject,
       'civicrm_permission_check'
+    );
+  }
+
+  /**
+   * Rotate the cryptographic key used in the database.
+   *
+   * The purpose of this hook is to visit any encrypted values in the database
+   * and re-encrypt the content.
+   *
+   * For values encoded via `CryptoToken`, you can use `CryptoToken::rekey($oldToken, $tag)`
+   *
+   * @param string $tag
+   *   The type of crypto-key that is currently being rotated.
+   *   The hook-implementer should use this to decide which (if any) fields to visit.
+   *   Ex: 'CRED'
+   * @param \Psr\Log\LoggerInterface $log
+   *   List of messages about re-keyed values.
+   *
+   * @code
+   * function example_civicrm_rekey($tag, &$log) {
+   *   if ($tag !== 'CRED') return;
+   *
+   *   $cryptoToken = Civi::service('crypto.token');
+   *   $rows = sql('SELECT id, secret_column FROM some_table');
+   *   foreach ($rows as $row) {
+   *     $new = $cryptoToken->rekey($row['secret_column']);
+   *     if ($new !== NULL) {
+   *       sql('UPDATE some_table SET secret_column = %1 WHERE id = %2',
+   *         $new, $row['id']);
+   *     }
+   *   }
+   * }
+   * @endCode
+   *
+   * @return null
+   *   The return value is ignored
+   */
+  public static function cryptoRotateKey($tag, $log) {
+    return self::singleton()->invoke(['tag', 'log'], $tag, $log, self::$_nullObject,
+      self::$_nullObject, self::$_nullObject, self::$_nullObject,
+      'civicrm_cryptoRotateKey'
     );
   }
 
@@ -2208,7 +2294,7 @@ abstract class CRM_Utils_Hook {
   }
 
   /**
-   * This hook is called while viewing contact dashboard.
+   * This hook is called while initializing the default dashlets for a contact dashboard.
    *
    * @param array $availableDashlets
    *   List of dashlets; each is formatted per api/v3/Dashboard
@@ -2407,32 +2493,6 @@ abstract class CRM_Utils_Hook {
   public static function caseChange(\Civi\CCase\Analyzer $analyzer) {
     $event = new \Civi\CCase\Event\CaseChangeEvent($analyzer);
     \Civi::dispatcher()->dispatch('hook_civicrm_caseChange', $event);
-  }
-
-  /**
-   * Generate a default CRUD URL for an entity.
-   *
-   * @param array $spec
-   *   With keys:.
-   *   - action: int, eg CRM_Core_Action::VIEW or CRM_Core_Action::UPDATE
-   *   - entity_table: string
-   *   - entity_id: int
-   * @param CRM_Core_DAO $bao
-   * @param array $link
-   *   To define the link, add these keys to $link:.
-   *   - title: string
-   *   - path: string
-   *   - query: array
-   *   - url: string (used in lieu of "path"/"query")
-   *      Note: if making "url" CRM_Utils_System::url(), set $htmlize=false
-   * @return mixed
-   * @deprecated
-   */
-  public static function crudLink($spec, $bao, &$link) {
-    return self::singleton()->invoke(['spec', 'bao', 'link'], $spec, $bao, $link,
-      self::$_nullObject, self::$_nullObject, self::$_nullObject,
-      'civicrm_crudLink'
-    );
   }
 
   /**

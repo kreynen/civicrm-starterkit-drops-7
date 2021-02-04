@@ -191,11 +191,17 @@ class CRM_Utils_PDF_Utils {
     if ($output) {
       return $dompdf->output();
     }
-    else {
-      // CRM-19183 remove .pdf extension from filename
-      $fileName = basename($fileName, ".pdf");
-      $dompdf->stream($fileName);
+    // CRM-19183 remove .pdf extension from filename
+    $fileName = basename($fileName, ".pdf");
+    if (CIVICRM_UF === 'UnitTests' && headers_sent()) {
+      // Streaming content will 'die' in unit tests unless ob_start()
+      // has been called.
+      throw new CRM_Core_Exception_PrematureExitException('_html2pdf_dompdf called', [
+        'html' => $html,
+        'fileName' => $fileName,
+      ]);
     }
+    $dompdf->stream($fileName);
   }
 
   /**
@@ -207,8 +213,12 @@ class CRM_Utils_PDF_Utils {
    * @param string $fileName
    */
   public static function _html2pdf_wkhtmltopdf($paper_size, $orientation, $margins, $html, $output, $fileName) {
-    require_once 'snappy/src/autoload.php';
     $config = CRM_Core_Config::singleton();
+    // if the path doesn't exist fall back on the current backup which is DOMPDF.
+    if (!file_exists($config->wkhtmltopdfPath)) {
+      return self::_html2pdf_dompdf($paper_size, $orientation, $html, $output, $fileName);
+    }
+    require_once 'snappy/src/autoload.php';
     $snappy = new Knp\Snappy\Pdf($config->wkhtmltopdfPath);
     $snappy->setOption("page-width", $paper_size[2] . "pt");
     $snappy->setOption("page-height", $paper_size[3] . "pt");

@@ -4418,7 +4418,10 @@ INSERT INTO civicrm_state_province (id, country_id, abbreviation, name) VALUES
 (NULL, 1226, "RCT", "Rhondda, Cynon, Taff"),
 (NULL, 1226, "SWA", "Swansea"),
 (NULL, 1226, "TOF", "Torfaen"),
-(NULL, 1226, "WRX", "Wrexham");
+(NULL, 1226, "WRX", "Wrexham"),
+
+-- Add missing state for South Korea
+(NULL, 1115, "50", "Sejong");
 -- +--------------------------------------------------------------------+
 -- | Copyright CiviCRM LLC. All rights reserved.                        |
 -- |                                                                    |
@@ -5314,7 +5317,6 @@ VALUES
   (@option_group_id_mp, 'Maildir', 2, 'Maildir', NULL, 0, NULL, 2, NULL, 0, 0, 1, NULL, NULL , NULL),
   (@option_group_id_mp, 'POP3',    3, 'POP3',    NULL, 0, NULL, 3, NULL, 0, 0, 1, NULL, NULL , NULL),
   (@option_group_id_mp, 'Localdir', 4, 'Localdir', NULL, 0, NULL, 4, NULL, 0, 0, 1, NULL, NULL , NULL),
-  (@option_group_id_mp, 'IMAP XOAUTH2', 5, 'IMAP_XOAUTH2', NULL, 0, NULL, 5, NULL, 0, 0, 0, NULL, NULL , NULL),
 
 -- priority
   (@option_group_id_priority, 'Urgent', 1, 'Urgent', NULL, 0, NULL, 1, NULL, 0, 0, 1, NULL, NULL, NULL),
@@ -9387,7 +9389,7 @@ INSERT INTO civicrm_msg_template
                 <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{ts}Quantity{/ts}</font></th>
                 <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{ts}Unit Price{/ts}</font></th>
                 <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{$taxTerm}</font></th>
-                <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{ts 1=$defaultCurrency}Amount %1{/ts}</font></th>
+                <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{ts 1=$currency}Amount %1{/ts}</font></th>
               </tr>
               {foreach from=$lineItem item=value key=priceset name=taxpricevalue}
                 {if $smarty.foreach.taxpricevalue.index eq 0}
@@ -9434,7 +9436,7 @@ INSERT INTO civicrm_msg_template
               {/foreach}
               <tr>
                 <td colspan="3"></td>
-                <td style="text-align:right;white-space: nowrap"><b><font size="1">{ts 1=$defaultCurrency}TOTAL %1{/ts}</font></b></td>
+                <td style="text-align:right;white-space: nowrap"><b><font size="1">{ts 1=$currency}TOTAL %1{/ts}</font></b></td>
                 <td style="text-align:right;"><font size="1">{$amount|crmMoney:$currency}</font></td>
               </tr>
               <tr>
@@ -9613,7 +9615,7 @@ INSERT INTO civicrm_msg_template
                 <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{ts}Quantity{/ts}</font></th>
                 <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{ts}Unit Price{/ts}</font></th>
                 <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{$taxTerm}</font></th>
-                <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{ts 1=$defaultCurrency}Amount %1{/ts}</font></th>
+                <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{ts 1=$currency}Amount %1{/ts}</font></th>
               </tr>
               {foreach from=$lineItem item=value key=priceset name=pricevalue}
                 {if $smarty.foreach.pricevalue.index eq 0}
@@ -9668,7 +9670,7 @@ INSERT INTO civicrm_msg_template
               </tr>
               <tr>
                 <td colspan="3"></td>
-                <td style="padding-left:28px;text-align:right;"><b><font size="1">{ts 1=$defaultCurrency}TOTAL %1{/ts}</font></b></td>
+                <td style="padding-left:28px;text-align:right;"><b><font size="1">{ts 1=$currency}TOTAL %1{/ts}</font></b></td>
                 <td style="padding-left:28px;text-align:right;"><font size="1">{$amount|crmMoney:$currency}</font></td>
               </tr>
               {if $is_pay_later == 0}
@@ -9830,7 +9832,7 @@ INSERT INTO civicrm_msg_template
                 <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{ts}Quantity{/ts}</font></th>
                 <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{ts}Unit Price{/ts}</font></th>
                 <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{$taxTerm}</font></th>
-                <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{ts 1=$defaultCurrency}Amount %1{/ts}</font></th>
+                <th style="text-align:right;font-weight:bold;white-space: nowrap"><font size="1">{ts 1=$currency}Amount %1{/ts}</font></th>
               </tr>
               {foreach from=$lineItem item=value key=priceset name=taxpricevalue}
                 {if $smarty.foreach.taxpricevalue.index eq 0}
@@ -9877,7 +9879,7 @@ INSERT INTO civicrm_msg_template
               {/foreach}
               <tr>
                 <td colspan="3"></td>
-                <td style="text-align:right;white-space: nowrap"><b><font size="1">{ts 1=$defaultCurrency}TOTAL %1{/ts}</font></b></td>
+                <td style="text-align:right;white-space: nowrap"><b><font size="1">{ts 1=$currency}TOTAL %1{/ts}</font></b></td>
                 <td style="text-align:right;"><font size="1">{$amount|crmMoney:$currency}</font></td>
               </tr>
               <tr>
@@ -10056,7 +10058,7 @@ INSERT INTO civicrm_msg_template
                 <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{ts}Quantity{/ts}</font></th>
                 <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{ts}Unit Price{/ts}</font></th>
                 <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{$taxTerm}</font></th>
-                <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{ts 1=$defaultCurrency}Amount %1{/ts}</font></th>
+                <th style="padding-left:28px;text-align:right;font-weight:bold;"><font size="1">{ts 1=$currency}Amount %1{/ts}</font></th>
               </tr>
               {foreach from=$lineItem item=value key=priceset name=pricevalue}
                 {if $smarty.foreach.pricevalue.index eq 0}
@@ -10111,7 +10113,7 @@ INSERT INTO civicrm_msg_template
               </tr>
               <tr>
                 <td colspan="3"></td>
-                <td style="padding-left:28px;text-align:right;"><b><font size="1">{ts 1=$defaultCurrency}TOTAL %1{/ts}</font></b></td>
+                <td style="padding-left:28px;text-align:right;"><b><font size="1">{ts 1=$currency}TOTAL %1{/ts}</font></b></td>
                 <td style="padding-left:28px;text-align:right;"><font size="1">{$amount|crmMoney:$currency}</font></td>
               </tr>
               {if $is_pay_later == 0}
@@ -14406,18 +14408,6 @@ You were registered by: {$payer.name}
 {/foreach}
 {/foreach}
 {/if}
-{if $customGroup}
-{foreach from=$customGroup item=value key=customName}
-=========================================================={if $pricesetFieldsCount }===================={/if}
-
-{$customName}
-=========================================================={if $pricesetFieldsCount }===================={/if}
-
-{foreach from=$value item=v key=n}
-{$n}: {$v}
-{/foreach}
-{/foreach}
-{/if}
 
 {if $event.allow_selfcancelxfer }
 {ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
@@ -14900,25 +14890,6 @@ You were registered by: {$payer.name}
 {/foreach}
 {/if}
 
-    {if $customGroup}
-      {foreach from=$customGroup item=value key=customName}
-       <tr>
-        <th {$headerStyle}>
-         {$customName}
-        </th>
-       </tr>
-       {foreach from=$value item=v key=n}
-        <tr>
-         <td {$labelStyle}>
-          {$n}
-         </td>
-         <td {$valueStyle}>
-          {$v}
-         </td>
-        </tr>
-       {/foreach}
-      {/foreach}
-     {/if}
     </table>
     {if $event.allow_selfcancelxfer }
      <tr>
@@ -15215,18 +15186,6 @@ You were registered by: {$payer.name}
 {/foreach}
 {/foreach}
 {/if}
-{if $customGroup}
-{foreach from=$customGroup item=value key=customName}
-=========================================================={if $pricesetFieldsCount }===================={/if}
-
-{$customName}
-=========================================================={if $pricesetFieldsCount }===================={/if}
-
-{foreach from=$value item=v key=n}
-{$n}: {$v}
-{/foreach}
-{/foreach}
-{/if}
 
 {if $event.allow_selfcancelxfer }
 {ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
@@ -15709,25 +15668,6 @@ You were registered by: {$payer.name}
 {/foreach}
 {/if}
 
-    {if $customGroup}
-      {foreach from=$customGroup item=value key=customName}
-       <tr>
-        <th {$headerStyle}>
-         {$customName}
-        </th>
-       </tr>
-       {foreach from=$value item=v key=n}
-        <tr>
-         <td {$labelStyle}>
-          {$n}
-         </td>
-         <td {$valueStyle}>
-          {$v}
-         </td>
-        </tr>
-       {/foreach}
-      {/foreach}
-     {/if}
     </table>
     {if $event.allow_selfcancelxfer }
      <tr>
@@ -23927,4 +23867,4 @@ INSERT INTO `civicrm_report_instance`
     ( `domain_id`, `title`, `report_id`, `description`, `permission`, `form_values`)
 VALUES
     (  @domainID, 'Survey Details', 'survey/detail', 'Detailed report for canvassing, phone-banking, walk lists or other surveys.', 'access CiviReport', 'a:39:{s:6:"fields";a:2:{s:9:"sort_name";s:1:"1";s:6:"result";s:1:"1";}s:22:"assignee_contact_id_op";s:2:"eq";s:25:"assignee_contact_id_value";s:0:"";s:12:"sort_name_op";s:3:"has";s:15:"sort_name_value";s:0:"";s:17:"street_number_min";s:0:"";s:17:"street_number_max";s:0:"";s:16:"street_number_op";s:3:"lte";s:19:"street_number_value";s:0:"";s:14:"street_name_op";s:3:"has";s:17:"street_name_value";s:0:"";s:15:"postal_code_min";s:0:"";s:15:"postal_code_max";s:0:"";s:14:"postal_code_op";s:3:"lte";s:17:"postal_code_value";s:0:"";s:7:"city_op";s:3:"has";s:10:"city_value";s:0:"";s:20:"state_province_id_op";s:2:"in";s:23:"state_province_id_value";a:0:{}s:13:"country_id_op";s:2:"in";s:16:"country_id_value";a:0:{}s:12:"survey_id_op";s:2:"in";s:15:"survey_id_value";a:0:{}s:12:"status_id_op";s:2:"eq";s:15:"status_id_value";s:1:"1";s:11:"custom_1_op";s:2:"in";s:14:"custom_1_value";a:0:{}s:11:"custom_2_op";s:2:"in";s:14:"custom_2_value";a:0:{}s:17:"custom_3_relative";s:1:"0";s:13:"custom_3_from";s:0:"";s:11:"custom_3_to";s:0:"";s:11:"description";s:75:"Detailed report for canvassing, phone-banking, walk lists or other surveys.";s:13:"email_subject";s:0:"";s:8:"email_to";s:0:"";s:8:"email_cc";s:0:"";s:10:"permission";s:17:"access CiviReport";s:6:"groups";s:0:"";s:9:"domain_id";i:1;}');
-UPDATE civicrm_domain SET version = '5.32.1';
+UPDATE civicrm_domain SET version = '5.34.0';

@@ -330,7 +330,6 @@ class CRM_Core_Form extends HTML_QuickForm_Page {
       'postalCode',
       'money',
       'positiveInteger',
-      'xssString',
       'fileExists',
       'settingPath',
       'autocomplete',
@@ -374,7 +373,7 @@ class CRM_Core_Form extends HTML_QuickForm_Page {
       // The $attributes param used to allow for strings and would default to an
       // empty string.  However, now that the variable is heavily manipulated,
       // we should expect it to always be an array.
-      Civi::log()->warning('Attributes passed to CRM_Core_Form::add() are not an array.', ['civi.tag' => 'deprecated']);
+      CRM_Core_Error::deprecatedWarning('Attributes passed to CRM_Core_Form::add() are not an array.');
     }
     // Fudge some extra types that quickform doesn't support
     $inputType = $type;
@@ -2694,6 +2693,7 @@ class CRM_Core_Form extends HTML_QuickForm_Page {
     if (!empty($selectedChild)) {
       $this->set('selectedChild', $selectedChild);
       $this->assign('selectedChild', $selectedChild);
+      Civi::resources()->addSetting(['tabSettings' => ['active' => $selectedChild]]);
     }
   }
 

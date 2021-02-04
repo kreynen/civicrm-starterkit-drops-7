@@ -86,7 +86,9 @@ abstract class AbstractEntity {
    * @return string
    */
   protected static function getEntityTitle($plural = FALSE) {
-    return static::getEntityName();
+    $name = static::getEntityName();
+    $dao = \CRM_Core_DAO_AllCoreTables::getFullName($name);
+    return $dao ? $dao::getEntityTitle($plural) : ($plural ? \CRM_Utils_String::pluralize($name) : $name);
   }
 
   /**
@@ -133,11 +135,22 @@ abstract class AbstractEntity {
       'name' => static::getEntityName(),
       'title' => static::getEntityTitle(),
       'title_plural' => static::getEntityTitle(TRUE),
-      'type' => self::stripNamespace(get_parent_class(static::class)),
+      'type' => [self::stripNamespace(get_parent_class(static::class))],
       'paths' => static::getEntityPaths(),
     ];
+    // Add info for entities with a corresponding DAO
+    $dao = \CRM_Core_DAO_AllCoreTables::getFullName($info['name']);
+    if ($dao) {
+      $info['paths'] = $dao::getEntityPaths();
+      $info['icon'] = $dao::$_icon;
+      $info['dao'] = $dao;
+    }
+    foreach (ReflectionUtils::getTraits(static::class) as $trait) {
+      $info['type'][] = self::stripNamespace($trait);
+    }
+    $info['searchable'] = !in_array('OptionList', $info['type']);
     $reflection = new \ReflectionClass(static::class);
-    $info += ReflectionUtils::getCodeDocs($reflection, NULL, ['entity' => $info['name']]);
+    $info = array_merge($info, ReflectionUtils::getCodeDocs($reflection, NULL, ['entity' => $info['name']]));
     unset($info['package'], $info['method']);
     return $info;
   }

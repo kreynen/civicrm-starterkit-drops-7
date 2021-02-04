@@ -62,6 +62,8 @@
               alert('Error: unknown form "' + $scope.afGuiEditor.name + '"');
             }
           }
+          $scope.canvasTab = 'layout';
+          $scope.layoutHtml = '';
           $scope.layout = findRecursive($scope.afform.layout, {'#tag': 'af-form'})[0];
           $scope.entities = findRecursive($scope.layout['#children'], {'#tag': 'af-entity'}, 'name');
 
@@ -76,6 +78,17 @@
             $scope.changesSaved = $scope.changesSaved === 1;
           }, true);
         }
+
+        $scope.updateLayoutHtml = function() {
+          $scope.layoutHtml = '...Loading...';
+          crmApi4('Afform', 'convert', {layout: [$scope.layout], from: 'deep', to: 'html', formatWhitespace: true})
+            .then(function(r){
+              $scope.layoutHtml = r[0].layout || '(Error)';
+            })
+            .catch(function(r){
+              $scope.layoutHtml = '(Error)';
+            });
+        };
 
         this.addEntity = function(type) {
           var meta = editor.meta.entities[type],
@@ -266,7 +279,7 @@
 
         $scope.valuesFields = function() {
           var fields = _.transform($scope.getMeta().fields, function(fields, field) {
-            fields.push({id: field.name, text: field.title, disabled: $scope.fieldInUse(field.name)});
+            fields.push({id: field.name, text: field.label, disabled: $scope.fieldInUse(field.name)});
           }, []);
           return {results: fields};
         };
@@ -304,7 +317,7 @@
 
           function filterFields(fields) {
             return _.transform(fields, function(fieldList, field) {
-              if (!search || _.contains(field.name, search) || _.contains(field.title.toLowerCase(), search)) {
+              if (!search || _.contains(field.name, search) || _.contains(field.label.toLowerCase(), search)) {
                 fieldList.push({
                   "#tag": "af-field",
                   name: field.name
@@ -806,10 +819,10 @@
 
         $scope.toggleLabel = function() {
           $scope.node.defn = $scope.node.defn || {};
-          if ($scope.node.defn.title === false) {
-            delete $scope.node.defn.title;
+          if ($scope.node.defn.label === false) {
+            delete $scope.node.defn.label;
           } else {
-            $scope.node.defn.title = false;
+            $scope.node.defn.label = false;
           }
         };
 

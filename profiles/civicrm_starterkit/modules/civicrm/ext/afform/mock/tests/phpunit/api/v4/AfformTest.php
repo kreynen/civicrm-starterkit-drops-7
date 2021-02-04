@@ -30,8 +30,8 @@ class api_v4_AfformTest extends api_v4_AfformTestCase {
 
   public function getBasicDirectives() {
     return [
-      ['mockPage', ['title' => '', 'description' => '', 'server_route' => 'civicrm/mock-page', 'permission' => 'access Foobar']],
-      ['mockBareFile', ['title' => '', 'description' => '', 'permission' => 'access CiviCRM']],
+      ['mockPage', ['title' => '', 'description' => '', 'server_route' => 'civicrm/mock-page', 'permission' => 'access Foobar', 'is_dashlet' => TRUE]],
+      ['mockBareFile', ['title' => '', 'description' => '', 'permission' => 'access CiviCRM', 'is_dashlet' => FALSE]],
       ['mockFoo', ['title' => '', 'description' => '', 'permission' => 'access CiviCRM']],
       ['mock-weird-name', ['title' => 'Weird Name', 'description' => '', 'permission' => 'access CiviCRM']],
     ];
@@ -58,6 +58,7 @@ class api_v4_AfformTest extends api_v4_AfformTestCase {
     $this->assertEquals($get($originalMetadata, 'title'), $get($result[0], 'title'), $message);
     $this->assertEquals($get($originalMetadata, 'description'), $get($result[0], 'description'), $message);
     $this->assertEquals($get($originalMetadata, 'server_route'), $get($result[0], 'server_route'), $message);
+    $this->assertEquals($get($originalMetadata, 'is_dashlet'), $get($result[0], 'is_dashlet'), $message);
     $this->assertEquals($get($originalMetadata, 'permission'), $get($result[0], 'permission'), $message);
     $this->assertTrue(is_array($result[0]['layout']), $message);
     $this->assertEquals(TRUE, $get($result[0], 'has_base'), $message);
@@ -68,6 +69,7 @@ class api_v4_AfformTest extends api_v4_AfformTestCase {
       ->addWhere('name', '=', $formName)
       ->addValue('description', 'The temporary description')
       ->addValue('permission', 'access foo')
+      ->addValue('is_dashlet', TRUE)
       ->execute();
     $this->assertEquals($formName, $result[0]['name'], $message);
     $this->assertEquals('The temporary description', $result[0]['description'], $message);
@@ -77,6 +79,7 @@ class api_v4_AfformTest extends api_v4_AfformTestCase {
     $this->assertEquals($formName, $result[0]['name'], $message);
     $this->assertEquals($get($originalMetadata, 'title'), $get($result[0], 'title'), $message);
     $this->assertEquals('The temporary description', $get($result[0], 'description'), $message);
+    $this->assertEquals(TRUE, $get($result[0], 'is_dashlet'), $message);
     $this->assertEquals($get($originalMetadata, 'server_route'), $get($result[0], 'server_route'), $message);
     $this->assertEquals('access foo', $get($result[0], 'permission'), $message);
     $this->assertTrue(is_array($result[0]['layout']), $message);
@@ -110,6 +113,48 @@ class api_v4_AfformTest extends api_v4_AfformTestCase {
       }
     }
     return $ex;
+  }
+
+  /**
+   * In this test, we receive a layout
+   *
+   * @param string $formName
+   *   The symbolic name of the form.
+   * @param string $updateFormat
+   *   The format with which to write the data.
+   *   'html' or 'array'
+   * @param mixed $updateLayout
+   *   The new value to set
+   * @param string $readFormat
+   *   The format with which to read the data.
+   *   'html' or 'array'
+   * @param mixed $readLayout
+   *   The value that we expect to read.
+   * @param string $exampleName
+   *   (For debug messages) A symbolic name of the example data-set being tested.
+   * @dataProvider getFormatExamples
+   */
+  public function testBasicConvert($formName, $updateFormat, $updateLayout, $readFormat, $readLayout, $exampleName) {
+    $actual = Civi\Api4\Afform::convert()->setLayout($updateLayout)
+      ->setFrom($updateFormat)
+      ->setTo($readFormat)
+      ->execute();
+
+    $cb = function($m) {
+      return '<' . rtrim($m[1]) . '/>';
+    };
+    $norm = function($layout) use ($cb, &$norm) {
+      if (is_string($layout)) {
+        return preg_replace_callback(';<((br|img)[^>]*)/>;', $cb, $layout);
+      }
+      elseif (is_array($layout)) {
+        foreach ($layout as &$item) {
+          $item = $norm($item);
+        }
+      }
+    };
+
+    $this->assertEquals($norm($readLayout), $norm($actual->single()['layout']), "Based on \"$exampleName\", writing content as \"$updateFormat\" and reading back as \"$readFormat\".");
   }
 
   /**

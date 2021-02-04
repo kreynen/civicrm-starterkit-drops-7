@@ -218,6 +218,12 @@ class Container {
     $container->setDefinition('pear_mail', new Definition('Mail'))
       ->setFactory('CRM_Utils_Mail::createMailer')->setPublic(TRUE);
 
+    $container->setDefinition('crypto.registry', new Definition('Civi\Crypto\CryptoService'))
+      ->setFactory('Civi\Crypto\CryptoRegistry::createDefaultRegistry')->setPublic(TRUE);
+
+    $container->setDefinition('crypto.token', new Definition('Civi\Crypto\CryptoToken', []))
+      ->setPublic(TRUE);
+
     if (empty(\Civi::$statics[__CLASS__]['boot'])) {
       throw new \RuntimeException('Cannot initialize container. Boot services are undefined.');
     }
@@ -355,6 +361,7 @@ class Container {
     $dispatcher->addListener('hook_civicrm_post::Case', ['\Civi\CCase\Events', 'fireCaseChange']);
     $dispatcher->addListener('hook_civicrm_caseChange', ['\Civi\CCase\Events', 'delegateToXmlListeners']);
     $dispatcher->addListener('hook_civicrm_caseChange', ['\Civi\CCase\SequenceListener', 'onCaseChange_static']);
+    $dispatcher->addListener('hook_civicrm_cryptoRotateKey', ['\Civi\Crypto\RotateKeys', 'rotateSmtp']);
     $dispatcher->addListener('hook_civicrm_eventDefs', ['\Civi\Core\CiviEventInspector', 'findBuiltInEvents']);
     // TODO We need a better code-convention for metadata about non-hook events.
     $dispatcher->addListener('hook_civicrm_eventDefs', ['\Civi\API\Events', 'hookEventDefs']);
@@ -366,6 +373,10 @@ class Container {
     $dispatcher->addListener('hook_civicrm_coreResourceList', ['\CRM_Utils_System', 'appendCoreResources']);
     $dispatcher->addListener('hook_civicrm_getAssetUrl', ['\CRM_Utils_System', 'alterAssetUrl']);
     $dispatcher->addListener('hook_civicrm_alterExternUrl', ['\CRM_Utils_System', 'migrateExternUrl'], 1000);
+    $dispatcher->addListener('hook_civicrm_permissionList', ['CRM_Core_Permission_List', 'findConstPermissions'], 975);
+    $dispatcher->addListener('hook_civicrm_permissionList', ['CRM_Core_Permission_List', 'findCiviPermissions'], 950);
+    $dispatcher->addListener('hook_civicrm_permissionList', ['CRM_Core_Permission_List', 'findCmsPermissions'], 925);
+
     $dispatcher->addListener('hook_civicrm_triggerInfo', ['\CRM_Contact_BAO_RelationshipCache', 'onHookTriggerInfo']);
     $dispatcher->addListener('civi.dao.postInsert', ['\CRM_Core_BAO_RecurringEntity', 'triggerInsert']);
     $dispatcher->addListener('civi.dao.postUpdate', ['\CRM_Core_BAO_RecurringEntity', 'triggerUpdate']);

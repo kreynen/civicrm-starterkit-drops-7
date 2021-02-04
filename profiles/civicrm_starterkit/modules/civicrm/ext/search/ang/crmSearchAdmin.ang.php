@@ -12,7 +12,8 @@ return [
   'partials' => [
     'ang/crmSearchAdmin',
   ],
+  'bundles' => ['bootstrap3'],
   'basePages' => ['civicrm/admin/search'],
-  'requires' => ['crmUi', 'crmUtil', 'ngRoute', 'ui.sortable', 'ui.bootstrap', 'api4', 'crmSearchActions', 'crmSearchKit', 'crmRouteBinder'],
+  'requires' => ['crmUi', 'crmUtil', 'ngRoute', 'ui.sortable', 'ui.bootstrap', 'api4', 'crmSearchActions', 'crmRouteBinder'],
   'settingsFactory' => ['\Civi\Search\Admin', 'getAdminSettings'],
 ];

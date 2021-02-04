@@ -85,10 +85,12 @@ class CRM_Core_Payment_BaseIPN {
    * @param int $paymentProcessorID
    *   Id of the payment processor ID in use.
    *
+   * @deprecated
+   *
    * @return bool
    */
   public function validateData($input, &$ids, &$objects, $required = TRUE, $paymentProcessorID = NULL) {
-
+    CRM_Core_Error::deprecatedFunctionWarning('unused');
     // Check if the contribution exists
     // make sure contribution exists and is valid
     $contribution = new CRM_Contribute_BAO_Contribution();
@@ -153,9 +155,6 @@ class CRM_Core_Payment_BaseIPN {
     $contribution = &$objects['contribution'];
     $ids['paymentProcessor'] = $paymentProcessorID;
     $success = $contribution->loadRelatedObjects($input, $ids);
-    if ($required && empty($contribution->_relatedObjects['paymentProcessor'])) {
-      throw new CRM_Core_Exception("Could not find payment processor for contribution record: " . $contribution->id);
-    }
     $objects = array_merge($objects, $contribution->_relatedObjects);
     return $success;
   }
@@ -165,10 +164,13 @@ class CRM_Core_Payment_BaseIPN {
    *
    * @param array $objects
    *
+   * @deprecated use the api.
+   *
    * @return bool
    * @throws \CiviCRM_API3_Exception|\CRM_Core_Exception
    */
   public function failed($objects) {
+    CRM_Core_Error::deprecatedFunctionWarning('use the api');
     $contribution = &$objects['contribution'];
     $memberships = [];
     if (!empty($objects['membership'])) {

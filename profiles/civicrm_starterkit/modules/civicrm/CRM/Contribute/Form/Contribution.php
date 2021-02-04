@@ -359,11 +359,11 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
     // Fix the display of the monetary value, CRM-4038.
     if (isset($defaults['total_amount'])) {
       $total_value = $defaults['total_amount'];
-      $defaults['total_amount'] = CRM_Utils_Money::format($total_value, NULL, '%a');
+      $defaults['total_amount'] = CRM_Utils_Money::formatLocaleNumericRoundedForDefaultCurrency($total_value);
       if (!empty($defaults['tax_amount'])) {
         $componentDetails = CRM_Contribute_BAO_Contribution::getComponentDetails($this->_id);
         if (empty($componentDetails['membership']) && empty($componentDetails['participant'])) {
-          $defaults['total_amount'] = CRM_Utils_Money::format($total_value - $defaults['tax_amount'], NULL, '%a');
+          $defaults['total_amount'] = CRM_Utils_Money::formatLocaleNumericRoundedForDefaultCurrency($total_value - $defaults['tax_amount']);
         }
       }
     }
@@ -1114,7 +1114,6 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
     );
 
     $paymentParams['contributionID'] = $contribution->id;
-    $paymentParams['contributionTypeID'] = $contribution->financial_type_id;
     $paymentParams['contributionPageID'] = $contribution->contribution_page_id;
     $paymentParams['contributionRecurID'] = $contribution->contribution_recur_id;
 
@@ -1483,7 +1482,7 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
 
     $isEmpty = array_keys(array_flip($submittedValues['soft_credit_contact_id']));
     if ($this->_id && count($isEmpty) == 1 && key($isEmpty) == NULL) {
-      civicrm_api3('ContributionSoft', 'get', ['contribution_id' => $this->_id, 'pcp_id' => NULL, 'api.ContributionSoft.delete' => 1]);
+      civicrm_api3('ContributionSoft', 'get', ['contribution_id' => $this->_id, 'pcp_id' => ['IS NULL' => 1], 'api.ContributionSoft.delete' => 1]);
     }
 
     // set the contact, when contact is selected
@@ -1602,13 +1601,12 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
 
       // process associated membership / participant, CRM-4395
       if ($contribution->id && $action & CRM_Core_Action::UPDATE) {
-        $this->statusMessage[] = CRM_Contribute_BAO_Contribution::transitionComponentWithReturnMessage($contribution->id,
-          $contribution->contribution_status_id,
-          CRM_Utils_Array::value('contribution_status_id',
-            $this->_values
-          ),
-          $contribution->receive_date
-        );
+        CRM_Contribute_BAO_Contribution::transitionComponents([
+          'contribution_id' => $contribution->id,
+          'contribution_status_id' => $contribution->contribution_status_id,
+          'previous_contribution_status_id' => $this->_values['contribution_status_id'] ?? NULL,
+          'receive_date' => $contribution->receive_date,
+        ]);
       }
 
       array_unshift($this->statusMessage, ts('The contribution record has been saved.'));

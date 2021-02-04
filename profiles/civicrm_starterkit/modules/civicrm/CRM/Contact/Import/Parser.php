@@ -564,18 +564,6 @@ abstract class CRM_Contact_Import_Parser extends CRM_Import_Parser {
   }
 
   /**
-   * @return array
-   */
-  public function getColumnPatterns() {
-    CRM_Core_Error::deprecatedFunctionWarning('no  longer used- use   CRM_Contact_Import_MetadataTrait');
-    $values = [];
-    foreach ($this->_fields as $name => $field) {
-      $values[$name] = $field->_columnPattern;
-    }
-    return $values;
-  }
-
-  /**
    * @param string $name
    * @param $title
    * @param int $type
@@ -1052,17 +1040,7 @@ abstract class CRM_Contact_Import_Parser extends CRM_Import_Parser {
     }
 
     if (isset($values['addressee'])) {
-      if (!empty($params['addressee_id'])) {
-        $addresseeFilter = [
-          'contact_type' => $params['contact_type'] ?? NULL,
-          'greeting_type' => 'addressee',
-        ];
-        $addressee = CRM_Core_PseudoConstant::addressee($addresseeFilter);
-        $params['addressee'] = $addressee[$params['addressee_id']];
-      }
-      else {
-        $params['addressee'] = $values['addressee'];
-      }
+      $params['addressee'] = $values['addressee'];
       return TRUE;
     }
 
@@ -1111,12 +1089,6 @@ abstract class CRM_Contact_Import_Parser extends CRM_Import_Parser {
       );
 
       return TRUE;
-    }
-
-    // get the formatted location blocks into params - w/ 3.0 format, CRM-4605
-    if (!empty($values['location_type_id'])) {
-      CRM_Core_Error::deprecatedFunctionWarning('this is not expected to be reachable now');
-      return $this->formatLocationBlock($values, $params);
     }
 
     if (isset($values['note'])) {

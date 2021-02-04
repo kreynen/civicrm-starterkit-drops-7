@@ -755,8 +755,6 @@ SET    version = '$version'
     $upgrade->setVersion($rev);
     CRM_Utils_System::flushCache();
 
-    $config = CRM_Core_Config::singleton();
-    $config->userSystem->flush();
     return TRUE;
   }
 
@@ -771,6 +769,9 @@ SET    version = '$version'
     // Seems extraneous in context, but we'll preserve old behavior
     $upgrade->setVersion($latestVer);
 
+    $config = CRM_Core_Config::singleton();
+    $config->userSystem->flush();
+
     CRM_Core_Invoke::rebuildMenuAndCaches(FALSE, TRUE);
     // NOTE: triggerRebuild is FALSE becaues it will run again in a moment (via fixSchemaDifferences).
 
@@ -780,6 +781,8 @@ SET    version = '$version'
     // Rebuild all triggers and re-enable logging if needed
     $logging = new CRM_Logging_Schema();
     $logging->fixSchemaDifferences();
+    // Force a rebuild of CiviCRM asset cache in case things have changed.
+    \Civi::service('asset_builder')->clear(FALSE);
   }
 
   /**

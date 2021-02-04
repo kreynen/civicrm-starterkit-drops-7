@@ -386,7 +386,7 @@ class CRM_Event_Import_Parser_Participant extends CRM_Event_Import_Parser {
           foreach ($matchedIDs as $contactId) {
             $formatted['contact_id'] = $contactId;
             $formatted['version'] = 3;
-            $newParticipant = _civicrm_api3_deprecated_create_participant_formatted($formatted, $onDuplicate);
+            $newParticipant = $this->deprecated_create_participant_formatted($formatted, $onDuplicate);
           }
         }
       }
@@ -435,7 +435,7 @@ class CRM_Event_Import_Parser_Participant extends CRM_Event_Import_Parser {
         }
       }
 
-      $newParticipant = _civicrm_api3_deprecated_create_participant_formatted($formatted, $onDuplicate);
+      $newParticipant = $this->deprecated_create_participant_formatted($formatted, $onDuplicate);
     }
 
     if (is_array($newParticipant) && civicrm_error($newParticipant)) {
@@ -623,6 +623,28 @@ class CRM_Event_Import_Parser_Participant extends CRM_Event_Import_Parser {
     }
 
     return NULL;
+  }
+
+  /**
+   * @param array $params
+   * @param $onDuplicate
+   *
+   * @return array|bool
+   *   <type>
+   * @throws \CiviCRM_API3_Exception
+   * @deprecated - this is part of the import parser not the API & needs to be
+   *   moved on out
+   *
+   */
+  protected function deprecated_create_participant_formatted($params, $onDuplicate) {
+    if ($onDuplicate != CRM_Import_Parser::DUPLICATE_NOCHECK) {
+      CRM_Core_Error::reset();
+      $error = _civicrm_api3_deprecated_participant_check_params($params, TRUE);
+      if (civicrm_error($error)) {
+        return $error;
+      }
+    }
+    return civicrm_api3('Participant', 'create', $params);
   }
 
 }

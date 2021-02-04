@@ -262,30 +262,16 @@ class CRM_Activity_Import_Form_MapField extends CRM_Import_Form_MapField {
         'activity_type_id' => ts('Activity Type ID'),
       ];
 
-      $params = [
-        'used' => 'Unsupervised',
-        'contact_type' => 'Individual',
-      ];
-      list($ruleFields, $threshold) = CRM_Dedupe_BAO_RuleGroup::dedupeRuleFieldsWeight($params);
-      $weightSum = 0;
-      foreach ($importKeys as $key => $val) {
-        if (array_key_exists($val, $ruleFields)) {
-          $weightSum += $ruleFields[$val];
-        }
-      }
-      foreach ($ruleFields as $field => $weight) {
-        $fieldMessage .= ' ' . $field . '(weight ' . $weight . ')';
-      }
+      $contactFieldsBelowWeightMessage = self::validateRequiredContactMatchFields('Individual', $importKeys);
       foreach ($requiredFields as $field => $title) {
         if (!in_array($field, $importKeys)) {
           if ($field == 'target_contact_id') {
-            if ($weightSum >= $threshold || in_array('external_identifier', $importKeys)) {
+            if (!$contactFieldsBelowWeightMessage || in_array('external_identifier', $importKeys)) {
               continue;
             }
             else {
               $errors['_qf_default'] .= ts('Missing required contact matching fields.')
-                . $fieldMessage . ' '
-                . ts('(Sum of all weights should be greater than or equal to threshold: %1).', [1 => $threshold])
+                . $contactFieldsBelowWeightMessage
                 . '<br />';
             }
           }
@@ -357,26 +343,10 @@ class CRM_Activity_Import_Form_MapField extends CRM_Import_Form_MapField {
     $mapper = [];
     $mapperKeys = $this->controller->exportValue($this->_name, 'mapper');
     $mapperKeysMain = [];
-    $mapperLocType = [];
-    $mapperPhoneType = [];
 
     for ($i = 0; $i < $this->_columnCount; $i++) {
       $mapper[$i] = $this->_mapperFields[$mapperKeys[$i][0]];
       $mapperKeysMain[$i] = $mapperKeys[$i][0];
-
-      if ((CRM_Utils_Array::value(1, $mapperKeys[$i])) && (is_numeric($mapperKeys[$i][1]))) {
-        $mapperLocType[$i] = $mapperKeys[$i][1];
-      }
-      else {
-        $mapperLocType[$i] = NULL;
-      }
-
-      if ((CRM_Utils_Array::value(2, $mapperKeys[$i])) && (!is_numeric($mapperKeys[$i][2]))) {
-        $mapperPhoneType[$i] = $mapperKeys[$i][2];
-      }
-      else {
-        $mapperPhoneType[$i] = NULL;
-      }
     }
 
     $this->set('mapper', $mapper);
@@ -430,7 +400,7 @@ class CRM_Activity_Import_Form_MapField extends CRM_Import_Form_MapField {
       $this->set('savedMapping', $saveMappingFields->mapping_id);
     }
 
-    $parser = new CRM_Activity_Import_Parser_Activity($mapperKeysMain, $mapperLocType, $mapperPhoneType);
+    $parser = new CRM_Activity_Import_Parser_Activity($mapperKeysMain);
     $parser->run($fileName, $separator, $mapper, $skipColumnHeader,
       CRM_Import_Parser::MODE_PREVIEW
     );

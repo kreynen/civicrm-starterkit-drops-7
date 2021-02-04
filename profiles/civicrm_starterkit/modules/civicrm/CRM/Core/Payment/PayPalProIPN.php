@@ -148,20 +148,21 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
    *
    * @param array $input
    * @param array $ids
-   * @param array $objects
+   * @param \CRM_Contribute_BAO_ContributionRecur $recur
+   * @param \CRM_Contribute_BAO_Contribution $contribution
    * @param bool $first
    *
+   * @throws \API_Exception
    * @throws \CRM_Core_Exception
    * @throws \CiviCRM_API3_Exception
+   * @throws \Civi\API\Exception\UnauthorizedException
    */
-  public function recur($input, $ids, $objects, $first) {
+  public function recur($input, $ids, $recur, $contribution, $first) {
     if (!isset($input['txnType'])) {
       Civi::log()->debug('PayPalProIPN: Could not find txn_type in input request.');
       echo 'Failure: Invalid parameters<p>';
       return;
     }
-
-    $recur = &$objects['contributionRecur'];
 
     // make sure the invoice ids match
     // make sure the invoice is valid and matches what we have in
@@ -276,26 +277,29 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     }
 
     // CRM-13737 - am not aware of any reason why payment_date would not be set - this if is a belt & braces
-    $objects['contribution']->receive_date = !empty($input['payment_date']) ? date('YmdHis', strtotime($input['payment_date'])) : $now;
+    $contribution->receive_date = !empty($input['payment_date']) ? date('YmdHis', strtotime($input['payment_date'])) : $now;
 
     $this->single($input, [
       'related_contact' => $ids['related_contact'] ?? NULL,
-      'participant' => !empty($objects['participant']) ? $objects['participant']->id : NULL,
-      'contributionRecur' => !empty($objects['contributionRecur']) ? $objects['contributionRecur']->id : NULL,
-    ], $objects, TRUE, $first);
+      'participant' => $ids['participant'] ?? NULL,
+      'contributionRecur' => $recur->id ?? NULL,
+    ], $contribution, TRUE, $first);
   }
 
   /**
    * @param array $input
    * @param array $ids
-   * @param array $objects
+   * @param \CRM_Contribute_BAO_Contribution $contribution
    * @param bool $recur
    * @param bool $first
    *
    * @return void
+   * @throws \API_Exception
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
+   * @throws \Civi\API\Exception\UnauthorizedException
    */
-  public function single($input, $ids, $objects, $recur = FALSE, $first = FALSE) {
-    $contribution = &$objects['contribution'];
+  public function single($input, $ids, $contribution, $recur = FALSE, $first = FALSE) {
 
     // make sure the invoice is valid and matches what we have in the contribution record
     if ((!$recur) || ($recur && $first)) {
@@ -322,7 +326,11 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
 
     $status = $input['paymentStatus'];
     if ($status === 'Denied' || $status === 'Failed' || $status === 'Voided') {
-      $this->failed($objects);
+      Contribution::update(FALSE)->setValues([
+        'cancel_date' => 'now',
+        'contribution_status_id:name' => 'Failed',
+      ])->addWhere('id', '=', $contribution->id)->execute();
+      Civi::log()->debug("Setting contribution status to Failed");
       return;
     }
     if ($status === 'Pending') {
@@ -350,7 +358,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
       return;
     }
 
-    CRM_Contribute_BAO_Contribution::completeOrder($input, $ids, $objects['contribution']);
+    CRM_Contribute_BAO_Contribution::completeOrder($input, $ids, $contribution);
   }
 
   /**
@@ -440,7 +448,47 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
         $paymentProcessorID = self::getPayPalPaymentProcessorID();
       }
 
-      if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
+      // Check if the contribution exists
+      // make sure contribution exists and is valid
+      $contribution = new CRM_Contribute_BAO_Contribution();
+      $contribution->id = $ids['contribution'];
+      if (!$contribution->find(TRUE)) {
+        throw new CRM_Core_Exception('Failure: Could not find contribution record for ' . (int) $contribution->id, NULL, ['context' => "Could not find contribution record: {$contribution->id} in IPN request: " . print_r($input, TRUE)]);
+      }
+
+      // make sure contact exists and is valid
+      // use the contact id from the contribution record as the id in the IPN may not be valid anymore.
+      $contact = new CRM_Contact_BAO_Contact();
+      $contact->id = $contribution->contact_id;
+      $contact->find(TRUE);
+      if ($contact->id != $ids['contact']) {
+        // If the ids do not match then it is possible the contact id in the IPN has been merged into another contact which is why we use the contact_id from the contribution
+        CRM_Core_Error::debug_log_message("Contact ID in IPN {$ids['contact']} not found but contact_id found in contribution {$contribution->contact_id} used instead");
+        echo "WARNING: Could not find contact record: {$ids['contact']}<p>";
+        $ids['contact'] = $contribution->contact_id;
+      }
+
+      if (!empty($ids['contributionRecur'])) {
+        $contributionRecur = new CRM_Contribute_BAO_ContributionRecur();
+        $contributionRecur->id = $ids['contributionRecur'];
+        if (!$contributionRecur->find(TRUE)) {
+          CRM_Core_Error::debug_log_message("Could not find contribution recur record: {$ids['ContributionRecur']} in IPN request: " . print_r($input, TRUE));
+          echo "Failure: Could not find contribution recur record: {$ids['ContributionRecur']}<p>";
+          return;
+        }
+      }
+
+      $objects['contact'] = &$contact;
+      $objects['contribution'] = &$contribution;
+
+      // CRM-19478: handle oddity when p=null is set in place of contribution page ID,
+      if (!empty($ids['contributionPage']) && !is_numeric($ids['contributionPage'])) {
+        // We don't need to worry if about removing contribution page id as it will be set later in
+        //  CRM_Contribute_BAO_Contribution::loadRelatedObjects(..) using $objects['contribution']->contribution_page_id
+        unset($ids['contributionPage']);
+      }
+
+      if (!$this->loadObjects($input, $ids, $objects, TRUE, $paymentProcessorID)) {
         return;
       }
 
@@ -453,7 +501,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
         if ($objects['contribution']->contribution_status_id == $completedStatusId) {
           $first = FALSE;
         }
-        $this->recur($input, $ids, $objects, $first);
+        $this->recur($input, $ids, $objects['contributionRecur'], $objects['contribution'], $first);
         return;
       }
 
@@ -461,7 +509,7 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
         'related_contact' => $ids['related_contact'] ?? NULL,
         'participant' => $ids['participant'] ?? NULL,
         'contributionRecur' => $ids['contributionRecur'] ?? NULL,
-      ], $objects, FALSE, FALSE);
+      ], $objects['contribution'], FALSE, FALSE);
     }
     catch (CRM_Core_Exception $e) {
       Civi::log()->debug($e->getMessage());
@@ -571,10 +619,37 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
     $input['trxn_date'] = date('Y-m-d H:i:s', strtotime(self::retrieve('time_created', 'String')));
     $paymentProcessorID = $contributionRecur['payment_processor_id'];
 
-    if (!$this->validateData($input, $ids, $objects, TRUE, $paymentProcessorID)) {
+    // Check if the contribution exists
+    // make sure contribution exists and is valid
+    $contribution = new CRM_Contribute_BAO_Contribution();
+    $contribution->id = $ids['contribution'];
+    if (!$contribution->find(TRUE)) {
+      throw new CRM_Core_Exception('Failure: Could not find contribution record for ' . (int) $contribution->id, NULL, ['context' => "Could not find contribution record: {$contribution->id} in IPN request: " . print_r($input, TRUE)]);
+    }
+
+    if (!empty($ids['contributionRecur'])) {
+      $contributionRecur = new CRM_Contribute_BAO_ContributionRecur();
+      $contributionRecur->id = $ids['contributionRecur'];
+      if (!$contributionRecur->find(TRUE)) {
+        CRM_Core_Error::debug_log_message("Could not find contribution recur record: {$ids['ContributionRecur']} in IPN request: " . print_r($input, TRUE));
+        echo "Failure: Could not find contribution recur record: {$ids['ContributionRecur']}<p>";
+        return FALSE;
+      }
+    }
+
+    $objects['contribution'] = &$contribution;
+
+    // CRM-19478: handle oddity when p=null is set in place of contribution page ID,
+    if (!empty($ids['contributionPage']) && !is_numeric($ids['contributionPage'])) {
+      // We don't need to worry if about removing contribution page id as it will be set later in
+      //  CRM_Contribute_BAO_Contribution::loadRelatedObjects(..) using $objects['contribution']->contribution_page_id
+      unset($ids['contributionPage']);
+    }
+
+    if (!$this->loadObjects($input, $ids, $objects, TRUE, $paymentProcessorID)) {
       throw new CRM_Core_Exception('Data did not validate');
     }
-    $this->recur($input, $ids, $objects, $isFirst);
+    $this->recur($input, $ids, $objects['contributionRecur'], $objects['contribution'], $isFirst);
   }
 
   /**

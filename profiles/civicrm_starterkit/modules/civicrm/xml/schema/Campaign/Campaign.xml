@@ -6,6 +6,7 @@
   <comment>Campaign Details.</comment>
   <add>3.3</add>
   <icon>fa-bullhorn</icon>
+  <component>CiviCampaign</component>
   <paths>
     <add>civicrm/campaign/add?reset=1</add>
     <update>civicrm/campaign/add?reset=1&amp;action=update&amp;id=[id]</update>
@@ -38,7 +39,11 @@
     </html>
     <add>3.3</add>
   </field>
-
+  <index>
+    <name>UI_campaign_name</name>
+    <fieldName>name</fieldName>
+    <add>5.34</add>
+  </index>
   <field>
     <name>title</name>
     <title>Campaign Title</title>

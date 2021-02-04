@@ -261,24 +261,24 @@
     },
     {
         "name": "civicrm/civicrm-cxn-rpc",
-        "version": "v0.19.01.09",
-        "version_normalized": "0.19.01.09",
+        "version": "v0.20.12.01",
+        "version_normalized": "0.20.12.01",
         "source": {
             "type": "git",
             "url": "https://github.com/civicrm/civicrm-cxn-rpc.git",
-            "reference": "3ea668bc651adb4d61e96276f55e76ae22baea7a"
+            "reference": "b097258a642dc3e0dd9c264cb75b72d5274cac2f"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/civicrm/civicrm-cxn-rpc/zipball/3ea668bc651adb4d61e96276f55e76ae22baea7a",
-            "reference": "3ea668bc651adb4d61e96276f55e76ae22baea7a",
+            "url": "https://api.github.com/repos/civicrm/civicrm-cxn-rpc/zipball/b097258a642dc3e0dd9c264cb75b72d5274cac2f",
+            "reference": "b097258a642dc3e0dd9c264cb75b72d5274cac2f",
             "shasum": ""
         },
         "require": {
-            "phpseclib/phpseclib": "1.0.*",
-            "psr/log": "~1.0"
+            "phpseclib/phpseclib": "~2.0",
+            "psr/log": "~1.1"
         },
-        "time": "2020-02-05T03:24:26+00:00",
+        "time": "2020-12-16T02:35:45+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
@@ -365,17 +365,17 @@
     },
     {
         "name": "civicrm/composer-compile-plugin",
-        "version": "v0.12",
-        "version_normalized": "0.12.0.0",
+        "version": "v0.15",
+        "version_normalized": "0.15.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/civicrm/composer-compile-plugin.git",
-            "reference": "5ed863f2276a445775900ba18e99d14b15402640"
+            "reference": "af9686c4511ad4d2dde3c32aafa4637579e1085d"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/civicrm/composer-compile-plugin/zipball/5ed863f2276a445775900ba18e99d14b15402640",
-            "reference": "5ed863f2276a445775900ba18e99d14b15402640",
+            "url": "https://api.github.com/repos/civicrm/composer-compile-plugin/zipball/af9686c4511ad4d2dde3c32aafa4637579e1085d",
+            "reference": "af9686c4511ad4d2dde3c32aafa4637579e1085d",
             "shasum": ""
         },
         "require": {
@@ -387,7 +387,7 @@
             "composer/composer": "~1.0",
             "totten/process-helper": "^1.0.1"
         },
-        "time": "2020-10-04T00:13:46+00:00",
+        "time": "2021-01-13T05:12:30+00:00",
         "type": "composer-plugin",
         "extra": {
             "class": "Civi\\CompilePlugin\\CompilePlugin"
@@ -408,7 +408,11 @@
                 "email": "info@civicrm.org"
             }
         ],
-        "description": "Define a 'compile' event for all packages in the dependency-graph"
+        "description": "Define a 'compile' event for all packages in the dependency-graph",
+        "support": {
+            "issues": "https://github.com/civicrm/composer-compile-plugin/issues",
+            "source": "https://github.com/civicrm/composer-compile-plugin/tree/v0.15"
+        }
     },
     {
         "name": "civicrm/composer-downloads-plugin",
@@ -2109,53 +2113,45 @@
     },
     {
         "name": "phpseclib/phpseclib",
-        "version": "1.0.7",
-        "version_normalized": "1.0.7.0",
+        "version": "2.0.29",
+        "version_normalized": "2.0.29.0",
         "source": {
             "type": "git",
             "url": "https://github.com/phpseclib/phpseclib.git",
-            "reference": "0bb6c9b974cada100cad40f72ef186a199274f9b"
+            "reference": "497856a8d997f640b4a516062f84228a772a48a8"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/0bb6c9b974cada100cad40f72ef186a199274f9b",
-            "reference": "0bb6c9b974cada100cad40f72ef186a199274f9b",
+            "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/497856a8d997f640b4a516062f84228a772a48a8",
+            "reference": "497856a8d997f640b4a516062f84228a772a48a8",
             "shasum": ""
         },
         "require": {
-            "php": ">=5.0.0"
+            "php": ">=5.3.3"
         },
         "require-dev": {
             "phing/phing": "~2.7",
-            "phpunit/phpunit": "~4.0",
-            "sami/sami": "~2.0",
+            "phpunit/phpunit": "^4.8.35|^5.7|^6.0",
             "squizlabs/php_codesniffer": "~2.0"
         },
         "suggest": {
             "ext-gmp": "Install the GMP (GNU Multiple Precision) extension in order to speed up arbitrary precision integer arithmetic operations.",
-            "ext-mcrypt": "Install the Mcrypt extension in order to speed up a wide variety of cryptographic operations.",
-            "pear-pear/PHP_Compat": "Install PHP_Compat to get phpseclib working on PHP < 5.0.0."
+            "ext-libsodium": "SSH2/SFTP can make use of some algorithms provided by the libsodium-php extension.",
+            "ext-mcrypt": "Install the Mcrypt extension in order to speed up a few other cryptographic operations.",
+            "ext-openssl": "Install the OpenSSL extension in order to speed up a wide variety of cryptographic operations."
         },
-        "time": "2017-06-05T06:30:30+00:00",
+        "time": "2020-09-08T04:24:43+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
-            "psr-0": {
-                "Crypt": "phpseclib/",
-                "File": "phpseclib/",
-                "Math": "phpseclib/",
-                "Net": "phpseclib/",
-                "System": "phpseclib/"
-            },
             "files": [
-                "phpseclib/bootstrap.php",
-                "phpseclib/Crypt/Random.php"
-            ]
+                "phpseclib/bootstrap.php"
+            ],
+            "psr-4": {
+                "phpseclib\\": "phpseclib/"
+            }
         },
         "notification-url": "https://packagist.org/downloads/",
-        "include-path": [
-            "phpseclib/"
-        ],
         "license": [
             "MIT"
         ],

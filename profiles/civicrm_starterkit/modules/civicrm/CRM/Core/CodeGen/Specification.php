@@ -72,6 +72,7 @@ class CRM_Core_CodeGen_Specification {
     $attributes = '';
     $this->checkAndAppend($attributes, $dbXML, 'character_set', 'DEFAULT CHARACTER SET ', '');
     $this->checkAndAppend($attributes, $dbXML, 'collate', 'COLLATE ', '');
+    $attributes .= ' ROW_FORMAT=DYNAMIC';
     $database['attributes'] = $attributes;
 
     $tableAttributes_modern = $tableAttributes_simple = '';
@@ -215,6 +216,7 @@ class CRM_Core_CodeGen_Specification {
       'titlePlural' => $tableXML->titlePlural ?? CRM_Utils_String::pluralize($tableXML->title ?? $titleFromClass),
       'icon' => $tableXML->icon ?? NULL,
       'add' => $tableXML->add ?? NULL,
+      'component' => $tableXML->component ?? NULL,
       'paths' => (array) ($tableXML->paths ?? []),
       'labelName' => substr($name, 8),
       'className' => $this->classNames[$name],

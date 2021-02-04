@@ -62,7 +62,7 @@
     "marcj/topsort": "~1.1",
     "phpoffice/phpword": "^0.15.0",
     "pear/validate_finance_creditcard": "dev-master",
-    "civicrm/civicrm-cxn-rpc": "~0.19.01.08",
+    "civicrm/civicrm-cxn-rpc": "~0.20.12.01 || ~0.19.01.10",
     "pear/auth_sasl": "1.1.0",
     "pear/net_smtp": "1.9.*",
     "pear/net_socket": "1.0.*",
@@ -213,6 +213,10 @@
         "url": "https://github.com/markedjs/marked/archive/v0.8.0.zip",
         "ignore": [".*", "*.json", "*.md", "Makefile", "*/*"]
       },
+      "monaco-editor": {
+        "url": "https://registry.npmjs.org/monaco-editor/-/monaco-editor-0.16.2.tgz",
+        "path": "bower_components/monaco-editor"
+      },
       "google-code-prettify": {
         "url": "https://github.com/tcollard/google-code-prettify/archive/v1.0.5.zip",
         "ignore": ["closure-compiler", "js-modules", "tests", "yui-compressor", "Makefile", "examples", "*.html", "run_prettify*js"]
@@ -224,8 +228,13 @@
         "url": "https://github.com/components/jqueryui/archive/1.12.1.zip"
       },
       "jquery-validation": {
-        "url": "https://github.com/jquery-validation/jquery-validation/archive/1.19.1.zip",
+        "url": "https://github.com/jquery-validation/jquery-validation/archive/1.19.3.zip",
         "ignore": [".*", "node_modules", "bower_components", "test", "demo", "lib"]
+      },
+      "json-formatter": {
+        "url": "https://github.com/mohsen1/json-formatter/archive/v{$version}.zip",
+        "version": "0.7.0",
+        "ignore": ["demo", "test", "screenshot.png"]
       },
       "jstree": {
         "url": "https://github.com/vakata/jstree/archive/3.3.8.zip",

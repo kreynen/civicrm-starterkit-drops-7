@@ -8,6 +8,7 @@ $baseDir = dirname($vendorDir);
 return array(
     'xKerman\\Restricted\\' => array($vendorDir . '/xkerman/restricted-unserialize/src'),
     'tubalmartin\\CssMin\\' => array($vendorDir . '/tubalmartin/cssmin/src'),
+    'phpseclib\\' => array($vendorDir . '/phpseclib/phpseclib/phpseclib'),
     'cweagans\\Composer\\' => array($vendorDir . '/cweagans/composer-patches/src'),
     'Zend\\Escaper\\' => array($vendorDir . '/zendframework/zend-escaper/src'),
     'When\\' => array($vendorDir . '/tplaner/when/src'),

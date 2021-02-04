@@ -6,6 +6,7 @@
   <add>2.1</add>
   <log>true</log>
   <icon>fa-paper-plane</icon>
+  <component>CiviPledge</component>
   <field>
     <name>id</name>
     <uniqueName>pledge_id</uniqueName>
@@ -126,6 +127,7 @@
     <uniqueName>pledge_frequency_unit</uniqueName>
     <title>Pledge Frequency Unit</title>
     <type>varchar</type>
+    <required>true</required>
     <length>8</length>
     <default>'month'</default>
     <comment>Time units for recurrence of pledge payments.</comment>
@@ -168,6 +170,7 @@
     <type>int unsigned</type>
     <title>Pledge Number of Installments</title>
     <default>1</default>
+    <required>true</required>
     <comment>Total number of payments to be made.</comment>
     <add>2.1</add>
     <html>
@@ -285,6 +288,7 @@
     <name>status_id</name>
     <title>Pledge Status Id</title>
     <uniqueName>pledge_status_id</uniqueName>
+    <required>true</required>
     <import>true</import>
     <export>false</export>
     <type>int unsigned</type>
@@ -309,6 +313,7 @@
     <title>Test</title>
     <type>boolean</type>
     <default>0</default>
+    <required>true</required>
     <html>
      <type>CheckBox</type>
    </html>

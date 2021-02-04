@@ -1399,6 +1399,8 @@ class CRM_Core_BAO_UFGroup extends CRM_Core_DAO_UFGroup {
    *
    */
   public static function del($id) {
+    CRM_Utils_Hook::pre('delete', 'UFGroup', $id);
+
     //check whether this group contains  any profile fields
     $profileField = new CRM_Core_DAO_UFField();
     $profileField->uf_group_id = $id;
@@ -1416,6 +1418,8 @@ class CRM_Core_BAO_UFGroup extends CRM_Core_DAO_UFGroup {
     $group = new CRM_Core_DAO_UFGroup();
     $group->id = $id;
     $group->delete();
+
+    CRM_Utils_Hook::post('delete', 'UFGroup', $id, $group);
     return 1;
   }
 
@@ -1425,12 +1429,16 @@ class CRM_Core_BAO_UFGroup extends CRM_Core_DAO_UFGroup {
    * @param array $params
    *   Reference array contains the values submitted by the form.
    * @param array $ids
-   *   Reference array contains the id.
+   *   Deprecated array.
    *
    *
    * @return object
    */
   public static function add(&$params, $ids = []) {
+    if (empty($params['id']) && !empty($ids['ufgroup'])) {
+      $params['id'] = $ids['ufgroup'];
+      CRM_Core_Error::deprecatedWarning('ids parameter is deprecated');
+    }
     $fields = [
       'is_active',
       'add_captcha',
@@ -1451,6 +1459,10 @@ class CRM_Core_BAO_UFGroup extends CRM_Core_DAO_UFGroup {
     if (!empty($params['group_type']) && is_array($params['group_type'])) {
       $params['group_type'] = implode(',', $params['group_type']);
     }
+
+    $hook = empty($params['id']) ? 'create' : 'edit';
+    CRM_Utils_Hook::pre($hook, 'UFGroup', ($params['id'] ?? NULL), $params);
+
     $ufGroup = new CRM_Core_DAO_UFGroup();
     $ufGroup->copyValues($params);
 
@@ -1466,6 +1478,8 @@ class CRM_Core_BAO_UFGroup extends CRM_Core_DAO_UFGroup {
       $ufGroup->name = $ufGroup->name . "_{$ufGroup->id}";
       $ufGroup->save();
     }
+
+    CRM_Utils_Hook::post($hook, 'UFGroup', $ufGroup->id, $ufGroup);
 
     return $ufGroup;
   }

@@ -7270,6 +7270,18 @@
 	}
 }
 
+#bootstrap-theme .form-control.checkbox-inline > label {
+	margin-left: 9px;
+}
+
+#bootstrap-theme label input[type=checkbox]:not(:checked) + * {
+	font-weight: normal;
+}
+
+#bootstrap-theme .select2-choices {
+	margin-bottom: 0;
+}
+
 #bootstrap-theme .form-control .select2-choice {
 	border: 0;
 	border-radius: 2px;

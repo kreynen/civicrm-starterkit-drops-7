@@ -1446,7 +1446,7 @@ ORDER BY   civicrm_email.is_bulkmail DESC
     $id = $params['id'] ?? $ids['mailing_id'] ?? NULL;
 
     if (empty($params['id']) && !empty($ids)) {
-      \Civi::log('Parameter $ids is no longer used by Mailing::add. Use the api or just pass $params', ['civi.tag' => 'deprecated']);
+      CRM_Core_Error::deprecatedWarning('Parameter $ids is no longer used by Mailing::add. Use the api or just pass $params');
     }
 
     if ($id) {
@@ -1525,7 +1525,7 @@ ORDER BY   civicrm_email.is_bulkmail DESC
 
     if (empty($params['id']) && (array_filter($ids) !== [])) {
       $params['id'] = $ids['mailing_id'] ?? $ids['id'];
-      \Civi::log('Parameter $ids is no longer used by Mailing::create. Use the api or just pass $params', ['civi.tag' => 'deprecated']);
+      CRM_Core_Error::deprecatedWarning('Parameter $ids is no longer used by Mailing::create. Use the api or just pass $params');
     }
 
     // CRM-#1843
@@ -2463,7 +2463,7 @@ LEFT JOIN civicrm_mailing_group g ON g.mailing_id   = m.id
       throw new CRM_Core_Exception(ts('No id passed to mailing del function'));
     }
 
-    CRM_Utils_Hook::pre('delete', 'Mailing', $id, CRM_Core_DAO::$_nullArray);
+    CRM_Utils_Hook::pre('delete', 'Mailing', $id);
 
     // delete all file attachments
     CRM_Core_BAO_File::deleteEntityFile('civicrm_mailing',
@@ -2493,7 +2493,7 @@ LEFT JOIN civicrm_mailing_group g ON g.mailing_id   = m.id
       throw new CRM_Core_Exception(ts('No id passed to mailing delJob function'));
     }
 
-    \Civi::log('This function is deprecated, use CRM_Mailing_BAO_MailingJob::del instead', ['civi.tag' => 'deprecated']);
+    CRM_Core_Error::deprecatedWarning('This function is deprecated, use CRM_Mailing_BAO_MailingJob::del instead');
 
     CRM_Mailing_BAO_MailingJob::del($id);
   }
@@ -2749,8 +2749,9 @@ WHERE  civicrm_mailing_job.id = %1
     $config = CRM_Core_Config::singleton();
 
     if ($mode == NULL && CRM_Core_BAO_MailSettings::defaultDomain() == "EXAMPLE.ORG") {
+      // Using forceBackend=TRUE because WordPress sometimes fails to detect cron
       throw new CRM_Core_Exception(ts('The <a href="%1">default mailbox</a> has not been configured. You will find <a href="%2">more info in the online system administrator guide</a>', [
-        1 => CRM_Utils_System::url('civicrm/admin/mailSettings', 'reset=1'),
+        1 => CRM_Utils_System::url('civicrm/admin/mailSettings', 'reset=1', FALSE, NULL, TRUE, FALSE, TRUE),
         2 => "https://docs.civicrm.org/sysadmin/en/latest/setup/civimail/",
       ]));
     }

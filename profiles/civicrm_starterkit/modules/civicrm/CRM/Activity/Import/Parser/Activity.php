@@ -39,12 +39,10 @@ class CRM_Activity_Import_Parser_Activity extends CRM_Activity_Import_Parser {
    * Class constructor.
    *
    * @param array $mapperKeys
-   * @param int $mapperLocType
-   * @param int $mapperPhoneType
    */
-  public function __construct(&$mapperKeys, $mapperLocType = NULL, $mapperPhoneType = NULL) {
+  public function __construct($mapperKeys) {
     parent::__construct();
-    $this->_mapperKeys = &$mapperKeys;
+    $this->_mapperKeys = $mapperKeys;
   }
 
   /**
@@ -273,8 +271,7 @@ class CRM_Activity_Import_Parser_Activity extends CRM_Activity_Import_Parser {
       }
     }
     // Date-Format part ends.
-    require_once 'CRM/Utils/DeprecatedUtils.php';
-    $formatError = _civicrm_api3_deprecated_activity_formatted_param($params, $params, TRUE);
+    $formatError = $this->deprecated_activity_formatted_param($params, $params, TRUE);
 
     if ($formatError) {
       array_unshift($values, $formatError['error_message']);
@@ -300,85 +297,143 @@ class CRM_Activity_Import_Parser_Activity extends CRM_Activity_Import_Parser {
           array_unshift($values, 'Multiple matching contact records detected for this row. The activity was not imported');
           return CRM_Import_Parser::ERROR;
         }
-        else {
-          $cid = $matchedIDs[0];
-          $params['target_contact_id'] = $cid;
-          $params['version'] = 3;
-          $newActivity = civicrm_api('activity', 'create', $params);
-          if (!empty($newActivity['is_error'])) {
-            array_unshift($values, $newActivity['error_message']);
-            return CRM_Import_Parser::ERROR;
-          }
-
-          $this->_newActivity[] = $newActivity['id'];
-          return CRM_Import_Parser::VALID;
+        $cid = $matchedIDs[0];
+        $params['target_contact_id'] = $cid;
+        $params['version'] = 3;
+        $newActivity = civicrm_api('activity', 'create', $params);
+        if (!empty($newActivity['is_error'])) {
+          array_unshift($values, $newActivity['error_message']);
+          return CRM_Import_Parser::ERROR;
         }
+
+        $this->_newActivity[] = $newActivity['id'];
+        return CRM_Import_Parser::VALID;
+
       }
-      else {
-        // Using new Dedupe rule.
-        $ruleParams = [
-          'contact_type' => 'Individual',
-          'used' => 'Unsupervised',
-        ];
-        $fieldsArray = CRM_Dedupe_BAO_Rule::dedupeRuleFields($ruleParams);
+      // Using new Dedupe rule.
+      $ruleParams = [
+        'contact_type' => 'Individual',
+        'used' => 'Unsupervised',
+      ];
+      $fieldsArray = CRM_Dedupe_BAO_Rule::dedupeRuleFields($ruleParams);
 
-        $disp = NULL;
-        foreach ($fieldsArray as $value) {
-          if (array_key_exists(trim($value), $params)) {
-            $paramValue = $params[trim($value)];
-            if (is_array($paramValue)) {
-              $disp .= $params[trim($value)][0][trim($value)] . " ";
-            }
-            else {
-              $disp .= $params[trim($value)] . " ";
-            }
-          }
-        }
-
-        if (!empty($params['external_identifier'])) {
-          if ($disp) {
-            $disp .= "AND {$params['external_identifier']}";
+      $disp = NULL;
+      foreach ($fieldsArray as $value) {
+        if (array_key_exists(trim($value), $params)) {
+          $paramValue = $params[trim($value)];
+          if (is_array($paramValue)) {
+            $disp .= $params[trim($value)][0][trim($value)] . " ";
           }
           else {
-            $disp = $params['external_identifier'];
+            $disp .= $params[trim($value)] . " ";
           }
         }
-
-        array_unshift($values, 'No matching Contact found for (' . $disp . ')');
-        return CRM_Import_Parser::ERROR;
       }
-    }
-    else {
-      if (!empty($params['external_identifier'])) {
-        $targetContactId = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact',
-          $params['external_identifier'], 'id', 'external_identifier'
-        );
 
-        if (!empty($params['target_contact_id']) &&
-          $params['target_contact_id'] != $targetContactId
-        ) {
-          array_unshift($values, 'Mismatch of External ID:' . $params['external_identifier'] . ' and Contact Id:' . $params['target_contact_id']);
-          return CRM_Import_Parser::ERROR;
-        }
-        elseif ($targetContactId) {
-          $params['target_contact_id'] = $targetContactId;
+      if (!empty($params['external_identifier'])) {
+        if ($disp) {
+          $disp .= "AND {$params['external_identifier']}";
         }
         else {
-          array_unshift($values, 'No Matching Contact for External ID:' . $params['external_identifier']);
-          return CRM_Import_Parser::ERROR;
+          $disp = $params['external_identifier'];
         }
       }
 
-      $params['version'] = 3;
-      $newActivity = civicrm_api('activity', 'create', $params);
-      if (!empty($newActivity['is_error'])) {
-        array_unshift($values, $newActivity['error_message']);
+      array_unshift($values, 'No matching Contact found for (' . $disp . ')');
+      return CRM_Import_Parser::ERROR;
+    }
+    if (!empty($params['external_identifier'])) {
+      $targetContactId = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact',
+        $params['external_identifier'], 'id', 'external_identifier'
+      );
+
+      if (!empty($params['target_contact_id']) &&
+        $params['target_contact_id'] != $targetContactId
+      ) {
+        array_unshift($values, 'Mismatch of External ID:' . $params['external_identifier'] . ' and Contact Id:' . $params['target_contact_id']);
         return CRM_Import_Parser::ERROR;
       }
-
-      $this->_newActivity[] = $newActivity['id'];
-      return CRM_Import_Parser::VALID;
+      if ($targetContactId) {
+        $params['target_contact_id'] = $targetContactId;
+      }
+      else {
+        array_unshift($values, 'No Matching Contact for External ID:' . $params['external_identifier']);
+        return CRM_Import_Parser::ERROR;
+      }
     }
+
+    $params['version'] = 3;
+    $newActivity = civicrm_api('activity', 'create', $params);
+    if (!empty($newActivity['is_error'])) {
+      array_unshift($values, $newActivity['error_message']);
+      return CRM_Import_Parser::ERROR;
+    }
+
+    $this->_newActivity[] = $newActivity['id'];
+    return CRM_Import_Parser::VALID;
+  }
+
+  /**
+   * take the input parameter list as specified in the data model and
+   * convert it into the same format that we use in QF and BAO object
+   *
+   * @param array $params
+   *   Associative array of property name/value.
+   *                             pairs to insert in new contact.
+   * @param array $values
+   *   The reformatted properties that we can use internally.
+   *
+   * @param array|bool $create Is the formatted Values array going to
+   *                             be used for CRM_Activity_BAO_Activity::create()
+   *
+   * @return array|CRM_Error
+   */
+  protected function deprecated_activity_formatted_param(&$params, &$values, $create = FALSE) {
+    // copy all the activity fields as is
+    $fields = CRM_Activity_DAO_Activity::fields();
+    _civicrm_api3_store_values($fields, $params, $values);
+
+    require_once 'CRM/Core/OptionGroup.php';
+    $customFields = CRM_Core_BAO_CustomField::getFields('Activity');
+
+    foreach ($params as $key => $value) {
+      // ignore empty values or empty arrays etc
+      if (CRM_Utils_System::isNull($value)) {
+        continue;
+      }
+
+      //Handling Custom Data
+      if ($customFieldID = CRM_Core_BAO_CustomField::getKeyID($key)) {
+        $values[$key] = $value;
+        $type = $customFields[$customFieldID]['html_type'];
+        if (CRM_Core_BAO_CustomField::isSerialized($customFields[$customFieldID])) {
+          $values[$key] = CRM_Import_Parser::unserializeCustomValue($customFieldID, $value, $type);
+        }
+        elseif ($type == 'Select' || $type == 'Radio') {
+          $customOption = CRM_Core_BAO_CustomOption::getCustomOption($customFieldID, TRUE);
+          foreach ($customOption as $customFldID => $customValue) {
+            $val = $customValue['value'] ?? NULL;
+            $label = $customValue['label'] ?? NULL;
+            $label = strtolower($label);
+            $value = strtolower(trim($value));
+            if (($value == $label) || ($value == strtolower($val))) {
+              $values[$key] = $val;
+            }
+          }
+        }
+      }
+
+      if ($key == 'target_contact_id') {
+        if (!CRM_Utils_Rule::integer($value)) {
+          return civicrm_api3_create_error("contact_id not valid: $value");
+        }
+        $contactID = CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_contact WHERE id = $value");
+        if (!$contactID) {
+          return civicrm_api3_create_error("Invalid Contact ID: There is no contact record with contact_id = $value.");
+        }
+      }
+    }
+    return NULL;
   }
 
 }

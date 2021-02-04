@@ -715,47 +715,6 @@ WHERE     civicrm_contact.id = " . CRM_Utils_Type::escape($id, 'Integer');
   }
 
   /**
-   * Create last viewed link to recently updated contact.
-   *
-   * @param array $crudLinkSpec
-   *  - action: int, CRM_Core_Action::UPDATE or CRM_Core_Action::VIEW [default: VIEW]
-   *  - entity_table: string, eg "civicrm_contact"
-   *  - entity_id: int
-   *
-   * @return array|NULL
-   *   NULL if unavailable, or
-   *   [path: string, query: string, title: string]
-   * @see CRM_Utils_System::createDefaultCrudLink
-   */
-  public function createDefaultCrudLink($crudLinkSpec) {
-    switch ($crudLinkSpec['action']) {
-      case CRM_Core_Action::VIEW:
-        $result = [
-          'title' => $this->display_name,
-          'path' => 'civicrm/contact/view',
-          'query' => [
-            'reset' => 1,
-            'cid' => $this->id,
-          ],
-        ];
-        return $result;
-
-      case CRM_Core_Action::UPDATE:
-        $result = [
-          'title' => $this->display_name,
-          'path' => 'civicrm/contact/add',
-          'query' => [
-            'reset' => 1,
-            'action' => 'update',
-            'cid' => $this->id,
-          ],
-        ];
-        return $result;
-    }
-    return NULL;
-  }
-
-  /**
    * Get the values for pseudoconstants for name->value and reverse.
    *
    * @param array $defaults
@@ -2107,7 +2066,7 @@ ORDER BY civicrm_email.is_primary DESC";
     else {
       //we should get contact type only if contact
       if ($ufGroupId) {
-        $data['contact_type'] = CRM_Core_BAO_UFField::getProfileType($ufGroupId);
+        $data['contact_type'] = CRM_Core_BAO_UFField::getProfileType($ufGroupId, TRUE, FALSE, TRUE);
 
         //special case to handle profile with only contact fields
         if ($data['contact_type'] == 'Contact') {
@@ -3222,6 +3181,11 @@ LEFT JOIN civicrm_email    ON ( civicrm_contact.id = civicrm_email.contact_id )
         }
 
         // finally get menu item for -more- action widget.
+        while (!empty($contextMenu['moreActions'][$values['weight']])) {
+          // Quick & dirty way of handling 2 items with the same weight
+          // without clobbering one.
+          $values['weight']++;
+        }
         $contextMenu['moreActions'][$values['weight']] = [
           'title' => $values['title'],
           'ref' => $values['ref'],
@@ -3239,6 +3203,11 @@ LEFT JOIN civicrm_email    ON ( civicrm_contact.id = civicrm_email.contact_id )
           }
 
           // finally get menu item for -more- action widget.
+          while (!empty($contextMenu['otherActions'][$value['weight']])) {
+            // Quick & dirty way of handling 2 items with the same weight
+            // without clobbering one.
+            $value['weight']++;
+          }
           $contextMenu['otherActions'][$value['weight']] = [
             'title' => $value['title'],
             'ref' => $value['ref'],
@@ -3514,9 +3483,9 @@ LEFT JOIN civicrm_address ON ( civicrm_address.contact_id = civicrm_contact.id )
     $obj = new $daoName();
     $obj->id = $id;
     $obj->find();
-    $hookParams = [];
+
     if ($obj->fetch()) {
-      CRM_Utils_Hook::pre('delete', $type, $id, $hookParams);
+      CRM_Utils_Hook::pre('delete', $type, $id);
       $contactId = $obj->contact_id;
       $obj->delete();
     }
