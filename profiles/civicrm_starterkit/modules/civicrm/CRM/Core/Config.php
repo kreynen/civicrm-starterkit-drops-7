@@ -86,12 +86,8 @@ class CRM_Core_Config extends CRM_Core_Config_MagicMerge {
    */
   public static function &singleton($loadFromDB = TRUE, $force = FALSE) {
     if (self::$_singleton === NULL || $force) {
-      $GLOBALS['civicrm_default_error_scope'] = CRM_Core_TemporaryErrorScope::create(['CRM_Core_Error', 'handle']);
+      $GLOBALS['civicrm_default_error_scope'] = CRM_Core_TemporaryErrorScope::create(['CRM_Core_Error', 'exceptionHandler'], 1);
       $errorScope = CRM_Core_TemporaryErrorScope::create(['CRM_Core_Error', 'simpleHandler']);
-
-      if (defined('E_DEPRECATED')) {
-        error_reporting(error_reporting() & ~E_DEPRECATED);
-      }
 
       self::$_singleton = new CRM_Core_Config();
       \Civi\Core\Container::boot($loadFromDB);
@@ -406,6 +402,11 @@ class CRM_Core_Config extends CRM_Core_Config_MagicMerge {
    */
   public static function isUpgradeMode($path = NULL) {
     if (defined('CIVICRM_UPGRADE_ACTIVE')) {
+      return TRUE;
+    }
+
+    $upgradeInProcess = CRM_Core_Session::singleton()->get('isUpgradePending');
+    if ($upgradeInProcess) {
       return TRUE;
     }
 

@@ -1398,9 +1398,6 @@ class CRM_Activity_BAO_Activity extends CRM_Activity_DAO_Activity {
 
     $providerObj = CRM_SMS_Provider::singleton(['provider_id' => $smsProviderParams['provider_id']]);
     $sendResult = $providerObj->send($recipient, $smsProviderParams, $tokenText, NULL, $sourceContactID);
-    if (PEAR::isError($sendResult)) {
-      throw new CRM_Core_Exception($sendResult->getMessage());
-    }
 
     // add activity target record for every sms that is sent
     $targetID = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_ActivityContact', 'record_type_id', 'Activity Targets');
@@ -1793,46 +1790,6 @@ WHERE      activity.id IN ($activityIds)";
     }
 
     return $parentActivities[$activityId];
-  }
-
-  /**
-   * Get total count of prior revision of currently viewed activity.
-   *
-   * @param $activityID
-   *   Current activity id.
-   * @deprecated
-   * @return int
-   *   $params  count of prior activities otherwise false.
-   * @throws \CRM_Core_Exception
-   */
-  public static function getPriorCount($activityID) {
-    CRM_Core_Error::deprecatedFunctionWarning('unused function to be removed');
-    static $priorCounts = [];
-
-    $activityID = CRM_Utils_Type::escape($activityID, 'Integer');
-
-    if (!array_key_exists($activityID, $priorCounts)) {
-      $priorCounts[$activityID] = [];
-      $originalID = CRM_Core_DAO::getFieldValue('CRM_Activity_DAO_Activity',
-        $activityID,
-        'original_id'
-      );
-      $count = 0;
-      if ($originalID) {
-        $query = "
-SELECT count( id ) AS cnt
-FROM civicrm_activity
-WHERE ( id = {$originalID} OR original_id = {$originalID} )
-AND is_current_revision = 0
-AND id < {$activityID}
-";
-        $params = [1 => [$originalID, 'Integer']];
-        $count = CRM_Core_DAO::singleValueQuery($query, $params);
-      }
-      $priorCounts[$activityID] = $count ? $count : 0;
-    }
-
-    return $priorCounts[$activityID];
   }
 
   /**

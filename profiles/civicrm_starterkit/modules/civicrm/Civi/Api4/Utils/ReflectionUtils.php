@@ -88,12 +88,18 @@ class ReflectionUtils {
         elseif ($key == 'return') {
           $info['return'] = explode('|', $words[0]);
         }
-        elseif ($key == 'options') {
+        elseif ($key == 'options' || $key == 'ui_join_filters') {
           $val = str_replace(', ', ',', implode(' ', $words));
-          $info['options'] = explode(',', $val);
+          $info[$key] = explode(',', $val);
         }
         elseif ($key == 'throws' || $key == 'see') {
           $info[$key][] = implode(' ', $words);
+        }
+        elseif ($key == 'searchable') {
+          $info[$key] = strtolower($words[0]) !== 'false';
+        }
+        elseif ($key == 'bridge') {
+          $info[$key] = $words;
         }
         elseif ($key == 'param' && $words) {
           $type = $words[0][0] !== '$' ? explode('|', array_shift($words)) : NULL;

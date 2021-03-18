@@ -15,10 +15,6 @@ namespace Civi\Test\Legacy;
  * @see HookInterface
  */
 class CiviTestListener extends \PHPUnit_Framework_BaseTestListener {
-  /**
-   * @var \CRM_Core_TemporaryErrorScope
-   */
-  private $errorScope;
 
   /**
    * @var array
@@ -45,7 +41,6 @@ class CiviTestListener extends \PHPUnit_Framework_BaseTestListener {
   public function startTest(\PHPUnit_Framework_Test $test) {
     if ($this->isCiviTest($test)) {
       error_reporting(E_ALL);
-      $this->errorScope = \CRM_Core_TemporaryErrorScope::useException();
     }
 
     if ($test instanceof \Civi\Test\HeadlessInterface) {
@@ -74,6 +69,7 @@ class CiviTestListener extends \PHPUnit_Framework_BaseTestListener {
     if ($test instanceof \Civi\Test\HookInterface) {
       \CRM_Utils_Hook::singleton()->reset();
     }
+    \CRM_Utils_Time::resetTime();
     if ($this->isCiviTest($test)) {
       error_reporting(E_ALL & ~E_NOTICE);
       $this->errorScope = NULL;

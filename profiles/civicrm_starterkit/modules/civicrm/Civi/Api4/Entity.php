@@ -58,8 +58,15 @@ class Entity extends Generic\AbstractEntity {
         ],
         [
           'name' => 'type',
+          'data_type' => 'Array',
           'description' => 'Base class for this entity',
-          'options' => ['DAOEntity' => 'DAOEntity', 'BasicEntity' => 'BasicEntity', 'BridgeEntity' => 'BridgeEntity', 'AbstractEntity' => 'AbstractEntity'],
+          'options' => [
+            'AbstractEntity' => 'AbstractEntity',
+            'DAOEntity' => 'DAOEntity',
+            'BasicEntity' => 'BasicEntity',
+            'EntityBridge' => 'EntityBridge',
+            'OptionList' => 'OptionList',
+          ],
         ],
         [
           'name' => 'description',
@@ -78,6 +85,14 @@ class Entity extends Generic\AbstractEntity {
           'description' => 'Class name for dao-based entities',
         ],
         [
+          'name' => 'label_field',
+          'description' => 'Field to show when displaying a record',
+        ],
+        [
+          'name' => 'searchable',
+          'description' => 'Should this entity be selectable in search kit UI',
+        ],
+        [
           'name' => 'paths',
           'data_type' => 'Array',
           'description' => 'System paths for accessing this entity',
@@ -86,6 +101,16 @@ class Entity extends Generic\AbstractEntity {
           'name' => 'see',
           'data_type' => 'Array',
           'description' => 'Any @see annotations from docblock',
+        ],
+        [
+          'name' => 'bridge',
+          'data_type' => 'Array',
+          'description' => 'Connecting fields for EntityBridge types',
+        ],
+        [
+          'name' => 'ui_join_filters',
+          'data_type' => 'Array',
+          'description' => 'When joining entities in the UI, which fields should be presented by default in the ON clause',
         ],
       ];
     }))->setCheckPermissions($checkPermissions);

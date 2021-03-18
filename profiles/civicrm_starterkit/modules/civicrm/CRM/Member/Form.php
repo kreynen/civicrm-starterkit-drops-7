@@ -64,6 +64,13 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
   public $_priceSet;
 
   /**
+   * The order being processed.
+   *
+   * @var \CRM_Financial_BAO_Order
+   */
+  protected $order;
+
+  /**
    * Explicitly declare the entity api name.
    */
   public function getDefaultEntity() {
@@ -161,7 +168,7 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
       $params = ['id' => $this->_id];
       CRM_Member_BAO_Membership::retrieve($params, $defaults);
       if (isset($defaults['minimum_fee'])) {
-        $defaults['minimum_fee'] = CRM_Utils_Money::format($defaults['minimum_fee'], NULL, '%a');
+        $defaults['minimum_fee'] = CRM_Utils_Money::formatLocaleNumericRoundedForDefaultCurrency($defaults['minimum_fee']);
       }
 
       if (isset($defaults['status'])) {
@@ -307,16 +314,13 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
       $this->_contactID = $formValues['contact_id'];
     }
 
-    list($this->_memberDisplayName,
-      $this->_memberEmail
-      ) = CRM_Contact_BAO_Contact_Location::getEmailDetails($this->_contactID);
+    [$this->_memberDisplayName, $this->_memberEmail] = CRM_Contact_BAO_Contact_Location::getEmailDetails($this->_contactID);
 
     //CRM-10375 Where the payer differs to the member the payer should get the email.
     // here we store details in order to do that
     if (!empty($formValues['soft_credit_contact_id'])) {
       $this->_receiptContactId = $this->_contributorContactID = $formValues['soft_credit_contact_id'];
-      list($this->_contributorDisplayName,
-        $this->_contributorEmail) = CRM_Contact_BAO_Contact_Location::getEmailDetails($this->_contributorContactID);
+      [$this->_contributorDisplayName, $this->_contributorEmail] = CRM_Contact_BAO_Contact_Location::getEmailDetails($this->_contributorContactID);
     }
     else {
       $this->_receiptContactId = $this->_contributorContactID = $this->_contactID;
@@ -416,7 +420,7 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
    *
    * @return array
    */
-  protected static function getPriceSetDetails($params) {
+  protected function getPriceSetDetails(array $params): ?array {
     $priceSetID = $params['price_set_id'] ?? NULL;
     if ($priceSetID) {
       return CRM_Price_BAO_PriceSet::getSetDetail($priceSetID);
@@ -436,10 +440,10 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
    *
    * @return int
    */
-  protected static function getPriceSetID($params) {
+  protected function getPriceSetID(array $params): int {
     $priceSetID = $params['price_set_id'] ?? NULL;
     if (!$priceSetID) {
-      $priceSetDetails = self::getPriceSetDetails($params);
+      $priceSetDetails = $this->getPriceSetDetails($params);
       return (int) key($priceSetDetails);
     }
     return (int) $priceSetID;
@@ -452,12 +456,19 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
    *
    * @return array
    */
-  protected function setPriceSetParameters($formValues) {
-    $this->_priceSetId = self::getPriceSetID($formValues);
-    $priceSetDetails = self::getPriceSetDetails($formValues);
-    $this->_priceSet = $priceSetDetails[$this->_priceSetId];
+  protected function setPriceSetParameters(array $formValues): array {
     // process price set and get total amount and line items.
+    $this->_priceSetId = $this->getPriceSetID($formValues);
     $this->ensurePriceParamsAreSet($formValues);
+    $priceSetDetails = $this->getPriceSetDetails($formValues);
+    $this->_priceSet = $priceSetDetails[$this->_priceSetId];
+    $this->order = new CRM_Financial_BAO_Order();
+    $this->order->setPriceSelectionFromUnfilteredInput($formValues);
+    $this->order->setPriceSetID($this->getPriceSetID($formValues));
+    if (isset($formValues['total_amount'])) {
+      $this->order->setOverrideTotalAmount($formValues['total_amount']);
+    }
+    $this->order->setOverrideFinancialTypeID((int) $formValues['financial_type_id']);
     return $formValues;
   }
 
@@ -466,11 +477,29 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
    *
    * @param array $formValues
    */
-  public function testSubmit($formValues) {
+  public function testSubmit(array $formValues): void {
     $this->setContextVariables($formValues);
     $this->_memType = $formValues['membership_type_id'][1];
     $this->_params = $formValues;
     $this->submit();
+  }
+
+  /**
+   * Get order related params.
+   *
+   * In practice these are contribution params but later they cann be used with the Order api.
+   *
+   * @return array
+   *
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function getOrderParams(): array {
+    return [
+      'lineItems' => [$this->_priceSetId => $this->order->getLineItems()],
+      // This is one of those weird & wonderful legacy params we aim to get rid of.
+      'processPriceSet' => TRUE,
+      'tax_amount' => $this->order->getTotalTaxAmount(),
+    ];
   }
 
 }

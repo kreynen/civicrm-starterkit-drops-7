@@ -5,6 +5,17 @@
   angular.module('crmSearchDisplay', CRM.angRequires('crmSearchDisplay'))
 
     .factory('searchDisplayUtils', function() {
+
+      function replaceTokens(str, data) {
+        if (!str) {
+          return '';
+        }
+        _.each(data, function(value, key) {
+          str = str.replace('[' + key + ']', value);
+        });
+        return str;
+      }
+
       function getUrl(link, row) {
         var url = replaceTokens(link, row);
         if (url.slice(0, 1) !== '/' && url.slice(0, 4) !== 'http') {
@@ -13,19 +24,12 @@
         return _.escape(url);
       }
 
-      function replaceTokens(str, data) {
-        _.each(data, function(value, key) {
-          str = str.replace('[' + key + ']', value);
-        });
-        return str;
-      }
-
       function formatSearchValue(row, col, value) {
         var type = col.dataType,
           result = value;
         if (_.isArray(value)) {
           return _.map(value, function(val) {
-            return formatSearchValue(col, val);
+            return formatSearchValue(row, col, val);
           }).join(', ');
         }
         if (value && (type === 'Date' || type === 'Timestamp') && /^\d{4}-\d{2}-\d{2}/.test(value)) {
@@ -70,8 +74,8 @@
         return columns;
       }
 
-      function prepareParams(apiParams, filters, page) {
-        var params = _.cloneDeep(apiParams);
+      function prepareParams(ctrl) {
+        var params = _.cloneDeep(ctrl.apiParams);
         if (_.isEmpty(params.where)) {
           params.where = [];
         }
@@ -79,17 +83,24 @@
         _.each(params.join, function(join) {
           var joinEntity = join[0].split(' AS ')[1],
             idField = joinEntity + '.id';
-          if (!_.includes(params.select, idField) && !searchDisplayUtils.canAggregate('id', joinEntity + '.', params)) {
+          if (!_.includes(params.select, idField) && !canAggregate('id', joinEntity + '.', params)) {
             params.select.push(idField);
           }
         });
-        _.each(filters, function(value, key) {
+        function addFilter(value, key) {
           if (value) {
             params.where.push([key, 'CONTAINS', value]);
           }
-        });
-        if (page) {
-          params.offset = (page - 1) * apiParams.limit;
+        }
+        // Add filters explicitly passed into controller
+        _.each(ctrl.filters, addFilter);
+        // Add filters when nested in an afform fieldset
+        if (ctrl.afFieldset) {
+          _.each(ctrl.afFieldset.getFieldData(), addFilter);
+        }
+
+        if (ctrl.settings && ctrl.settings.pager && ctrl.page) {
+          params.offset = (ctrl.page - 1) * params.limit;
           params.select.push('row_count');
         }
         return params;
@@ -99,7 +110,8 @@
         formatSearchValue: formatSearchValue,
         canAggregate: canAggregate,
         prepareColumns: prepareColumns,
-        prepareParams: prepareParams
+        prepareParams: prepareParams,
+        replaceTokens: replaceTokens
       };
     });
 

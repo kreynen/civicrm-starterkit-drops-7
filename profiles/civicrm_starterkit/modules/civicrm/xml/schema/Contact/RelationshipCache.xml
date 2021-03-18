@@ -8,7 +8,7 @@
   <add>5.29</add>
   <log>false</log>
   <icon>fa-handshake-o</icon>
-
+  <title>Related Contact</title>
   <field>
     <name>id</name>
     <type>int unsigned</type>
@@ -89,10 +89,13 @@
   <field>
     <name>near_relation</name>
     <type>varchar</type>
-    <title>Relationship Name (Near side)</title>
+    <title>Relationship Name (to related contact)</title>
     <length>64</length>
     <comment>name for relationship of near_contact to far_contact.</comment>
     <add>5.29</add>
+    <html>
+      <label>Relationship to contact</label>
+    </html>
     <pseudoconstant>
       <callback>CRM_Core_PseudoConstant::relationshipTypeOptions</callback>
     </pseudoconstant>
@@ -120,10 +123,13 @@
   <field>
     <name>far_relation</name>
     <type>varchar</type>
-    <title>Relationship Name (Near side)</title>
+    <title>Relationship Name (from related contact)</title>
     <length>64</length>
     <comment>name for relationship of far_contact to near_contact.</comment>
     <add>5.29</add>
+    <html>
+      <label>Relationship from contact</label>
+    </html>
     <pseudoconstant>
       <callback>CRM_Core_PseudoConstant::relationshipTypeOptions</callback>
     </pseudoconstant>

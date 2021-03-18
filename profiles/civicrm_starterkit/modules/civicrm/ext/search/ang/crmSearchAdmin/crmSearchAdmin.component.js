@@ -15,7 +15,7 @@
       this.selectedRows = [];
       this.limit = CRM.cache.get('searchPageSize', 30);
       this.page = 1;
-      this.displayTypes = _.indexBy(CRM.crmSearchAdmin.displayTypes, 'name');
+      this.displayTypes = _.indexBy(CRM.crmSearchAdmin.displayTypes, 'id');
       // After a search this.results is an object of result arrays keyed by page,
       // Initially this.results is an empty string because 1: it's falsey (unlike an empty object) and 2: it doesn't throw an error if you try to access undefined properties (unlike null)
       this.results = '';
@@ -27,7 +27,12 @@
       $scope.controls = {tab: 'compose'};
       $scope.joinTypes = [{k: false, v: ts('Optional')}, {k: true, v: ts('Required')}];
       $scope.groupOptions = CRM.crmSearchActions.groupOptions;
-      $scope.entities = formatForSelect2(CRM.vars.search.schema, 'name', 'title_plural', ['description', 'icon']);
+      // Try to create a sensible list of entities one might want to search for,
+      // excluding those whos primary purpose is to provide joins or option lists to other entities
+      var primaryEntities = _.filter(CRM.crmSearchAdmin.schema, function(entity) {
+        return !_.includes(entity.type, 'EntityBridge') && !_.includes(entity.type, 'OptionList');
+      });
+      $scope.entities = formatForSelect2(primaryEntities, 'name', 'title_plural', ['description', 'icon']);
       this.perm = {
         editGroups: CRM.checkPerm('edit groups')
       };
@@ -185,19 +190,49 @@
         }
       };
 
+      function addNum(name, num) {
+        return name + (num < 10 ? '_0' : '_') + num;
+      }
+
+      function getExistingJoins() {
+        return _.transform(ctrl.savedSearch.api_params.join || [], function(joins, join) {
+          joins[join[0].split(' AS ')[1]] = searchMeta.getJoin(join[0]);
+        }, {});
+      }
+
+      $scope.getJoin = searchMeta.getJoin;
+
       $scope.getJoinEntities = function() {
-        var joinEntities = _.transform(CRM.vars.search.links[ctrl.savedSearch.api_entity], function(joinEntities, link) {
-          var entity = searchMeta.getEntity(link.entity);
-          if (entity) {
-            joinEntities.push({
-              id: link.entity + ' AS ' + link.alias,
-              text: entity.title_plural,
-              description: '(' + link.alias + ')',
-              icon: entity.icon
-            });
+        var existingJoins = getExistingJoins();
+
+        function addEntityJoins(entity, stack, baseEntity) {
+          return _.transform(CRM.crmSearchAdmin.joins[entity], function(joinEntities, join) {
+            var num = 0;
+            // Add all joins that don't just point directly back to the original entity
+            if (!(baseEntity === join.entity && !join.multi)) {
+              do {
+                appendJoin(joinEntities, join, ++num, stack, entity);
+              } while (addNum((stack ? stack + '_' : '') + join.alias, num) in existingJoins);
+            }
+          }, []);
+        }
+
+        function appendJoin(collection, join, num, stack, baseEntity) {
+          var alias = addNum((stack ? stack + '_' : '') + join.alias, num),
+            opt = {
+              id: join.entity + ' AS ' + alias,
+              description: join.description,
+              text: join.label + (num > 1 ? ' ' + num : ''),
+              icon: searchMeta.getEntity(join.entity).icon,
+              disabled: alias in existingJoins
+            };
+          if (alias in existingJoins) {
+            opt.children = addEntityJoins(join.entity, (stack ? stack + '_' : '') + alias, baseEntity);
           }
-        }, []);
-        return {results: joinEntities};
+          collection.push(opt);
+        }
+
+        return {results: addEntityJoins(ctrl.savedSearch.api_entity)};
       };
 
       $scope.addJoin = function() {
@@ -205,20 +240,19 @@
         $timeout(function() {
           if ($scope.controls.join) {
             ctrl.savedSearch.api_params.join = ctrl.savedSearch.api_params.join || [];
-            ctrl.savedSearch.api_params.join.push([$scope.controls.join, false]);
+            var join = searchMeta.getJoin($scope.controls.join),
+              params = [$scope.controls.join, false];
+            _.each(_.cloneDeep(join.conditions), function(condition) {
+              params.push(condition);
+            });
+            _.each(_.cloneDeep(join.defaults), function(condition) {
+              params.push(condition);
+            });
+            ctrl.savedSearch.api_params.join.push(params);
             loadFieldOptions();
           }
           $scope.controls.join = '';
         });
-      };
-
-      $scope.changeJoin = function(idx) {
-        if (ctrl.savedSearch.api_params.join[idx][0]) {
-          ctrl.savedSearch.api_params.join[idx].length = 2;
-          loadFieldOptions();
-        } else {
-          ctrl.clearParam('join', idx);
-        }
       };
 
       $scope.changeGroupBy = function(idx) {
@@ -333,7 +367,7 @@
         if (ctrl.savedSearch.api_params.groupBy.length) {
           _.each(ctrl.savedSearch.api_params.select, function(col, pos) {
             if (!_.contains(col, '(') && ctrl.canAggregate(col)) {
-              ctrl.savedSearch.api_params.select[pos] = ctrl.DEFAULT_AGGREGATE_FN + '(' + col + ')';
+              ctrl.savedSearch.api_params.select[pos] = ctrl.DEFAULT_AGGREGATE_FN + '(DISTINCT ' + col + ')';
             }
           });
         }
@@ -356,16 +390,23 @@
           ctrl.page = 1;
           ctrl.rowCount = false;
         }
-        if (ctrl.rowCount === false) {
-          params.select.push('row_count');
-        }
         params.offset = ctrl.limit * (ctrl.page - 1);
         crmApi4(ctrl.savedSearch.api_entity, 'get', params).then(function(success) {
           if (ctrl.stale) {
             ctrl.results = {};
-          }
-          if (ctrl.rowCount === false) {
-            ctrl.rowCount = success.count;
+            // Get row count for pager
+            if (success.length < params.limit) {
+              ctrl.rowCount = success.count;
+            } else {
+              var countParams = _.cloneDeep(params);
+              // Select is only needed needed by HAVING
+              countParams.select = countParams.having && countParams.having.length ? countParams.select : [];
+              countParams.select.push('row_count');
+              delete countParams.debug;
+              crmApi4(ctrl.savedSearch.api_entity, 'get', countParams).then(function(result) {
+                ctrl.rowCount = result.count;
+              });
+            }
           }
           ctrl.debug = success.debug;
           // populate this page & the next
@@ -497,7 +538,9 @@
         // If more than one page of results, use ajax to fetch all ids
         $scope.loadingAllRows = true;
         var params = _.cloneDeep(ctrl.savedSearch.api_params);
-        params.select = ['id'];
+        // Select is only needed needed by HAVING
+        params.select = params.having && params.having.length ? params.select : [];
+        params.select.push('id');
         crmApi4(ctrl.savedSearch.api_entity, 'get', params, ['id']).then(function(ids) {
           $scope.loadingAllRows = false;
           ctrl.selectedRows = _.toArray(ids);
@@ -538,8 +581,7 @@
 
       $scope.formatResult = function(row, col) {
         var info = searchMeta.parseExpr(col),
-          key = info.fn ? (info.fn.name + ':' + info.path + info.suffix) : col,
-          value = row[key];
+          value = row[info.alias + info.suffix];
         if (info.fn && info.fn.name === 'COUNT') {
           return value;
         }
@@ -617,7 +659,8 @@
 
       $scope.fieldsForHaving = function() {
         return {results: _.transform(ctrl.savedSearch.api_params.select, function(fields, name) {
-          fields.push({id: name, text: ctrl.getFieldLabel(name)});
+          var info = searchMeta.parseExpr(name);
+          fields.push({id: info.alias + info.suffix, text: ctrl.getFieldLabel(name)});
         })};
       };
 
@@ -643,33 +686,49 @@
       }
 
       function getAllFields(suffix, disabledIf) {
-        function formatFields(entityName, prefix) {
-          return _.transform(searchMeta.getEntity(entityName).fields, function(result, field) {
-            var item = {
-              id: prefix + field.name + (field.options ? suffix : ''),
-              text: field.label,
-              description: field.description
-            };
-            if (disabledIf(item.id)) {
-              item.disabled = true;
-            }
-            result.push(item);
-          }, []);
+        function formatFields(entityName, join) {
+          var prefix = join ? join.alias + '.' : '',
+            result = [];
+
+          function addFields(fields) {
+            _.each(fields, function(field) {
+              var item = {
+                id: prefix + field.name + (field.options ? suffix : ''),
+                text: field.label,
+                description: field.description
+              };
+              if (disabledIf(item.id)) {
+                item.disabled = true;
+              }
+              result.push(item);
+            });
+          }
+
+          // Add extra searchable fields from bridge entity
+          if (join && join.bridge) {
+            addFields(_.filter(searchMeta.getEntity(join.bridge).fields, function(field) {
+              return (field.name !== 'id' && field.name !== 'entity_id' && field.name !== 'entity_table' && !field.fk_entity);
+            }));
+          }
+
+          addFields(searchMeta.getEntity(entityName).fields);
+          return result;
         }
 
         var mainEntity = searchMeta.getEntity(ctrl.savedSearch.api_entity),
           result = [{
             text: mainEntity.title_plural,
             icon: mainEntity.icon,
-            children: formatFields(ctrl.savedSearch.api_entity, '')
+            children: formatFields(ctrl.savedSearch.api_entity)
           }];
         _.each(ctrl.savedSearch.api_params.join, function(join) {
-          var joinName = join[0].split(' AS '),
-            joinEntity = searchMeta.getEntity(joinName[0]);
+          var joinInfo = searchMeta.getJoin(join[0]),
+            joinEntity = searchMeta.getEntity(joinInfo.entity);
           result.push({
-            text: joinEntity.title_plural + ' (' + joinName[1] + ')',
+            text: joinInfo.label,
+            description: joinInfo.description,
             icon: joinEntity.icon,
-            children: formatFields(joinEntity.name, joinName[1] + '.')
+            children: formatFields(joinEntity.name, joinInfo)
           });
         });
         return result;
@@ -697,10 +756,14 @@
           enqueue(mainEntity);
         }
         _.each(ctrl.savedSearch.api_params.join, function(join) {
-          var joinName = join[0].split(' AS '),
-            joinEntity = searchMeta.getEntity(joinName[0]);
+          var joinInfo = searchMeta.getJoin(join[0]),
+            joinEntity = searchMeta.getEntity(joinInfo.entity),
+            bridgeEntity = joinInfo.bridge ? searchMeta.getEntity(joinInfo.bridge) : null;
           if (typeof joinEntity.optionsLoaded === 'undefined') {
             enqueue(joinEntity);
+          }
+          if (bridgeEntity && typeof bridgeEntity.optionsLoaded === 'undefined') {
+            enqueue(bridgeEntity);
           }
         });
         if (!_.isEmpty(entities)) {

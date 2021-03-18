@@ -616,6 +616,7 @@ SET    version = '$version'
     $messages = [];
     $manager = CRM_Extension_System::singleton()->getManager();
     foreach ($manager->getStatuses() as $key => $status) {
+      $enableReplacement = CRM_Core_DAO::singleValueQuery('SELECT is_active FROM civicrm_extension WHERE full_name = %1', [1 => [$key, 'String']]);
       $obsolete = $manager->isIncompatible($key);
       if ($obsolete) {
         if (!empty($obsolete['disable']) && in_array($status, [$manager::STATUS_INSTALLED, $manager::STATUS_INSTALLED_MISSING])) {
@@ -646,6 +647,15 @@ SET    version = '$version'
           CRM_Core_DAO::executeQuery('UPDATE civicrm_extension SET is_active = 0 WHERE full_name = %1', [
             1 => [$key, 'String'],
           ]);
+        }
+        if (!empty($obsolete['replacement']) && $enableReplacement) {
+          try {
+            $manager->enable($manager->install($obsolete['replacement']));
+            $messages[] = ts('A replacement extension %1 has been installed as you had the obsolete extension %2 installed', [1 => $obsolete['replacement'], 2 => $key]);
+          }
+          catch (CRM_Extension_Exception $e) {
+            $messages[] = ts('The replacement extension %1 could not be installed due to an error. It is recommended to enable this extension manually.', [1 => $obsolete['replacement']]);
+          }
         }
       }
     }
@@ -755,8 +765,6 @@ SET    version = '$version'
     $upgrade->setVersion($rev);
     CRM_Utils_System::flushCache();
 
-    $config = CRM_Core_Config::singleton();
-    $config->userSystem->flush();
     return TRUE;
   }
 
@@ -771,6 +779,9 @@ SET    version = '$version'
     // Seems extraneous in context, but we'll preserve old behavior
     $upgrade->setVersion($latestVer);
 
+    $config = CRM_Core_Config::singleton();
+    $config->userSystem->flush();
+
     CRM_Core_Invoke::rebuildMenuAndCaches(FALSE, TRUE);
     // NOTE: triggerRebuild is FALSE becaues it will run again in a moment (via fixSchemaDifferences).
 
@@ -780,6 +791,8 @@ SET    version = '$version'
     // Rebuild all triggers and re-enable logging if needed
     $logging = new CRM_Logging_Schema();
     $logging->fixSchemaDifferences();
+    // Force a rebuild of CiviCRM asset cache in case things have changed.
+    \Civi::service('asset_builder')->clear(FALSE);
   }
 
   /**

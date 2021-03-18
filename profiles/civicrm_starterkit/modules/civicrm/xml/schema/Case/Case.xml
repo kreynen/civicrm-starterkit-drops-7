@@ -7,6 +7,8 @@
   <add>1.8</add>
   <log>true</log>
   <icon>fa-folder-open</icon>
+  <labelField>subject</labelField>
+  <component>CiviCase</component>
   <field>
     <name>id</name>
     <type>int unsigned</type>

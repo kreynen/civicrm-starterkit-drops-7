@@ -19,11 +19,6 @@ class CiviTestListenerPHPUnit7 implements \PHPUnit\Framework\TestListener {
   use \PHPUnit\Framework\TestListenerDefaultImplementation;
 
   /**
-   * @var \CRM_Core_TemporaryErrorScope
-   */
-  private $errorScope;
-
-  /**
    * @var array
    *  Ex: $cache['Some_Test_Class']['civicrm_foobar'] = 'hook_civicrm_foobar';
    *  Array(string $testClass => Array(string $hookName => string $methodName)).
@@ -48,7 +43,6 @@ class CiviTestListenerPHPUnit7 implements \PHPUnit\Framework\TestListener {
   public function startTest(\PHPUnit\Framework\Test $test): void {
     if ($this->isCiviTest($test)) {
       error_reporting(E_ALL);
-      $this->errorScope = \CRM_Core_TemporaryErrorScope::useException();
     }
 
     if ($test instanceof HeadlessInterface) {
@@ -78,6 +72,7 @@ class CiviTestListenerPHPUnit7 implements \PHPUnit\Framework\TestListener {
     if ($test instanceof HookInterface) {
       \CRM_Utils_Hook::singleton()->reset();
     }
+    \CRM_Utils_Time::resetTime();
     if ($this->isCiviTest($test)) {
       error_reporting(E_ALL & ~E_NOTICE);
       $this->errorScope = NULL;

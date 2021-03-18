@@ -13,8 +13,8 @@
         '<div ng-switch="$ctrl.display.type">\n';
       _.each(CRM.crmSearchAdmin.displayTypes, function(type) {
         html +=
-          '<div ng-switch-when="' + type.name + '">\n' +
-          '  <search-admin-display-' + type.name + ' api-entity="$ctrl.savedSearch.api_entity" api-params="$ctrl.savedSearch.api_params" display="$ctrl.display"></search-admin-display-' + type.name + '>\n' +
+          '<div ng-switch-when="' + type.id + '">\n' +
+          '  <search-admin-display-' + type.id + ' api-entity="$ctrl.savedSearch.api_entity" api-params="$ctrl.savedSearch.api_params" display="$ctrl.display"></search-admin-display-' + type.id + '>\n' +
           '  <hr>\n' +
           '  <button type="button" class="btn btn-{{ !$ctrl.stale ? \'success\' : $ctrl.preview ? \'warning\' : \'primary\' }}" ng-click="$ctrl.previewDisplay()" ng-disabled="!$ctrl.stale">\n' +
           '  <i class="crm-i ' + type.icon + '"></i>' +
@@ -22,7 +22,7 @@
           '  </button>\n' +
           '  <hr>\n' +
           '  <div ng-if="$ctrl.preview">\n' +
-          '    <crm-search-display-' + type.name + ' api-entity="$ctrl.savedSearch.api_entity" api-params="$ctrl.savedSearch.api_params" settings="$ctrl.display.settings"></crm-search-display-' + type.name + '>\n' +
+          '    <' + type.name + ' api-entity="$ctrl.savedSearch.api_entity" api-params="$ctrl.savedSearch.api_params" settings="$ctrl.display.settings"></' + type.name + '>\n' +
           '  </div>\n' +
           '</div>\n';
       });
@@ -63,21 +63,6 @@
           });
           return hiddenColumns;
         }
-      };
-
-      // Return all possible links to main entity or join entities
-      this.getLinks = function() {
-        var links = _.cloneDeep(searchMeta.getEntity(ctrl.savedSearch.api_entity).paths || []);
-        _.each(ctrl.savedSearch.api_params.join, function(join) {
-          var joinName = join[0].split(' AS '),
-            joinEntity = searchMeta.getEntity(joinName[0]);
-          _.each(joinEntity.paths, function(path) {
-            var link = _.cloneDeep(path);
-            link.path = link.path.replace(/\[/g, '[' + joinName[1] + '.');
-            links.push(link);
-          });
-        });
-        return links;
       };
 
       this.preview = this.stale = false;

@@ -18,7 +18,7 @@
       </div>
       <div class="crm-flex-4 form-inline">
         <label for="crm-search-main-entity">{{:: ts('Search for:') }}</label>
-        <input id="crm-search-main-entity" class="form-control" ng-model="$ctrl.savedSearch.api_entity" crm-ui-select="::{allowClear: false, data: entities}" ng-disabled="$ctrl.savedSearch.id" />
+        <input id="crm-search-main-entity" class="form-control huge" ng-model="$ctrl.savedSearch.api_entity" crm-ui-select="::{allowClear: false, data: entities}" ng-disabled="$ctrl.savedSearch.id" />
         <div class="btn-group btn-group-md pull-right">
           <button type="submit" class="btn" ng-class="{'btn-primary': status === 'unsaved', 'btn-warning': status === 'saving', 'btn-success': status === 'saved'}" ng-disabled="status !== 'unsaved'" ng-click="$ctrl.save()">
             <i class="crm-i" ng-class="{'fa-check': status !== 'saving', 'fa-spin fa-spinner': status === 'saving'}"></i>
@@ -37,7 +37,7 @@
           <div ng-include="'~/crmSearchAdmin/compose/controls.html'"></div>
           <div ng-include="'~/crmSearchAdmin/compose/debug.html'" ng-if="$ctrl.debug"></div>
           <div ng-include="'~/crmSearchAdmin/compose/results.html'" class="crm-search-results"></div>
-          <div ng-include="'~/crmSearchAdmin/compose/pager.html'"></div>
+          <div ng-include="'~/crmSearchAdmin/compose/pager.html'" ng-if="$ctrl.results"></div>
         </div>
         <div ng-switch-when="group">
           <fieldset ng-include="'~/crmSearchAdmin/group.html'"></fieldset>

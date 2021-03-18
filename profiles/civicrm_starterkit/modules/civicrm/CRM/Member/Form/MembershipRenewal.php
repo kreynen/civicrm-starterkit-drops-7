@@ -180,9 +180,9 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
     $defaults = parent::setDefaultValues();
 
     // set renewal_date and receive_date to today in correct input format (setDateDefaults uses today if no value passed)
-    $now = date('Y-m-d');
+    $now = CRM_Utils_Time::date('Y-m-d');
     $defaults['renewal_date'] = $now;
-    $defaults['receive_date'] = $now . ' ' . date('H:i:s');
+    $defaults['receive_date'] = $now . ' ' . CRM_Utils_Time::date('H:i:s');
 
     if ($defaults['id']) {
       $defaults['record_contribution'] = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipPayment',
@@ -487,7 +487,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
     $this->storeContactFields($this->_params);
     $this->beginPostProcess();
     $now = CRM_Utils_Date::getToday(NULL, 'YmdHis');
-    $this->assign('receive_date', CRM_Utils_Array::value('receive_date', $this->_params, date('Y-m-d H:i:s')));
+    $this->assign('receive_date', CRM_Utils_Array::value('receive_date', $this->_params, CRM_Utils_Time::date('Y-m-d H:i:s')));
     $this->processBillingAddress();
 
     $this->_params['total_amount'] = CRM_Utils_Array::value('total_amount', $this->_params,
@@ -625,11 +625,6 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
         'membership_id' => $membership->id,
         'contribution_recur_id' => $contributionRecurID,
       ]);
-      //Remove `tax_amount` if it is not calculated.
-      // ?? WHY - I haven't been able to figure out...
-      if (CRM_Utils_Array::value('tax_amount', $temporaryParams) === 0.0) {
-        unset($temporaryParams['tax_amount']);
-      }
       CRM_Member_BAO_Membership::recordMembershipContribution($temporaryParams);
     }
 
@@ -732,7 +727,6 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
     $ids = [];
     $currentMembership = civicrm_api3('Membership', 'getsingle', ['id' => $memParams['id']]);
 
-    $memParams['join_date'] = $currentMembership['join_date'];
     // Do NOT do anything.
     //1. membership with status : PENDING/CANCELLED (CRM-2395)
     //2. Paylater/IPN renew. CRM-4556.
@@ -741,14 +735,9 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
       // CRM-15475
       array_search('Cancelled', CRM_Member_PseudoConstant::membershipStatus(NULL, " name = 'Cancelled' ", 'name', FALSE, TRUE)),
     ])) {
-      $memParams = array_merge($memParams, [
-        'status_id' => $currentMembership['status_id'],
-        'start_date' => $currentMembership['start_date'],
-        'end_date' => $currentMembership['end_date'],
-      ]);
       return CRM_Member_BAO_Membership::create($memParams);
     }
-
+    $memParams['join_date'] = date('Ymd', CRM_Utils_Time::strtotime($currentMembership['join_date']));
     $isMembershipCurrent = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipStatus', $currentMembership['status_id'], 'is_current_member');
 
     // CRM-7297 Membership Upsell - calculate dates based on new membership type
@@ -779,29 +768,6 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
     $membership->find(TRUE);
 
     return $membership;
-  }
-
-  /**
-   * Get order related params.
-   *
-   * In practice these are contribution params but later they cann be used with the Order api.
-   *
-   * @return array
-   *
-   * @throws \CiviCRM_API3_Exception
-   */
-  protected function getOrderParams(): array {
-    $order = new CRM_Financial_BAO_Order();
-    $order->setPriceSelectionFromUnfilteredInput($this->_params);
-    $order->setPriceSetID(self::getPriceSetID($this->_params));
-    $order->setOverrideTotalAmount($this->_params['total_amount']);
-    $order->setOverrideFinancialTypeID((int) $this->_params['financial_type_id']);
-    return [
-      'lineItems' => [$this->_priceSetId => $order->getLineItems()],
-      // This is one of those weird & wonderful legacy params we aim to get rid of.
-      'processPriceSet' => TRUE,
-      'tax_amount' => $order->getTotalTaxAmount(),
-    ];
   }
 
 }

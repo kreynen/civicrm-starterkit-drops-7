@@ -319,6 +319,15 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
     // CRM-18399: used by template to pass pre profile id as a url arg
     $this->assign('custom_pre_id', $this->_values['custom_pre_id']);
 
+    // Required for currency formatting in the JS layer
+
+    // Required for currency formatting in the JS layer
+    // this is a temporary fix intended to resolve a regression quickly
+    // And assigning moneyFormat for js layer formatting
+    // will only work until that is done.
+    // https://github.com/civicrm/civicrm-core/pull/19151
+    $this->assign('moneyFormat', CRM_Utils_Money::format(1234.56));
+
     CRM_Core_Payment_ProcessorForm::buildQuickForm($this);
 
     $contactID = $this->getContactID();
@@ -631,7 +640,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
       $form->assign('priceSet', $form->_priceSet);
     }
     else {
-      $eventFeeBlockValues = [];
+      $eventFeeBlockValues = $elements = $elementJS = [];
       foreach ($form->_feeBlock as $fee) {
         if (is_array($fee)) {
 
@@ -642,18 +651,14 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
           }
 
           $eventFeeBlockValues['amount_id_' . $fee['amount_id']] = $fee['value'];
-          $elements[] = &$form->createElement('radio', NULL, '',
-            CRM_Utils_Money::format($fee['value']) . ' ' .
-            $fee['label'],
-            $fee['amount_id'],
-            $totalAmountJs
-          );
+          $elements[$fee['amount_id']] = CRM_Utils_Money::format($fee['value']) . ' ' . $fee['label'];
+          $elementJS[$fee['amount_id']] = $totalAmountJs;
         }
       }
       $form->assign('eventFeeBlockValues', json_encode($eventFeeBlockValues));
 
       $form->_defaults['amount'] = $form->_values['event']['default_fee_id'] ?? NULL;
-      $element = &$form->addGroup($elements, 'amount', ts('Event Fee(s)'), '<br />');
+      $element = &$form->addRadio('amount', ts('Event Fee(s)'), $elements, [], '<br />', FALSE, $elementJS);
       if (isset($form->_online) && $form->_online) {
         $element->freeze();
       }
@@ -1187,7 +1192,12 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
               $registerUrl .= '&pcpId=' . $form->_pcpId;
             }
             $registrationType = (CRM_Event_PseudoConstant::getKey('CRM_Event_BAO_Participant', 'participant_status_id', 'On waitlist') == $participant->status_id) ? 'waitlisted' : 'registered';
-            $status = ts("It looks like you are already %1 for this event. If you want to change your registration, or you feel that you've received this message in error, please contact the site administrator.", [1 => $registrationType]);
+            if ($registrationType == 'waitlisted') {
+              $status = ts("It looks like you are already waitlisted for this event. If you want to change your registration, or you feel that you've received this message in error, please contact the site administrator.");
+            }
+            else {
+              $status = ts("It looks like you are already registered for this event. If you want to change your registration, or you feel that you've received this message in error, please contact the site administrator.");
+            }
             $status .= ' ' . ts('You can also <a href="%1">register another participant</a>.', [1 => $registerUrl]);
             CRM_Core_Session::singleton()->setStatus($status, ts('Oops.'), 'alert');
             $url = CRM_Utils_System::url('civicrm/event/info',

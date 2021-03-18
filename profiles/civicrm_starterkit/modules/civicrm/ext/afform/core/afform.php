@@ -51,7 +51,8 @@ function afform_civicrm_config(&$config) {
 
   Civi::dispatcher()->addListener(Submit::EVENT_NAME, [Submit::class, 'processContacts'], 500);
   Civi::dispatcher()->addListener(Submit::EVENT_NAME, [Submit::class, 'processGenericEntity'], -1000);
-  Civi::dispatcher()->addListener('hook_civicrm_angularModules', '_afform_civicrm_angularModules_autoReq', -1000);
+  Civi::dispatcher()->addListener('hook_civicrm_angularModules', ['\Civi\Afform\AngularDependencyMapper', 'autoReq'], -1000);
+  Civi::dispatcher()->addListener('hook_civicrm_alterAngular', ['\Civi\Afform\AfformMetadataInjector', 'preprocess']);
 }
 
 /**
@@ -127,6 +128,40 @@ function afform_civicrm_upgrade($op, CRM_Queue_Queue $queue = NULL) {
  */
 function afform_civicrm_managed(&$entities) {
   _afform_civix_civicrm_managed($entities);
+
+  /** @var \CRM_Afform_AfformScanner $scanner */
+  if (\Civi::container()->has('afform_scanner')) {
+    $scanner = \Civi::service('afform_scanner');
+  }
+  else {
+    // This might happen at oddballs points - e.g. while you're in the middle of re-enabling the ext.
+    // This AfformScanner instance only lives during this method call, and it feeds off the regular cache.
+    $scanner = new CRM_Afform_AfformScanner();
+  }
+
+  foreach ($scanner->getMetas() as $afform) {
+    if (empty($afform['is_dashlet']) || empty($afform['name'])) {
+      continue;
+    }
+    $entities[] = [
+      'module' => E::LONG_NAME,
+      'name' => 'afform_dashlet_' . $afform['name'],
+      'entity' => 'Dashboard',
+      'update' => 'always',
+      // ideal cleanup policy might be to (a) deactivate if used and (b) remove if unused
+      'cleanup' => 'always',
+      'params' => [
+        'version' => 3,
+        // Q: Should we loop through all domains?
+        'domain_id' => CRM_Core_BAO_Domain::getDomain()->id,
+        'is_active' => TRUE,
+        'name' => $afform['name'],
+        'label' => $afform['title'] ?? ts('(Untitled)'),
+        'directive' => _afform_angular_module_name($afform['name'], 'dash'),
+        'permission' => "@afform:" . $afform['name'],
+      ],
+    ];
+  }
 }
 
 /**
@@ -163,7 +198,7 @@ function afform_civicrm_angularModules(&$angularModules) {
       'partialsCallback' => '_afform_get_partials',
       '_afform' => $afform['name'],
       'exports' => [
-        $afform['directive_name'] => 'AE',
+        $afform['directive_name'] => 'E',
       ],
     ];
   }
@@ -192,212 +227,6 @@ function _afform_get_partials($moduleName, $module) {
   return [
     "~/$moduleName/$moduleName.aff.html" => $afform['layout'],
   ];
-}
-
-/**
- * Scan the list of Angular modules and inject automatic-requirements.
- *
- * TLDR: if an afform uses element "<other-el/>", and if another module defines
- * `$angularModules['otherMod']['exports']['el'][0] === 'other-el'`, then
- * the 'otherMod' is automatically required.
- *
- * @param \Civi\Core\Event\GenericHookEvent $e
- * @see CRM_Utils_Hook::angularModules()
- */
-function _afform_civicrm_angularModules_autoReq($e) {
-  /** @var CRM_Afform_AfformScanner $scanner */
-  $scanner = Civi::service('afform_scanner');
-  $moduleEnvId = md5(\CRM_Core_Config_Runtime::getId() . implode(',', array_keys($e->angularModules)));
-  $depCache = CRM_Utils_Cache::create([
-    'name' => 'afdep_' . substr($moduleEnvId, 0, 32 - 6),
-    'type' => ['*memory*', 'SqlGroup', 'ArrayCache'],
-    'withArray' => 'fast',
-    'prefetch' => TRUE,
-  ]);
-  $depCacheTtl = 2 * 60 * 60;
-
-  $revMap = _afform_reverse_deps($e->angularModules);
-
-  $formNames = array_keys($scanner->findFilePaths());
-  foreach ($formNames as $formName) {
-    $angModule = _afform_angular_module_name($formName, 'camel');
-    $cacheLine = $depCache->get($formName, NULL);
-
-    $jFile = $scanner->findFilePath($formName, 'aff.json');
-    $hFile = $scanner->findFilePath($formName, 'aff.html');
-
-    $jStat = stat($jFile);
-    $hStat = stat($hFile);
-
-    if ($cacheLine === NULL) {
-      $needsUpdate = TRUE;
-    }
-    elseif ($jStat !== FALSE && $jStat['size'] !== $cacheLine['js']) {
-      $needsUpdate = TRUE;
-    }
-    elseif ($jStat !== FALSE && $jStat['mtime'] > $cacheLine['jm']) {
-      $needsUpdate = TRUE;
-    }
-    elseif ($hStat !== FALSE && $hStat['size'] !== $cacheLine['hs']) {
-      $needsUpdate = TRUE;
-    }
-    elseif ($hStat !== FALSE && $hStat['mtime'] > $cacheLine['hm']) {
-      $needsUpdate = TRUE;
-    }
-    else {
-      $needsUpdate = FALSE;
-    }
-
-    if ($needsUpdate) {
-      $cacheLine = [
-        'js' => $jStat['size'] ?? NULL,
-        'jm' => $jStat['mtime'] ?? NULL,
-        'hs' => $hStat['size'] ?? NULL,
-        'hm' => $hStat['mtime'] ?? NULL,
-        'r' => array_values(array_unique(array_merge(
-          [CRM_Afform_AfformScanner::DEFAULT_REQUIRES],
-          $e->angularModules[$angModule]['requires'] ?? [],
-          _afform_reverse_deps_find($formName, file_get_contents($hFile), $revMap)
-        ))),
-      ];
-      // print_r(['cache update:' . $formName => $cacheLine]);
-      $depCache->set($formName, $cacheLine, $depCacheTtl);
-    }
-
-    $e->angularModules[$angModule]['requires'] = $cacheLine['r'];
-  }
-}
-
-/**
- * @param $angularModules
- * @return array
- *   'attr': array(string $attrName => string $angModuleName)
- *   'el': array(string $elementName => string $angModuleName)
- */
-function _afform_reverse_deps($angularModules) {
-  $revMap = ['attr' => [], 'el' => []];
-  foreach (array_keys($angularModules) as $module) {
-    if (!isset($angularModules[$module]['exports'])) {
-      continue;
-    }
-    foreach ($angularModules[$module]['exports'] as $symbolName => $symbolTypes) {
-      if (strpos($symbolTypes, 'A') !== FALSE) {
-        $revMap['attr'][$symbolName] = $module;
-      }
-      if (strpos($symbolTypes, 'E') !== FALSE) {
-        $revMap['el'][$symbolName] = $module;
-      }
-    }
-  }
-  return $revMap;
-}
-
-/**
- * @param string $formName
- * @param string $html
- * @param array $revMap
- *   The reverse-dependencies map from _afform_reverse_deps().
- * @return array
- * @see _afform_reverse_deps()
- */
-function _afform_reverse_deps_find($formName, $html, $revMap) {
-  $symbols = \Civi\Afform\Symbols::scan($html);
-  $elems = array_intersect_key($revMap['el'], $symbols->elements);
-  $attrs = array_intersect_key($revMap['attr'], $symbols->attributes);
-  return array_values(array_unique(array_merge($elems, $attrs)));
-}
-
-/**
- * @param \Civi\Angular\Manager $angular
- * @see CRM_Utils_Hook::alterAngular()
- */
-function afform_civicrm_alterAngular($angular) {
-  $fieldMetadata = \Civi\Angular\ChangeSet::create('fieldMetadata')
-    ->alterHtml(';\\.aff\\.html$;', function($doc, $path) {
-      try {
-        $module = \Civi::service('angular')->getModule(basename($path, '.aff.html'));
-        $meta = \Civi\Api4\Afform::get()->addWhere('name', '=', $module['_afform'])->setSelect(['join', 'block'])->setCheckPermissions(FALSE)->execute()->first();
-      }
-      catch (Exception $e) {
-      }
-
-      $blockEntity = $meta['join'] ?? $meta['block'] ?? NULL;
-      if (!$blockEntity) {
-        $entities = _afform_getMetadata($doc);
-      }
-
-      foreach (pq('af-field', $doc) as $afField) {
-        /** @var DOMElement $afField */
-        $entityName = pq($afField)->parents('[af-fieldset]')->attr('af-fieldset');
-        $joinName = pq($afField)->parents('[af-join]')->attr('af-join');
-        if (!$blockEntity && !preg_match(';^[a-zA-Z0-9\_\-\. ]+$;', $entityName)) {
-          throw new \CRM_Core_Exception("Cannot process $path: malformed entity name ($entityName)");
-        }
-        $entityType = $blockEntity ?? $entities[$entityName]['type'];
-        _af_fill_field_metadata($joinName ? $joinName : $entityType, $afField);
-      }
-    });
-  $angular->add($fieldMetadata);
-}
-
-/**
- * Merge field definition metadata into an afform field's definition
- *
- * @param $entityType
- * @param DOMElement $afField
- * @throws API_Exception
- */
-function _af_fill_field_metadata($entityType, DOMElement $afField) {
-  $params = [
-    'action' => 'create',
-    'where' => [['name', '=', $afField->getAttribute('name')]],
-    'select' => ['title', 'input_type', 'input_attrs', 'options'],
-    'loadOptions' => TRUE,
-  ];
-  if (in_array($entityType, CRM_Contact_BAO_ContactType::basicTypes(TRUE))) {
-    $params['values'] = ['contact_type' => $entityType];
-    $entityType = 'Contact';
-  }
-  $getFields = civicrm_api4($entityType, 'getFields', $params);
-  // Merge field definition data with whatever's already in the markup
-  $deep = ['input_attrs'];
-  foreach ($getFields as $fieldInfo) {
-    $existingFieldDefn = trim(pq($afField)->attr('defn') ?: '');
-    if ($existingFieldDefn && $existingFieldDefn[0] != '{') {
-      // If it's not an object, don't mess with it.
-      continue;
-    }
-    // TODO: Teach the api to return options in this format
-    if (!empty($fieldInfo['options'])) {
-      $fieldInfo['options'] = CRM_Utils_Array::makeNonAssociative($fieldInfo['options'], 'key', 'label');
-    }
-    // Default placeholder for select inputs
-    if ($fieldInfo['input_type'] === 'Select') {
-      $fieldInfo['input_attrs'] = ($fieldInfo['input_attrs'] ?? []) + ['placeholder' => ts('Select')];
-    }
-
-    $fieldDefn = $existingFieldDefn ? CRM_Utils_JS::getRawProps($existingFieldDefn) : [];
-    foreach ($fieldInfo as $name => $prop) {
-      // Merge array props 1 level deep
-      if (in_array($name, $deep) && !empty($fieldDefn[$name])) {
-        $fieldDefn[$name] = CRM_Utils_JS::writeObject(CRM_Utils_JS::getRawProps($fieldDefn[$name]) + array_map(['CRM_Utils_JS', 'encode'], $prop));
-      }
-      elseif (!isset($fieldDefn[$name])) {
-        $fieldDefn[$name] = CRM_Utils_JS::encode($prop);
-      }
-    }
-    pq($afField)->attr('defn', htmlspecialchars(CRM_Utils_JS::writeObject($fieldDefn)));
-  }
-}
-
-function _afform_getMetadata(phpQueryObject $doc) {
-  $entities = [];
-  foreach ($doc->find('af-entity') as $afmModelProp) {
-    $entities[$afmModelProp->getAttribute('name')] = [
-      'type' => $afmModelProp->getAttribute('type'),
-    ];
-  }
-  return $entities;
 }
 
 /**
@@ -504,6 +333,23 @@ function afform_civicrm_permission_check($permission, &$granted, $contactId) {
     if ($afform) {
       $granted = CRM_Core_Permission::check($afform['permission'], $contactId);
     }
+  }
+}
+
+/**
+ * Implements hook_civicrm_permissionList().
+ *
+ * @see CRM_Utils_Hook::permissionList()
+ */
+function afform_civicrm_permissionList(&$permissions) {
+  $scanner = Civi::service('afform_scanner');
+  foreach ($scanner->getMetas() as $name => $meta) {
+    $permissions['@afform:' . $name] = [
+      'group' => 'afform',
+      'title' => ts('Afform: Inherit permission of %1', [
+        1 => $name,
+      ]),
+    ];
   }
 }
 

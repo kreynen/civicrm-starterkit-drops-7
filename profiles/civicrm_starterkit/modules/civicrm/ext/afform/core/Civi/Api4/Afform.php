@@ -16,6 +16,7 @@ use Civi\Api4\Generic\BasicBatchAction;
  *      The `prefill` and `submit` actions are used for preparing forms and processing submissions.
  *
  * @see https://lab.civicrm.org/extensions/afform
+ * @searchable false
  * @package Civi\Api4
  */
 class Afform extends Generic\AbstractEntity {
@@ -53,6 +54,15 @@ class Afform extends Generic\AbstractEntity {
    */
   public static function save($checkPermissions = TRUE) {
     return (new Action\Afform\Save('Afform', __FUNCTION__, 'name'))
+      ->setCheckPermissions($checkPermissions);
+  }
+
+  /**
+   * @param bool $checkPermissions
+   * @return Action\Afform\Convert
+   */
+  public static function convert($checkPermissions = TRUE) {
+    return (new Action\Afform\Convert('Afform', __FUNCTION__))
       ->setCheckPermissions($checkPermissions);
   }
 
@@ -116,7 +126,11 @@ class Afform extends Generic\AbstractEntity {
           'name' => 'name',
         ],
         [
+          'name' => 'type',
+        ],
+        [
           'name' => 'requires',
+          'data_type' => 'Array',
         ],
         [
           'name' => 'block',
@@ -130,6 +144,10 @@ class Afform extends Generic\AbstractEntity {
         ],
         [
           'name' => 'description',
+        ],
+        [
+          'name' => 'is_dashlet',
+          'data_type' => 'Boolean',
         ],
         [
           'name' => 'is_public',
@@ -147,6 +165,7 @@ class Afform extends Generic\AbstractEntity {
         ],
         [
           'name' => 'layout',
+          'data_type' => 'Array',
         ],
       ];
 
@@ -159,9 +178,11 @@ class Afform extends Generic\AbstractEntity {
         ];
         $fields[] = [
           'name' => 'has_local',
+          'data_type' => 'Boolean',
         ];
         $fields[] = [
           'name' => 'has_base',
+          'data_type' => 'Boolean',
         ];
       }
 

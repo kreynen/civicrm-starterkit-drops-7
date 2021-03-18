@@ -5,6 +5,7 @@
   <class>Country</class>
   <name>civicrm_country</name>
   <add>1.1</add>
+  <labelField>name</labelField>
   <field>
     <name>id</name>
     <title>Country ID</title>
@@ -100,6 +101,14 @@
     <default>0</default>
     <comment>Should state/province be displayed as abbreviation for contacts from this country?</comment>
     <add>3.1</add>
+  </field>
+  <field>
+    <name>is_active</name>
+    <title>Country Is Active</title>
+    <type>boolean</type>
+    <default>1</default>
+    <comment>Is this Country active?</comment>
+    <add>5.35</add>
   </field>
   <index>
     <name>UI_name_iso_code</name>

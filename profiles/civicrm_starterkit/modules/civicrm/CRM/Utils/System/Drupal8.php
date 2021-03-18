@@ -827,4 +827,35 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     return FALSE;
   }
 
+  /**
+   * Return the CMS-specific url for its permissions page
+   * @return array
+   */
+  public function getCMSPermissionsUrlParams() {
+    return ['ufAccessURL' => \Drupal\Core\Url::fromRoute('user.admin_permissions')->toString()];
+  }
+
+  /**
+   * Start a new session.
+   */
+  public function sessionStart() {
+    if (\Drupal::hasContainer()) {
+      $session = \Drupal::service('session');
+      if (!$session->isStarted()) {
+        $session->start();
+      }
+    }
+  }
+
+  /**
+   * Load the user object.
+   *
+   * @param int $userID
+   *
+   * @return object
+   */
+  public function getUserObject($userID) {
+    return \Drupal::entityTypeManager()->getStorage('user')->load($userID);
+  }
+
 }

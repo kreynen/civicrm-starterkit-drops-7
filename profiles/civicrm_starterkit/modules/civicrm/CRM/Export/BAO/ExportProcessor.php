@@ -797,11 +797,11 @@ class CRM_Export_BAO_ExportProcessor {
     list($select, $from, $where, $having) = $query->query();
     $this->setQueryFields($query->_fields);
     $whereClauses = ['trash_clause' => "contact_a.is_deleted != 1"];
-    if ($this->getRequestedFields() && $this->getComponentTable() &&  $this->getComponentTable() !== 'civicrm_contact') {
-      $from .= " INNER JOIN " . $this->getComponentTable() . " ctTable ON ctTable.contact_id = contact_a.id ";
-    }
-    elseif ($this->getComponentClause()) {
+    if ($this->getComponentClause()) {
       $whereClauses[] = $this->getComponentClause();
+    }
+    elseif ($this->getRequestedFields() && $this->getComponentTable() &&  $this->getComponentTable() !== 'civicrm_contact') {
+      $from .= " INNER JOIN " . $this->getComponentTable() . " ctTable ON ctTable.contact_id = contact_a.id ";
     }
 
     // CRM-13982 - check if is deleted
@@ -1985,7 +1985,7 @@ SET    addressee = %1, postal_greeting = %2, email_greeting = %3
 WHERE  id = %4
 ";
       $params = [
-        1 => [$values['addressee'], 'String'],
+        1 => [CRM_Utils_String::ellipsify($values['addressee'], 255), 'String'],
         2 => [$values['postalGreeting'], 'String'],
         3 => [$values['emailGreeting'], 'String'],
         4 => [$masterID, 'Integer'],

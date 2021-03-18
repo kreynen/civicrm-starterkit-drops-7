@@ -15,6 +15,7 @@ class {$table.className} extends CRM_Core_DAO {ldelim}
 
      const EXT = {$ext};
      const TABLE_ADDED = '{$table.add}';
+     {if !empty($table.component)}const COMPONENT = '{$table.component}';{/if}
 
      /**
       * Static instance to hold the table name.
@@ -30,6 +31,15 @@ class {$table.className} extends CRM_Core_DAO {ldelim}
       * @var string
       */
       public static $_icon = '{$table.icon}';
+   {/if}
+
+   {if $table.labelField}
+     /**
+      * Field to show when displaying a record.
+      *
+      * @var string
+      */
+      public static $_labelField = '{$table.labelField}';
    {/if}
       /**
        * Should CiviCRM log any modifications to this table in the civicrm_log table.

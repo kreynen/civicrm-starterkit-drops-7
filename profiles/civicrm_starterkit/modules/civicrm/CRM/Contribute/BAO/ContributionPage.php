@@ -45,6 +45,7 @@ class CRM_Contribute_BAO_ContributionPage extends CRM_Contribute_DAO_Contributio
       CRM_Price_BAO_PriceFieldValue::updateFinancialType($params['id'], 'civicrm_contribution_page', $params['financial_type_id']);
     }
     CRM_Utils_Hook::post($hook, 'ContributionPage', $dao->id, $dao);
+    CRM_Core_PseudoConstant::flush();
     return $dao;
   }
 
@@ -363,13 +364,12 @@ class CRM_Contribute_BAO_ContributionPage extends CRM_Contribute_DAO_Contributio
         'contributionStatus' => $values['contribution_status'] ?? NULL,
       ];
 
-      if ($contributionTypeId = CRM_Utils_Array::value('financial_type_id', $values)) {
-        $tplParams['financialTypeId'] = $contributionTypeId;
+      if (!empty($values['financial_type_id'])) {
+        $tplParams['financialTypeId'] = $values['financial_type_id'];
         $tplParams['financialTypeName'] = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialType',
-          $contributionTypeId);
+          $values['financial_type_id']);
         // Legacy support
         $tplParams['contributionTypeName'] = $tplParams['financialTypeName'];
-        $tplParams['contributionTypeId'] = $contributionTypeId;
       }
 
       if ($contributionPageId = CRM_Utils_Array::value('id', $values)) {

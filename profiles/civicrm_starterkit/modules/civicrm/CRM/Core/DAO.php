@@ -53,6 +53,13 @@ class CRM_Core_DAO extends DB_DataObject {
   public static $_icon = NULL;
 
   /**
+   * Field to show when displaying a record.
+   *
+   * @var string
+   */
+  public static $_labelField = NULL;
+
+  /**
    * @var array
    * @deprecated
    */
@@ -126,7 +133,7 @@ class CRM_Core_DAO extends DB_DataObject {
    */
   public static function getEntityTitle() {
     $className = static::class;
-    Civi::log()->warning("$className needs to be regenerated. Missing getEntityTitle method.", ['civi.tag' => 'deprecated']);
+    CRM_Core_Error::deprecatedWarning("$className needs to be regenerated. Missing getEntityTitle method.");
     return CRM_Core_DAO_AllCoreTables::getBriefName($className);
   }
 
@@ -186,16 +193,6 @@ class CRM_Core_DAO extends DB_DataObject {
     }
     $factory = new CRM_Contact_DAO_Factory();
     CRM_Core_DAO::setFactory($factory);
-    $currentModes = CRM_Utils_SQL::getSqlModes();
-    if (CRM_Utils_Constant::value('CIVICRM_MYSQL_STRICT', CRM_Utils_System::isDevelopment())) {
-      if (CRM_Utils_SQL::supportsFullGroupBy() && !in_array('ONLY_FULL_GROUP_BY', $currentModes) && CRM_Utils_SQL::isGroupByModeInDefault()) {
-        $currentModes[] = 'ONLY_FULL_GROUP_BY';
-      }
-      if (!in_array('STRICT_TRANS_TABLES', $currentModes)) {
-        $currentModes = array_merge(['STRICT_TRANS_TABLES'], $currentModes);
-      }
-      CRM_Core_DAO::executeQuery("SET SESSION sql_mode = %1", [1 => [implode(',', $currentModes), 'String']]);
-    }
     CRM_Core_DAO::executeQuery('SET NAMES utf8mb4');
     CRM_Core_DAO::executeQuery('SET @uniqueID = %1', [1 => [CRM_Utils_Request::id(), 'String']]);
   }
@@ -530,8 +527,7 @@ class CRM_Core_DAO extends DB_DataObject {
    * Returns list of FK relationships.
    *
    *
-   * @return array
-   *   Array of CRM_Core_Reference_Interface
+   * @return CRM_Core_Reference_Basic[]
    */
   public static function getReferenceColumns() {
     return [];
@@ -616,9 +612,11 @@ class CRM_Core_DAO extends DB_DataObject {
    * @return CRM_Core_DAO
    */
   public function save($hook = TRUE) {
+    $eventID = uniqid();
     if (!empty($this->id)) {
       if ($hook) {
         $preEvent = new \Civi\Core\DAO\Event\PreUpdate($this);
+        $preEvent->eventID = $eventID;
         \Civi::dispatcher()->dispatch("civi.dao.preUpdate", $preEvent);
       }
 
@@ -626,6 +624,7 @@ class CRM_Core_DAO extends DB_DataObject {
 
       if ($hook) {
         $event = new \Civi\Core\DAO\Event\PostUpdate($this, $result);
+        $event->eventID = $eventID;
         \Civi::dispatcher()->dispatch("civi.dao.postUpdate", $event);
       }
       $this->clearDbColumnValueCache();
@@ -633,6 +632,7 @@ class CRM_Core_DAO extends DB_DataObject {
     else {
       if ($hook) {
         $preEvent = new \Civi\Core\DAO\Event\PreUpdate($this);
+        $preEvent->eventID = $eventID;
         \Civi::dispatcher()->dispatch("civi.dao.preInsert", $preEvent);
       }
 
@@ -640,6 +640,7 @@ class CRM_Core_DAO extends DB_DataObject {
 
       if ($hook) {
         $event = new \Civi\Core\DAO\Event\PostUpdate($this, $result);
+        $event->eventID = $eventID;
         \Civi::dispatcher()->dispatch("civi.dao.postInsert", $event);
       }
     }
@@ -2282,41 +2283,21 @@ SELECT contact_id
     if (\Civi::settings()->get('logging_no_trigger_permission')) {
       return TRUE;
     }
-    // test for create view and trigger permissions and if allowed, add the option to go multilingual
-    // and logging
-    // I'm not sure why we use the getStaticProperty for an error, rather than checking for DB_Error
-    CRM_Core_TemporaryErrorScope::ignoreException();
+    // test for create view and trigger permissions and if allowed, add the option to go multilingual and logging
     $dao = new CRM_Core_DAO();
-    if ($view) {
-      $result = $dao->query('CREATE OR REPLACE VIEW civicrm_domain_view AS SELECT * FROM civicrm_domain');
-      if (PEAR::getStaticProperty('DB_DataObject', 'lastError') || is_a($result, 'DB_Error')) {
-        return FALSE;
+    try {
+      if ($view) {
+        $dao->query('CREATE OR REPLACE VIEW civicrm_domain_view AS SELECT * FROM civicrm_domain');
+        $dao->query('DROP VIEW IF EXISTS civicrm_domain_view');
+      }
+
+      if ($trigger) {
+        $dao->query('CREATE TRIGGER civicrm_domain_trigger BEFORE INSERT ON civicrm_domain FOR EACH ROW BEGIN END');
+        $dao->query('DROP TRIGGER IF EXISTS civicrm_domain_trigger');
       }
     }
-
-    if ($trigger) {
-      $result = $dao->query('CREATE TRIGGER civicrm_domain_trigger BEFORE INSERT ON civicrm_domain FOR EACH ROW BEGIN END');
-      if (PEAR::getStaticProperty('DB_DataObject', 'lastError') || is_a($result, 'DB_Error')) {
-        if ($view) {
-          $dao->query('DROP VIEW IF EXISTS civicrm_domain_view');
-        }
-        return FALSE;
-      }
-
-      $dao->query('DROP TRIGGER IF EXISTS civicrm_domain_trigger');
-      if (PEAR::getStaticProperty('DB_DataObject', 'lastError')) {
-        if ($view) {
-          $dao->query('DROP VIEW IF EXISTS civicrm_domain_view');
-        }
-        return FALSE;
-      }
-    }
-
-    if ($view) {
-      $dao->query('DROP VIEW IF EXISTS civicrm_domain_view');
-      if (PEAR::getStaticProperty('DB_DataObject', 'lastError')) {
-        return FALSE;
-      }
+    catch (Exception $e) {
+      return FALSE;
     }
 
     return TRUE;
@@ -2782,6 +2763,22 @@ SELECT contact_id
    */
   public static function createSQLFilter($fieldName, $filter, $type = NULL, $alias = NULL, $returnSanitisedArray = FALSE) {
     foreach ($filter as $operator => $criteria) {
+      if (!CRM_Core_BAO_SchemaHandler::databaseSupportsUTF8MB4()) {
+        foreach ((array) $criteria as $criterion) {
+          if (!empty($criterion) && !is_numeric($criterion)
+            // The first 2 criteria are redundant but are added as they
+            // seem like they would
+            // be quicker than this 3rd check.
+            && max(array_map('ord', str_split($criterion))) >= 240) {
+            // String contains unsupported emojis.
+            // We return a clause that resolves to false as an emoji string by definition cannot be saved.
+            // note that if we return just 0 for false if gets lost in empty checks.
+            // https://stackoverflow.com/questions/16496554/can-php-detect-4-byte-encoded-utf8-chars
+            return '0 = 1';
+          }
+        }
+      }
+
       if (in_array($operator, self::acceptedSQLOperators(), TRUE)) {
         switch ($operator) {
           // unary operators

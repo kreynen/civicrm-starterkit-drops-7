@@ -360,7 +360,7 @@ class CRM_Utils_Check_Component_Env extends CRM_Utils_Check_Component {
 
     foreach ($settingNames as $settingName) {
       $settingValue = Civi::settings()->get($settingName);
-      if (!empty($settingValue) && $settingValue{0} != '[') {
+      if (!empty($settingValue) && $settingValue[0] != '[') {
         $hasOldStyle = TRUE;
         break;
       }
@@ -399,7 +399,7 @@ class CRM_Utils_Check_Component_Env extends CRM_Utils_Check_Component {
 
     foreach ($settingNames as $settingName) {
       $settingValue = Civi::settings()->get($settingName);
-      if (!empty($settingValue) && $settingValue{0} != '[') {
+      if (!empty($settingValue) && $settingValue[0] != '[') {
         $hasOldStyle = TRUE;
         break;
       }
@@ -620,23 +620,16 @@ class CRM_Utils_Check_Component_Env extends CRM_Utils_Check_Component {
 
         case CRM_Extension_Manager::STATUS_INSTALLED:
           if (!empty($remotes[$key]) && version_compare($row['version'], $remotes[$key]->version, '<')) {
-            $updates[] = ts('%1 (%2) version %3 is installed. <a %4>Upgrade to version %5</a>.', [
-              1 => $row['label'] ?? NULL,
-              2 => $key,
-              3 => $row['version'],
-              4 => 'href="' . CRM_Utils_System::url('civicrm/admin/extensions', "action=update&id=$key&key=$key") . '"',
-              5 => $remotes[$key]->version,
-            ]);
+            $updates[] = $row['label'] . ': ' . $mapper->getUpgradeLink($remotes[$key], $row);
           }
           else {
             if (empty($row['label'])) {
               $okextensions[] = $key;
             }
             else {
-              $okextensions[] = ts('%1 (%2) version %3', [
+              $okextensions[] = ts('%1: Version %2', [
                 1 => $row['label'],
-                2 => $key,
-                3 => $row['version'],
+                2 => $row['version'],
               ]);
             }
           }
@@ -960,6 +953,21 @@ class CRM_Utils_Check_Component_Env extends CRM_Utils_Check_Component {
         __FUNCTION__,
         ts('This system currently does not have the PHP-Intl extension enabled.  Please contact your system administrator about getting the extension enabled.'),
         ts('Missing PHP Extension: INTL'),
+        \Psr\Log\LogLevel::WARNING,
+        'fa-server'
+      );
+    }
+    return $messages;
+  }
+
+  public function checkWkHtmlToPDFPath() {
+    $messages = [];
+    $wkhtmltopdfPath = CRM_Core_Config::singleton()->wkhtmltopdfPath;
+    if (!empty($wkhtmltopdfPath) && !file_exists($wkhtmltopdfPath)) {
+      $messages[] = new CRM_Utils_Check_Message(
+        __FUNCTION__,
+        ts('CiviCRM is configured to use the wkhtmltopdf package to produce PDFs however it is missing, as such the system will fall back to using the DOMPDF package, this may mean that the output is different to what was expected. You should resolve this by either clearing the setting at Administer -> System Settings -> Miscellaneous or by getting your system administrator to install the wkhtmltopdf package'),
+        ts('Missing System Package: wkhtmltopdf'),
         \Psr\Log\LogLevel::WARNING,
         'fa-server'
       );

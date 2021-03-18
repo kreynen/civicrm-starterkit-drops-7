@@ -353,7 +353,7 @@ class CRM_Event_Import_Parser_Participant extends CRM_Event_Import_Parser {
           ];
           $participantValues = [];
           //@todo calling api functions directly is not supported
-          $newParticipant = _civicrm_api3_deprecated_participant_check_params($formatted, $participantValues, FALSE);
+          $newParticipant = $this->deprecated_participant_check_params($formatted, $participantValues, FALSE);
           if ($newParticipant['error_message']) {
             array_unshift($values, $newParticipant['error_message']);
             return CRM_Import_Parser::ERROR;
@@ -386,7 +386,7 @@ class CRM_Event_Import_Parser_Participant extends CRM_Event_Import_Parser {
           foreach ($matchedIDs as $contactId) {
             $formatted['contact_id'] = $contactId;
             $formatted['version'] = 3;
-            $newParticipant = _civicrm_api3_deprecated_create_participant_formatted($formatted, $onDuplicate);
+            $newParticipant = $this->deprecated_create_participant_formatted($formatted, $onDuplicate);
           }
         }
       }
@@ -435,7 +435,7 @@ class CRM_Event_Import_Parser_Participant extends CRM_Event_Import_Parser {
         }
       }
 
-      $newParticipant = _civicrm_api3_deprecated_create_participant_formatted($formatted, $onDuplicate);
+      $newParticipant = $this->deprecated_create_participant_formatted($formatted, $onDuplicate);
     }
 
     if (is_array($newParticipant) && civicrm_error($newParticipant)) {
@@ -623,6 +623,86 @@ class CRM_Event_Import_Parser_Participant extends CRM_Event_Import_Parser {
     }
 
     return NULL;
+  }
+
+  /**
+   * @param array $params
+   * @param $onDuplicate
+   *
+   * @return array|bool
+   *   <type>
+   * @throws \CiviCRM_API3_Exception
+   * @deprecated - this is part of the import parser not the API & needs to be
+   *   moved on out
+   *
+   */
+  protected function deprecated_create_participant_formatted($params, $onDuplicate) {
+    if ($onDuplicate != CRM_Import_Parser::DUPLICATE_NOCHECK) {
+      CRM_Core_Error::reset();
+      $error = $this->deprecated_participant_check_params($params, TRUE);
+      if (civicrm_error($error)) {
+        return $error;
+      }
+    }
+    return civicrm_api3('Participant', 'create', $params);
+  }
+
+  /**
+   * Formatting that was written a long time ago and may not make sense now.
+   *
+   * @param array $params
+   *
+   * @param bool $checkDuplicate
+   *
+   * @return array|bool
+   */
+  protected function deprecated_participant_check_params($params, $checkDuplicate = FALSE) {
+
+    // check if participant id is valid or not
+    if (!empty($params['id'])) {
+      $participant = new CRM_Event_BAO_Participant();
+      $participant->id = $params['id'];
+      if (!$participant->find(TRUE)) {
+        return civicrm_api3_create_error(ts('Participant  id is not valid'));
+      }
+    }
+
+    // check if contact id is valid or not
+    if (!empty($params['contact_id'])) {
+      $contact = new CRM_Contact_BAO_Contact();
+      $contact->id = $params['contact_id'];
+      if (!$contact->find(TRUE)) {
+        return civicrm_api3_create_error(ts('Contact id is not valid'));
+      }
+    }
+
+    // check that event id is not an template
+    if (!empty($params['event_id'])) {
+      $isTemplate = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $params['event_id'], 'is_template');
+      if (!empty($isTemplate)) {
+        return civicrm_api3_create_error(ts('Event templates are not meant to be registered.'));
+      }
+    }
+
+    $result = [];
+    if ($checkDuplicate) {
+      if (CRM_Event_BAO_Participant::checkDuplicate($params, $result)) {
+        $participantID = array_pop($result);
+
+        $error = CRM_Core_Error::createError("Found matching participant record.",
+          CRM_Core_Error::DUPLICATE_PARTICIPANT,
+          'Fatal', $participantID
+        );
+
+        return civicrm_api3_create_error($error->pop(),
+          [
+            'contactID' => $params['contact_id'],
+            'participantID' => $participantID,
+          ]
+        );
+      }
+    }
+    return TRUE;
   }
 
 }
