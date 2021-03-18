@@ -15,7 +15,7 @@
       this.selectedRows = [];
       this.limit = CRM.cache.get('searchPageSize', 30);
       this.page = 1;
-      this.displayTypes = _.indexBy(CRM.crmSearchAdmin.displayTypes, 'name');
+      this.displayTypes = _.indexBy(CRM.crmSearchAdmin.displayTypes, 'id');
       // After a search this.results is an object of result arrays keyed by page,
       // Initially this.results is an empty string because 1: it's falsey (unlike an empty object) and 2: it doesn't throw an error if you try to access undefined properties (unlike null)
       this.results = '';
@@ -245,20 +245,14 @@
             _.each(_.cloneDeep(join.conditions), function(condition) {
               params.push(condition);
             });
+            _.each(_.cloneDeep(join.defaults), function(condition) {
+              params.push(condition);
+            });
             ctrl.savedSearch.api_params.join.push(params);
             loadFieldOptions();
           }
           $scope.controls.join = '';
         });
-      };
-
-      $scope.changeJoin = function(idx) {
-        if (ctrl.savedSearch.api_params.join[idx][0]) {
-          ctrl.savedSearch.api_params.join[idx].length = 2;
-          loadFieldOptions();
-        } else {
-          ctrl.clearParam('join', idx);
-        }
       };
 
       $scope.changeGroupBy = function(idx) {
@@ -396,16 +390,23 @@
           ctrl.page = 1;
           ctrl.rowCount = false;
         }
-        if (ctrl.rowCount === false) {
-          params.select.push('row_count');
-        }
         params.offset = ctrl.limit * (ctrl.page - 1);
         crmApi4(ctrl.savedSearch.api_entity, 'get', params).then(function(success) {
           if (ctrl.stale) {
             ctrl.results = {};
-          }
-          if (ctrl.rowCount === false) {
-            ctrl.rowCount = success.count;
+            // Get row count for pager
+            if (success.length < params.limit) {
+              ctrl.rowCount = success.count;
+            } else {
+              var countParams = _.cloneDeep(params);
+              // Select is only needed needed by HAVING
+              countParams.select = countParams.having && countParams.having.length ? countParams.select : [];
+              countParams.select.push('row_count');
+              delete countParams.debug;
+              crmApi4(ctrl.savedSearch.api_entity, 'get', countParams).then(function(result) {
+                ctrl.rowCount = result.count;
+              });
+            }
           }
           ctrl.debug = success.debug;
           // populate this page & the next
@@ -537,7 +538,9 @@
         // If more than one page of results, use ajax to fetch all ids
         $scope.loadingAllRows = true;
         var params = _.cloneDeep(ctrl.savedSearch.api_params);
-        params.select = ['id'];
+        // Select is only needed needed by HAVING
+        params.select = params.having && params.having.length ? params.select : [];
+        params.select.push('id');
         crmApi4(ctrl.savedSearch.api_entity, 'get', params, ['id']).then(function(ids) {
           $scope.loadingAllRows = false;
           ctrl.selectedRows = _.toArray(ids);
@@ -578,7 +581,7 @@
 
       $scope.formatResult = function(row, col) {
         var info = searchMeta.parseExpr(col),
-          value = row[info.alias];
+          value = row[info.alias + info.suffix];
         if (info.fn && info.fn.name === 'COUNT') {
           return value;
         }
@@ -656,7 +659,8 @@
 
       $scope.fieldsForHaving = function() {
         return {results: _.transform(ctrl.savedSearch.api_params.select, function(fields, name) {
-          fields.push({id: name, text: ctrl.getFieldLabel(name)});
+          var info = searchMeta.parseExpr(name);
+          fields.push({id: info.alias + info.suffix, text: ctrl.getFieldLabel(name)});
         })};
       };
 

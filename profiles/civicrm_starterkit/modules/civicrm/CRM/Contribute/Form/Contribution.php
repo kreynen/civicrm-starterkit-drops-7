@@ -682,7 +682,7 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
 
     // CRM-16189, add Revenue Recognition Date
     if (Civi::settings()->get('deferred_revenue_enabled')) {
-      $revenueDate = $this->add('date', 'revenue_recognition_date', ts('Revenue Recognition Date'), CRM_Core_SelectValues::date(NULL, 'M Y', NULL, 5));
+      $revenueDate = $this->add('datepicker', 'revenue_recognition_date', ts('Revenue Recognition Date'), [], FALSE, ['time' => FALSE]);
       if ($this->_id && !CRM_Contribute_BAO_Contribution::allowUpdateRevenueRecognitionDate($this->_id)) {
         $revenueDate->freeze();
       }
@@ -1543,12 +1543,8 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
       }
 
       $params['revenue_recognition_date'] = NULL;
-      if (!empty($formValues['revenue_recognition_date'])
-        && count(array_filter($formValues['revenue_recognition_date'])) == 2
-      ) {
-        $params['revenue_recognition_date'] = CRM_Utils_Date::processDate(
-          '01-' . implode('-', $formValues['revenue_recognition_date'])
-        );
+      if (!empty($formValues['revenue_recognition_date'])) {
+        $params['revenue_recognition_date'] = $formValues['revenue_recognition_date'];
       }
 
       if (!empty($formValues['is_email_receipt'])) {
@@ -1571,6 +1567,8 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
         $params['is_pay_later'] = 1;
       }
       elseif ($params['contribution_status_id'] == CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed')) {
+        // @todo - if the contribution is new then it should be Pending status & then we use
+        // Payment.create to update to Completed.
         $params['is_pay_later'] = 0;
       }
 
@@ -1601,6 +1599,9 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
 
       // process associated membership / participant, CRM-4395
       if ($contribution->id && $action & CRM_Core_Action::UPDATE) {
+        // @todo use Payment.create to do this, remove transitioncomponents function
+        // if contribution is being created with a completed status it should be
+        // created pending & then Payment.create adds the payment
         CRM_Contribute_BAO_Contribution::transitionComponents([
           'contribution_id' => $contribution->id,
           'contribution_status_id' => $contribution->contribution_status_id,

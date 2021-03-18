@@ -7270,6 +7270,11 @@
 	}
 }
 
+#bootstrap-theme ul, #bootstrap-theme ol {
+	margin-left: 0;
+	margin-right: 0;
+}
+
 #bootstrap-theme .form-control.checkbox-inline > label {
 	margin-left: 9px;
 }
@@ -7280,6 +7285,10 @@
 
 #bootstrap-theme .select2-choices {
 	margin-bottom: 0;
+}
+
+#bootstrap-theme input[type="search"]::-webkit-search-cancel-button {
+	-webkit-appearance: searchfield-cancel-button;
 }
 
 #bootstrap-theme .form-control .select2-choice {

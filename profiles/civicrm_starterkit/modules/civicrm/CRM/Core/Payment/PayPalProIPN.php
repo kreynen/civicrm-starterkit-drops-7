@@ -257,22 +257,16 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     $recur->save();
 
     if ($sendNotification) {
-      $autoRenewMembership = FALSE;
-      if ($recur->id &&
-        isset($ids['membership']) && $ids['membership']
-      ) {
-        $autoRenewMembership = TRUE;
-      }
       //send recurring Notification email for user
       CRM_Contribute_BAO_ContributionPage::recurringNotify($subscriptionPaymentStatus,
         $ids['contact'],
         $ids['contributionPage'],
         $recur,
-        $autoRenewMembership
+        !empty($ids['membership'])
       );
     }
 
-    if ($txnType != 'recurring_payment') {
+    if ($txnType !== 'recurring_payment') {
       return;
     }
 
@@ -280,7 +274,6 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
     $contribution->receive_date = !empty($input['payment_date']) ? date('YmdHis', strtotime($input['payment_date'])) : $now;
 
     $this->single($input, [
-      'related_contact' => $ids['related_contact'] ?? NULL,
       'participant' => $ids['participant'] ?? NULL,
       'contributionRecur' => $recur->id ?? NULL,
     ], $contribution, TRUE, $first);
@@ -402,7 +395,7 @@ class CRM_Core_Payment_PayPalProIPN extends CRM_Core_Payment_BaseIPN {
         $this->handlePaymentExpress();
         return;
       }
-      $objects = $ids = $input = [];
+      $ids = $input = [];
       $this->_component = $input['component'] = self::getValue('m');
       $input['invoice'] = self::getValue('i', TRUE);
       // get the contribution and contact ids from the GET params
@@ -468,19 +461,6 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
         $ids['contact'] = $contribution->contact_id;
       }
 
-      if (!empty($ids['contributionRecur'])) {
-        $contributionRecur = new CRM_Contribute_BAO_ContributionRecur();
-        $contributionRecur->id = $ids['contributionRecur'];
-        if (!$contributionRecur->find(TRUE)) {
-          CRM_Core_Error::debug_log_message("Could not find contribution recur record: {$ids['ContributionRecur']} in IPN request: " . print_r($input, TRUE));
-          echo "Failure: Could not find contribution recur record: {$ids['ContributionRecur']}<p>";
-          return;
-        }
-      }
-
-      $objects['contact'] = &$contact;
-      $objects['contribution'] = &$contribution;
-
       // CRM-19478: handle oddity when p=null is set in place of contribution page ID,
       if (!empty($ids['contributionPage']) && !is_numeric($ids['contributionPage'])) {
         // We don't need to worry if about removing contribution page id as it will be set later in
@@ -488,28 +468,33 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
         unset($ids['contributionPage']);
       }
 
-      if (!$this->loadObjects($input, $ids, $objects, TRUE, $paymentProcessorID)) {
-        return;
-      }
+      $ids['paymentProcessor'] = $paymentProcessorID;
+      $contribution->loadRelatedObjects($input, $ids);
 
       $input['payment_processor_id'] = $paymentProcessorID;
 
       if ($ids['contributionRecur']) {
+        $contributionRecur = new CRM_Contribute_BAO_ContributionRecur();
+        $contributionRecur->id = $ids['contributionRecur'];
+        if (!$contributionRecur->find(TRUE)) {
+          CRM_Core_Error::debug_log_message("Could not find contribution recur record: {$ids['ContributionRecur']} in IPN request: " . print_r($input, TRUE));
+          echo "Failure: Could not find contribution recur record: {$ids['ContributionRecur']}<p>";
+          return;
+        }
         // check if first contribution is completed, else complete first contribution
         $first = TRUE;
         $completedStatusId = CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Completed');
-        if ($objects['contribution']->contribution_status_id == $completedStatusId) {
+        if ($contribution->contribution_status_id == $completedStatusId) {
           $first = FALSE;
         }
-        $this->recur($input, $ids, $objects['contributionRecur'], $objects['contribution'], $first);
+        $this->recur($input, $ids, $contributionRecur, $contribution, $first);
         return;
       }
 
       $this->single($input, [
-        'related_contact' => $ids['related_contact'] ?? NULL,
         'participant' => $ids['participant'] ?? NULL,
         'contributionRecur' => $ids['contributionRecur'] ?? NULL,
-      ], $objects['contribution'], FALSE, FALSE);
+      ], $contribution, FALSE, FALSE);
     }
     catch (CRM_Core_Exception $e) {
       Civi::log()->debug($e->getMessage());
@@ -646,9 +631,11 @@ INNER JOIN civicrm_membership_payment mp ON m.id = mp.membership_id AND mp.contr
       unset($ids['contributionPage']);
     }
 
-    if (!$this->loadObjects($input, $ids, $objects, TRUE, $paymentProcessorID)) {
-      throw new CRM_Core_Exception('Data did not validate');
-    }
+    $contribution = &$objects['contribution'];
+    $ids['paymentProcessor'] = $paymentProcessorID;
+    $contribution->loadRelatedObjects($input, $ids);
+    $objects = array_merge($objects, $contribution->_relatedObjects);
+
     $this->recur($input, $ids, $objects['contributionRecur'], $objects['contribution'], $isFirst);
   }
 

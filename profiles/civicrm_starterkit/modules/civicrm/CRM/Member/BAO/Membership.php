@@ -9,6 +9,9 @@
  +--------------------------------------------------------------------+
  */
 
+use Civi\API\Exception\UnauthorizedException;
+use Civi\Api4\MembershipType;
+
 /**
  *
  * @package CRM
@@ -1572,25 +1575,35 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
    * @param int $contactID
    * @param bool $activeOnly
    *
-   * @return null|string
+   * @return int
+   * @throws \API_Exception
    */
-  public static function getContactMembershipCount($contactID, $activeOnly = FALSE) {
-    CRM_Financial_BAO_FinancialType::getAvailableMembershipTypes($membershipTypes);
-    $addWhere = " AND membership_type_id IN (0)";
-    if (!empty($membershipTypes)) {
-      $addWhere = " AND membership_type_id IN (" . implode(',', array_keys($membershipTypes)) . ")";
-    }
-    $select = "SELECT count(*) FROM civicrm_membership ";
-    $where = "WHERE civicrm_membership.contact_id = {$contactID} AND civicrm_membership.is_test = 0 ";
+  public static function getContactMembershipCount(int $contactID, $activeOnly = FALSE): int {
+    try {
+      $membershipTypes = MembershipType::get(TRUE)
+        ->execute()
+        ->indexBy('id')
+        ->column('name');
+      $addWhere = " AND membership_type_id IN (0)";
+      if (!empty($membershipTypes)) {
+        $addWhere = " AND membership_type_id IN (" . implode(',', array_keys($membershipTypes)) . ")";
+      }
 
-    // CRM-6627, all status below 3 (active, pending, grace) are considered active
-    if ($activeOnly) {
-      $select .= " INNER JOIN civicrm_membership_status ON civicrm_membership.status_id = civicrm_membership_status.id ";
-      $where .= " and civicrm_membership_status.is_current_member = 1";
-    }
+      $select = "SELECT COUNT(*) FROM civicrm_membership ";
+      $where = "WHERE civicrm_membership.contact_id = {$contactID} AND civicrm_membership.is_test = 0 ";
 
-    $query = $select . $where . $addWhere;
-    return CRM_Core_DAO::singleValueQuery($query);
+      // CRM-6627, all status below 3 (active, pending, grace) are considered active
+      if ($activeOnly) {
+        $select .= " INNER JOIN civicrm_membership_status ON civicrm_membership.status_id = civicrm_membership_status.id ";
+        $where .= " and civicrm_membership_status.is_current_member = 1";
+      }
+
+      $query = $select . $where . $addWhere;
+      return (int) CRM_Core_DAO::singleValueQuery($query);
+    }
+    catch (UnauthorizedException $e) {
+      return 0;
+    }
   }
 
   /**

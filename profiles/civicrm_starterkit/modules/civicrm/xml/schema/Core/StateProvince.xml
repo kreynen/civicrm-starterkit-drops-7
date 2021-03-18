@@ -7,6 +7,7 @@
   <add>1.1</add>
   <title>State/Province</title>
   <titlePlural>States/Provinces</titlePlural>
+  <labelField>name</labelField>
   <field>
     <name>id</name>
     <title>State ID</title>
@@ -52,6 +53,14 @@
     <key>id</key>
     <add>1.1</add>
   </foreignKey>
+  <field>
+    <name>is_active</name>
+    <title>StateProvince Is Active</title>
+    <type>boolean</type>
+    <default>1</default>
+    <comment>Is this StateProvince active?</comment>
+    <add>5.35</add>
+  </field>
   <index>
     <name>UI_name_country_id</name>
     <fieldName>name</fieldName>

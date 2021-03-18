@@ -126,7 +126,11 @@ class Afform extends Generic\AbstractEntity {
           'name' => 'name',
         ],
         [
+          'name' => 'type',
+        ],
+        [
           'name' => 'requires',
+          'data_type' => 'Array',
         ],
         [
           'name' => 'block',
@@ -161,6 +165,7 @@ class Afform extends Generic\AbstractEntity {
         ],
         [
           'name' => 'layout',
+          'data_type' => 'Array',
         ],
       ];
 
@@ -173,9 +178,11 @@ class Afform extends Generic\AbstractEntity {
         ];
         $fields[] = [
           'name' => 'has_local',
+          'data_type' => 'Boolean',
         ];
         $fields[] = [
           'name' => 'has_base',
+          'data_type' => 'Boolean',
         ];
       }
 

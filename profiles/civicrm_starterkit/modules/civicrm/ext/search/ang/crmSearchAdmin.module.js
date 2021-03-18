@@ -116,17 +116,21 @@
         // Add the numbered suffix to the join conditions
         // If this is a deep join, also add the base entity prefix
         var prefix = alias.replace(new RegExp('_?' + join.alias + '_?\\d?\\d?$'), '');
-        _.each(result.conditions, function(condition) {
+        function replaceRefs(condition) {
           if (_.isArray(condition)) {
             _.each(condition, function(ref, side) {
-              if (side !== 1 && _.includes(ref, '.')) {
-                condition[side] = ref.replace(join.alias + '.', alias + '.');
-              } else if (side !== 1 && prefix.length && !_.includes(ref, '"') && !_.includes(ref, "'")) {
-                condition[side] = prefix + '.' + ref;
+              if (side !== 1 && typeof ref === 'string') {
+                if (_.includes(ref, '.')) {
+                  condition[side] = ref.replace(join.alias + '.', alias + '.');
+                } else if (prefix.length && !_.includes(ref, '"') && !_.includes(ref, "'")) {
+                  condition[side] = prefix + '.' + ref;
+                }
               }
             });
           }
-        });
+        }
+        _.each(result.conditions, replaceRefs);
+        _.each(result.defaults, replaceRefs);
         return result;
       }
       function getFieldAndJoin(fieldName, entityName) {
@@ -166,7 +170,7 @@
           return;
         }
         var splitAs = expr.split(' AS '),
-          info = {fn: null, modifier: ''},
+          info = {fn: null, modifier: '', field: {}},
           fieldName = splitAs[0],
           bracketPos = splitAs[0].indexOf('(');
         if (bracketPos >= 0) {
@@ -184,7 +188,7 @@
           info.suffix = !split[1] ? '' : ':' + split[1];
           info.field = fieldAndJoin.field;
           info.join = fieldAndJoin.join;
-          info.alias = splitAs[1] || (info.fn ? info.fn.name + ':' + info.path + info.suffix : split[0]);
+          info.alias = splitAs[1] || (info.fn ? info.fn.name + ':' + info.path : split[0]);
         }
         return info;
       }

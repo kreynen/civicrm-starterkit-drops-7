@@ -8,6 +8,9 @@
       settings: '<',
       filters: '<'
     },
+    require: {
+      afFieldset: '?^^afFieldset'
+    },
     templateUrl: '~/crmSearchDisplayTable/crmSearchDisplayTable.html',
     controller: function($scope, crmApi4, searchDisplayUtils) {
       var ts = $scope.ts = CRM.ts(),
@@ -22,18 +25,21 @@
         this.apiParams.limit = parseInt(this.settings.limit || 0, 10);
         this.columns = searchDisplayUtils.prepareColumns(this.settings.columns, this.apiParams);
         $scope.displayUtils = searchDisplayUtils;
+
+        if (this.afFieldset) {
+          $scope.$watch(this.afFieldset.getFieldData, this.getResults, true);
+        }
+        $scope.$watch('$ctrl.filters', ctrl.getResults, true);
       };
 
-      this.getResults = function() {
-        var params = searchDisplayUtils.prepareParams(ctrl.apiParams, ctrl.filters, ctrl.settings.pager ? ctrl.page : null);
+      this.getResults = _.debounce(function() {
+        var params = searchDisplayUtils.prepareParams(ctrl);
 
         crmApi4(ctrl.apiEntity, 'get', params).then(function(results) {
           ctrl.results = results;
           ctrl.rowCount = results.count;
         });
-      };
-
-      $scope.$watch('$ctrl.filters', ctrl.getResults, true);
+      }, 100);
 
       /**
        * Returns crm-i icon class for a sortable column
@@ -76,14 +82,16 @@
         }
         // Select all
         ctrl.allRowsSelected = true;
-        if (ctrl.page === 1 && ctrl.results[1].length < ctrl.apiParams.limit) {
-          ctrl.selectedRows = _.pluck(ctrl.results[1], 'id');
+        if (ctrl.page === 1 && ctrl.results.length < ctrl.apiParams.limit) {
+          ctrl.selectedRows = _.pluck(ctrl.results, 'id');
           return;
         }
         // If more than one page of results, use ajax to fetch all ids
         $scope.loadingAllRows = true;
         var params = _.cloneDeep(ctrl.apiParams);
-        params.select = ['id'];
+        delete params.limit;
+        // Select only ids unless HAVING clause is present
+        params.select = params.having && params.having.length? params.select : ['id'];
         crmApi4(ctrl.apiEntity, 'get', params, ['id']).then(function(ids) {
           $scope.loadingAllRows = false;
           ctrl.selectedRows = _.toArray(ids);

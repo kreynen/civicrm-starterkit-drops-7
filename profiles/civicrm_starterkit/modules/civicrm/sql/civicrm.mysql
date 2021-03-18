@@ -1756,7 +1756,8 @@ CREATE TABLE `civicrm_country` (
      `idd_prefix` varchar(4)    COMMENT 'International direct dialing prefix from within the country TO another country',
      `ndd_prefix` varchar(4)    COMMENT 'Access prefix to call within a country to a different area',
      `region_id` int unsigned NOT NULL   COMMENT 'Foreign key to civicrm_worldregion.id.',
-     `is_province_abbreviated` tinyint   DEFAULT 0 COMMENT 'Should state/province be displayed as abbreviation for contacts from this country?' 
+     `is_province_abbreviated` tinyint   DEFAULT 0 COMMENT 'Should state/province be displayed as abbreviation for contacts from this country?',
+     `is_active` tinyint   DEFAULT 1 COMMENT 'Is this Country active?' 
 ,
         PRIMARY KEY (`id`)
  
@@ -2341,7 +2342,8 @@ CREATE TABLE `civicrm_state_province` (
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'State/Province ID',
      `name` varchar(64)    COMMENT 'Name of State/Province',
      `abbreviation` varchar(4)    COMMENT '2-4 Character Abbreviation of State/Province',
-     `country_id` int unsigned NOT NULL   COMMENT 'ID of Country that State/Province belong' 
+     `country_id` int unsigned NOT NULL   COMMENT 'ID of Country that State/Province belong',
+     `is_active` tinyint   DEFAULT 1 COMMENT 'Is this StateProvince active?' 
 ,
         PRIMARY KEY (`id`)
  
@@ -3319,7 +3321,8 @@ CREATE TABLE `civicrm_county` (
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'County ID',
      `name` varchar(64)    COMMENT 'Name of County',
      `abbreviation` varchar(4)    COMMENT '2-4 Character Abbreviation of County',
-     `state_province_id` int unsigned NOT NULL   COMMENT 'ID of State/Province that County belongs' 
+     `state_province_id` int unsigned NOT NULL   COMMENT 'ID of State/Province that County belongs',
+     `is_active` tinyint   DEFAULT 1 COMMENT 'Is this County active?' 
 ,
         PRIMARY KEY (`id`)
  
@@ -3689,7 +3692,7 @@ CREATE TABLE `civicrm_relationship` (
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Relationship ID',
      `contact_id_a` int unsigned NOT NULL   COMMENT 'id of the first contact',
      `contact_id_b` int unsigned NOT NULL   COMMENT 'id of the second contact',
-     `relationship_type_id` int unsigned NOT NULL   COMMENT 'id of the relationship',
+     `relationship_type_id` int unsigned NOT NULL   COMMENT 'Type of relationship',
      `start_date` date    COMMENT 'date when the relationship started',
      `end_date` date    COMMENT 'date when the relationship ended',
      `is_active` tinyint   DEFAULT 1 COMMENT 'is the relationship active ?',
@@ -4334,7 +4337,7 @@ CREATE TABLE `civicrm_activity_contact` (
      `id` int unsigned NOT NULL AUTO_INCREMENT  COMMENT 'Activity contact id',
      `activity_id` int unsigned NOT NULL   COMMENT 'Foreign key to the activity for this record.',
      `contact_id` int unsigned NOT NULL   COMMENT 'Foreign key to the contact for this record.',
-     `record_type_id` int unsigned    COMMENT 'Nature of this contact\'s role in the activity: 1 assignee, 2 creator, 3 focus or target.' 
+     `record_type_id` int unsigned    COMMENT 'Determines the contact\'s role in the activity (source, target, or assignee).' 
 ,
         PRIMARY KEY (`id`)
  

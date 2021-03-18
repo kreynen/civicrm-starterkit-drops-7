@@ -257,27 +257,42 @@ class CancelTest extends TestCase implements HeadlessInterface, HookInterface, T
   }
 
   /**
-   * Test cancel order api when a pledge is linked.
+   * Test cancelling a contribution with a membership on the contribution edit
+   * form.
    *
-   * The pledge status should be updated. I believe the contribution should also be unlinked but
-   * the goal at this point is no change.
-   *
-   * @throws CRM_Core_Exception
-   * @throws API_Exception
+   * @throws \API_Exception
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
-  public function testCancelOrderWithPledge(): void {
+  public function testCancelFromContributionForm(): void {
     $this->createContact();
-    $pledgeID = (int) $this->callAPISuccess('Pledge', 'create', ['contact_id' => $this->ids['contact'][0], 'amount' => 4, 'installments' => 2, 'frequency_unit' => 'month', 'original_installment_amount' => 2, 'create_date' => 'now', 'financial_type_id' => 'Donation', 'start_date' => '+5 days'])['id'];
-    $orderID = (int) $this->callAPISuccess('Order', 'create', ['contact_id' => $this->ids['contact'][0], 'total_amount' => 2, 'financial_type_id' => 'Donation', 'api.Payment.create' => ['total_amount' => 2]])['id'];
-    $pledgePayments = $this->callAPISuccess('PledgePayment', 'get')['values'];
-    $this->callAPISuccess('PledgePayment', 'create', ['id' => key($pledgePayments), 'pledge_id' => $pledgeID, 'contribution_id' => $orderID, 'status_id' => 'Completed', 'actual_amount' => 2]);
-    $beforePledge = $this->callAPISuccessGetSingle('Pledge', ['id' => $pledgeID]);
-    $this->assertEquals(2, $beforePledge['pledge_total_paid']);
-    $this->callAPISuccess('Order', 'cancel', ['contribution_id' => $orderID]);
+    $this->createMembershipType();
+    $this->createMembershipOrder();
+    $this->createLoggedInUser();
+    $formValues = [
+      'id' => $this->ids['Contribution'][0],
+      'contact_id' => $this->ids['contact'][0],
+      'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Cancelled'),
+    ];
+    $form = new CRM_Contribute_Form_Contribution();
+    $_SERVER['REQUEST_METHOD'] = 'GET';
+    $form->controller = new CRM_Core_Controller();
+    $form->controller->setStateMachine(new CRM_Core_StateMachine($form->controller));
+    $form->testSubmit($formValues, CRM_Core_Action::UPDATE);
 
-    $this->callAPISuccessGetSingle('Contribution', ['contribution_status_id' => 'Cancelled']);
-    $afterPledge = $this->callAPISuccessGetSingle('Pledge', ['id' => $pledgeID]);
-    $this->assertEquals('', $afterPledge['pledge_total_paid']);
+    $contribution = Contribution::get()
+      ->addWhere('id', '=', $this->ids['Contribution'][0])
+      ->addSelect('contribution_status_id:name')
+      ->execute()->first();
+    $this->assertEquals('Cancelled', $contribution['contribution_status_id:name']);
+    $membership = $this->callAPISuccessGetSingle('Membership', []);
+    $this->assertEquals('Cancelled', CRM_Core_PseudoConstant::getName('CRM_Member_BAO_Membership', 'status_id', $membership['status_id']));
+    $activity = Activity::get()
+      ->addSelect('subject', 'source_record_id', 'status_id')
+      ->addWhere('activity_type_id:name', '=', 'Change Membership Status')
+      ->execute();
+    $this->assertCount(1, $activity);
+    $this->assertEquals('Status changed from Pending to Cancelled', $activity->first()['subject']);
   }
 
   /**

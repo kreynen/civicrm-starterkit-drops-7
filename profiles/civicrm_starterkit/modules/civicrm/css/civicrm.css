@@ -22,9 +22,11 @@
 .crm-container .crm-flex-box {
   display: flex;
   flex-wrap: wrap;
+  box-sizing: border-box;
 }
 .crm-container .crm-flex-box > * {
   flex: 1;
+  box-sizing: border-box;
   min-width: 0; /* prevents getting squashed by whitespace:nowrap content */
 }
 .crm-container .crm-flex-box > .crm-flex-2 {
@@ -35,6 +37,9 @@
 }
 .crm-container .crm-flex-box > .crm-flex-4 {
   flex: 4;
+}
+.crm-container .crm-flex-box > .crm-flex-5 {
+  flex: 5;
 }
 
 .crm-container .crm-draggable {
@@ -2967,9 +2972,13 @@ tbody.scrollContent tr.alternateRow {
 .crm-container .select2-container-multi.crm-ajax-select .select2-choices:before {
   background-position: right -26px;
 }
+.crm-container .select2-container.select2-container-disabled .select2-choice .select2-arrow b {
+  visibility: hidden;
+}
 .crm-container .select2-container-multi.loading .select2-choices:before,
 .crm-container .select2-container.loading .select2-choice .select2-arrow b {
-  background: url('../i/loading.gif') no-repeat center center;
+  background: url('../i/loading.gif') no-repeat center center !important;
+  visibility: visible;
 }
 /* Reduce select2 size to match other inputs */
 .crm-container .select2-container-multi .select2-choices {

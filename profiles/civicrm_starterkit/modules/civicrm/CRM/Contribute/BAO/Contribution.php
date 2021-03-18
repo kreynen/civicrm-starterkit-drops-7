@@ -10,9 +10,10 @@
  */
 
 use Civi\Api4\Activity;
-use Civi\Api4\ContributionPage;
+use Civi\Api4\Contribution;
 use Civi\Api4\ContributionRecur;
 use Civi\Api4\PaymentProcessor;
+use Civi\Api4\PledgePayment;
 
 /**
  *
@@ -501,6 +502,10 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
 
     CRM_Contribute_BAO_ContributionSoft::processSoftContribution($params, $contribution);
 
+    if (!empty($params['id']) && !empty($params['contribution_status_id'])
+    ) {
+      self::disconnectPledgePaymentsIfCancelled((int) $params['id'], CRM_Core_PseudoConstant::getName('CRM_Contribute_BAO_Contribution', 'contribution_status_id', $params['contribution_status_id']));
+    }
     $transaction->commit();
 
     if (empty($contribution->contact_id)) {
@@ -1253,14 +1258,13 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
    * Should an email receipt be sent for this contribution on completion.
    *
    * @param array $input
-   * @param int $contributionPageID
+   * @param int $contributionID
    * @param int $recurringContributionID
    *
    * @return bool
    * @throws \API_Exception
-   * @throws \Civi\API\Exception\UnauthorizedException
    */
-  protected static function isEmailReceipt(array $input, $contributionPageID, $recurringContributionID): bool {
+  protected static function isEmailReceipt(array $input, int $contributionID, $recurringContributionID): bool {
     if (isset($input['is_email_receipt'])) {
       return (bool) $input['is_email_receipt'];
     }
@@ -1273,12 +1277,56 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
       // https://lab.civicrm.org/dev/core/issues/1245
       return (bool) ContributionRecur::get(FALSE)->addWhere('id', '=', $recurringContributionID)->addSelect('is_email_receipt')->execute()->first()['is_email_receipt'];
     }
-    if ($contributionPageID) {
-      return (bool) ContributionPage::get(FALSE)->addWhere('id', '=', $contributionPageID)->addSelect('is_email_receipt')->execute()->first()['is_email_receipt'];
+    $contributionPage = Contribution::get(FALSE)
+      ->addSelect('contribution_page.is_email_receipt')
+      ->addWhere('contribution_page_id', 'IS NOT NULL')
+      ->addWhere('id', '=', $contributionID)
+      ->execute()->first();
+
+    if (!empty($contributionPage)) {
+      return (bool) $contributionPage['contribution_page.is_email_receipt'];
     }
     // This would be the case for backoffice (where is_email_receipt is not passed in) or events, where Event::sendMail will filter
     // again anyway.
     return TRUE;
+  }
+
+  /**
+   * Disconnect pledge payments from cancelled or failed contributions.
+   *
+   * If the contribution has been cancelled or has failed check to
+   * see if it is linked to a pledge and unlink it.
+   *
+   * @param int $pledgePaymentID
+   * @param string $contributionStatus
+   *
+   * @throws \API_Exception
+   * @throws \Civi\API\Exception\UnauthorizedException
+   */
+  protected static function disconnectPledgePaymentsIfCancelled(int $pledgePaymentID, $contributionStatus): void {
+    if (!in_array($contributionStatus, ['Failed', 'Cancelled'], TRUE)) {
+      return;
+    }
+    // Check first since just doing an update could be locking under load.
+    $pledgePayment = PledgePayment::get(FALSE)
+      ->addWhere('contribution_id', '=', $pledgePaymentID)
+      ->setSelect(['id', 'pledge_id', 'scheduled_date', 'scheduled_amount'])
+      ->execute()
+      ->first();
+    if (!empty($pledgePayment)) {
+      PledgePayment::update(FALSE)->setValues([
+        'contribution_id' => NULL,
+        'actual_amount' => NULL,
+        'status_id:name' => 'Pending',
+        // We need to set these fields for now because the PledgePayment::create
+        // function doesn't handled updates well at the moment. Test cover
+        // in testCancelOrderWithPledge.
+        'scheduled_date' => $pledgePayment['scheduled_date'],
+        'installment_amount' => $pledgePayment['scheduled_amount'],
+        'installments' => 1,
+        'pledge_id' => $pledgePayment['pledge_id'],
+      ])->addWhere('id', '=', $pledgePayment['id'])->execute();
+    }
   }
 
   /**
@@ -1989,6 +2037,8 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
    *
    */
   public static function transitionComponents($params) {
+    // @todo fix the one place that calls this function to use Payment.create
+    // remove this.
     // get minimum required values.
     $contactId = $params['contact_id'] ?? NULL;
     $componentId = $params['component_id'] ?? NULL;
@@ -2411,69 +2461,68 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
     if (!empty($contribution->id)) {
       return FALSE;
     }
-    if (empty($contribution->id)) {
-      // Unclear why this would only be set for repeats.
-      if (!empty($input['amount'])) {
-        $contribution->total_amount = $contributionParams['total_amount'] = $input['amount'];
-      }
 
-      $recurringContribution = civicrm_api3('ContributionRecur', 'getsingle', [
-        'id' => $contributionParams['contribution_recur_id'],
-      ]);
-      if (!empty($recurringContribution['financial_type_id'])) {
-        // CRM-17718 the campaign id on the contribution recur record should get precedence.
-        $contributionParams['financial_type_id'] = $recurringContribution['financial_type_id'];
-      }
-      $templateContribution = CRM_Contribute_BAO_ContributionRecur::getTemplateContribution(
-        $contributionParams['contribution_recur_id'],
-        array_intersect_key($contributionParams, [
-          'total_amount' => TRUE,
-          'financial_type_id' => TRUE,
-        ])
-      );
-      $input['line_item'] = $contributionParams['line_item'] = $templateContribution['line_item'];
-      $contributionParams['status_id'] = 'Pending';
-
-      if (isset($contributionParams['financial_type_id']) && count($input['line_item']) === 1) {
-        // We permit the financial type to be overridden for single line items.
-        // More comments on this are in getTemplateTransaction.
-        $contribution->financial_type_id = $contributionParams['financial_type_id'];
-      }
-      else {
-        $contributionParams['financial_type_id'] = $templateContribution['financial_type_id'];
-      }
-      foreach (['contact_id', 'currency', 'source', 'amount_level', 'address_id', 'on_behalf', 'source_contact_id', 'tax_amount'] as $fieldName) {
-        if (isset($templateContribution[$fieldName])) {
-          $contributionParams[$fieldName] = $templateContribution[$fieldName];
-        }
-      }
-      if (!empty($recurringContribution['campaign_id'])) {
-        // CRM-17718 the campaign id on the contribution recur record should get precedence.
-        $contributionParams['campaign_id'] = $recurringContribution['campaign_id'];
-      }
-      if (!isset($contributionParams['campaign_id']) && isset($templateContribution['campaign_id'])) {
-        // Fall back on value from the previous contribution if not passed in as input
-        // or loadable from the recurring contribution.
-        $contributionParams['campaign_id'] = $templateContribution['campaign_id'];
-      }
-      $contributionParams['source'] = $contributionParams['source'] ?? ts('Recurring contribution');
-
-      //CRM-18805 -- Contribution page not recorded on recurring transactions, Recurring contribution payments
-      //do not create CC or BCC emails or profile notifications.
-      //The if is just to be safe. Not sure if we can ever arrive with this unset
-      // but per CRM-19478 it seems it can be 'null'
-      if (isset($contribution->contribution_page_id) && is_numeric($contribution->contribution_page_id)) {
-        $contributionParams['contribution_page_id'] = $contribution->contribution_page_id;
-      }
-
-      $createContribution = civicrm_api3('Contribution', 'create', $contributionParams);
-      $contribution->id = $createContribution['id'];
-      $contribution->copyCustomFields($templateContribution['id'], $contribution->id);
-      self::handleMembershipIDOverride($contribution->id, $input);
-      // Add new soft credit against current $contribution.
-      CRM_Contribute_BAO_ContributionRecur::addrecurSoftCredit($contributionParams['contribution_recur_id'], $createContribution['id']);
-      return $createContribution;
+    // Unclear why this would only be set for repeats.
+    if (!empty($input['amount'])) {
+      $contribution->total_amount = $contributionParams['total_amount'] = $input['amount'];
     }
+
+    $recurringContribution = civicrm_api3('ContributionRecur', 'getsingle', [
+      'id' => $contributionParams['contribution_recur_id'],
+    ]);
+    if (!empty($recurringContribution['financial_type_id'])) {
+      // CRM-17718 the campaign id on the contribution recur record should get precedence.
+      $contributionParams['financial_type_id'] = $recurringContribution['financial_type_id'];
+    }
+    $templateContribution = CRM_Contribute_BAO_ContributionRecur::getTemplateContribution(
+      $contributionParams['contribution_recur_id'],
+      array_intersect_key($contributionParams, [
+        'total_amount' => TRUE,
+        'financial_type_id' => TRUE,
+      ])
+    );
+    $input['line_item'] = $contributionParams['line_item'] = $templateContribution['line_item'];
+    $contributionParams['status_id'] = 'Pending';
+
+    if (isset($contributionParams['financial_type_id']) && count($input['line_item']) === 1) {
+      // We permit the financial type to be overridden for single line items.
+      // More comments on this are in getTemplateTransaction.
+      $contribution->financial_type_id = $contributionParams['financial_type_id'];
+    }
+    else {
+      $contributionParams['financial_type_id'] = $templateContribution['financial_type_id'];
+    }
+    foreach (['contact_id', 'currency', 'source', 'amount_level', 'address_id', 'on_behalf', 'source_contact_id', 'tax_amount', 'contribution_page_id'] as $fieldName) {
+      if (isset($templateContribution[$fieldName])) {
+        $contributionParams[$fieldName] = $templateContribution[$fieldName];
+      }
+    }
+    if (!empty($recurringContribution['campaign_id'])) {
+      // CRM-17718 the campaign id on the contribution recur record should get precedence.
+      $contributionParams['campaign_id'] = $recurringContribution['campaign_id'];
+    }
+    if (!isset($contributionParams['campaign_id']) && isset($templateContribution['campaign_id'])) {
+      // Fall back on value from the previous contribution if not passed in as input
+      // or loadable from the recurring contribution.
+      $contributionParams['campaign_id'] = $templateContribution['campaign_id'];
+    }
+    $contributionParams['source'] = $contributionParams['source'] ?? ts('Recurring contribution');
+
+    //CRM-18805 -- Contribution page not recorded on recurring transactions, Recurring contribution payments
+    //do not create CC or BCC emails or profile notifications.
+    //The if is just to be safe. Not sure if we can ever arrive with this unset
+    // but per CRM-19478 it seems it can be 'null'
+    if (isset($contribution->contribution_page_id) && is_numeric($contribution->contribution_page_id)) {
+      $contributionParams['contribution_page_id'] = $contribution->contribution_page_id;
+    }
+
+    $createContribution = civicrm_api3('Contribution', 'create', $contributionParams);
+    $contribution->id = $createContribution['id'];
+    $contribution->copyCustomFields($templateContribution['id'], $contribution->id);
+    self::handleMembershipIDOverride($contribution->id, $input);
+    // Add new soft credit against current $contribution.
+    CRM_Contribute_BAO_ContributionRecur::addrecurSoftCredit($contributionParams['contribution_recur_id'], $createContribution['id']);
+    return $createContribution;
   }
 
   /**
@@ -2753,7 +2802,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
    * @throws Exception
    */
   public function composeMessageArray(&$input, &$ids, &$values, $returnMessageText = TRUE) {
-    $this->loadRelatedObjects($input, $ids);
+    $this->loadRelatedObjects($input, $ids, TRUE);
 
     if (empty($this->_component)) {
       $this->_component = $input['component'] ?? NULL;
@@ -4263,7 +4312,7 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
     CRM_Contribute_BAO_ContributionRecur::updateRecurLinkedPledge($contributionID, $recurringContributionID,
       $contributionParams['contribution_status_id'], $input['amount']);
 
-    if (self::isEmailReceipt($input, $contribution->contribution_page_id, $recurringContributionID)) {
+    if (self::isEmailReceipt($input, $contributionID, $recurringContributionID)) {
       civicrm_api3('Contribution', 'sendconfirmation', [
         'id' => $contributionID,
         'payment_processor_id' => $paymentProcessorId,
@@ -4303,7 +4352,6 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
     if (!$contribution->find(TRUE)) {
       throw new CRM_Core_Exception('Contribution does not exist');
     }
-    $contribution->loadRelatedObjects($input, $ids, TRUE);
     // set receipt from e-mail and name in value
     if (!$returnMessageText) {
       list($values['receipt_from_name'], $values['receipt_from_email']) = self::generateFromEmailAndName($input, $contribution);

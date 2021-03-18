@@ -127,7 +127,13 @@ trait Api3TestTrait {
         'version' => $this->_apiversion,
       ];
     }
-    $result = $this->civicrm_api($entity, $action, $params);
+    try {
+      $result = $this->civicrm_api($entity, $action, $params);
+    }
+    catch (\API_Exception $e) {
+      // api v4 call failed and threw an exception.
+      return [];
+    }
     $this->assertAPIFailure($result, "We expected a failure for $entity $action but got a success", $expectedErrorMessage);
     return $result;
   }
@@ -404,8 +410,8 @@ trait Api3TestTrait {
         $v3Params['option_group.name'] = $v3Params['option_group_id'];
         unset($v3Params['option_group_id']);
       }
-      if (isset($field['pseudoconstant'], $v3Params[$name]) && $field['type'] === \CRM_Utils_Type::T_INT && !is_numeric($v3Params[$name])) {
-        $v3Params[$name] = \CRM_Core_PseudoConstant::getKey(\CRM_Core_DAO_AllCoreTables::getFullName($v3Entity), $name, $v3Params[$name]);
+      if (isset($field['pseudoconstant'], $v3Params[$name]) && $field['type'] === \CRM_Utils_Type::T_INT && !is_numeric($v3Params[$name]) && is_string($v3Params[$name])) {
+        $v3Params[$name] = \CRM_Core_PseudoConstant::getKey(\CRM_Core_DAO_AllCoreTables::getFullName($v4Entity), $name, $v3Params[$name]);
       }
     }
 
@@ -439,7 +445,7 @@ trait Api3TestTrait {
         }
         if ($options['sort']) {
           foreach (explode(',', $options['sort']) as $sort) {
-            list($sortField, $sortDir) = array_pad(explode(' ', trim($sort)), 2, 'ASC');
+            [$sortField, $sortDir] = array_pad(explode(' ', trim($sort)), 2, 'ASC');
             $v4Params['orderBy'][$sortField] = $sortDir;
           }
         }
