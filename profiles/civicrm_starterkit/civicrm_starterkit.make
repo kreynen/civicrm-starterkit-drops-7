@@ -4,16 +4,16 @@
 ; This is used to test the packaging BEFORE committing
 ; drush make --no-core civicrm_starterkit.make
 
-core = 7.51
+core = 7.79
 api = 2
 
 ; Drupal Core
-projects[drupal][version] = "7.73"
+projects[drupal][version] = "7.79"
 
 ; ====== CIVICRM RELATED =========
 
 libraries[civicrm][download][type] = get
-libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.35.1-drupal.tar.gz"
+libraries[civicrm][download][url] = "https://download.civicrm.org/civicrm-5.36.0-drupal.tar.gz"
 libraries[civicrm][destination] = modules
 libraries[civicrm][directory_name] = civicrm
 

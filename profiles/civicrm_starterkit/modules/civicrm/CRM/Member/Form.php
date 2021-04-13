@@ -71,6 +71,20 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
   protected $order;
 
   /**
+   * This string is the used for passing to the buildAmount hook.
+   *
+   * @var string
+   */
+  protected $formContext = 'membership';
+
+  /**
+   * @return string
+   */
+  public function getFormContext(): string {
+    return $this->formContext;
+  }
+
+  /**
    * Explicitly declare the entity api name.
    */
   public function getDefaultEntity() {
@@ -465,7 +479,10 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
     $this->order = new CRM_Financial_BAO_Order();
     $this->order->setPriceSelectionFromUnfilteredInput($formValues);
     $this->order->setPriceSetID($this->getPriceSetID($formValues));
-    if (isset($formValues['total_amount'])) {
+    $this->order->setForm($this);
+    if ($priceSetDetails[$this->order->getPriceSetID()]['is_quick_config'] && isset($formValues['total_amount'])) {
+      // Amount overrides only permitted on quick config.
+      // Possibly Order object should enforce this...
       $this->order->setOverrideTotalAmount($formValues['total_amount']);
     }
     $this->order->setOverrideFinancialTypeID((int) $formValues['financial_type_id']);
@@ -478,6 +495,7 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
    * @param array $formValues
    */
   public function testSubmit(array $formValues): void {
+    $this->exportedValues = $formValues;
     $this->setContextVariables($formValues);
     $this->_memType = $formValues['membership_type_id'][1];
     $this->_params = $formValues;
@@ -500,6 +518,21 @@ class CRM_Member_Form extends CRM_Contribute_Form_AbstractEditPayment {
       'processPriceSet' => TRUE,
       'tax_amount' => $this->order->getTotalTaxAmount(),
     ];
+  }
+
+  /**
+   * Get the currency in use.
+   *
+   * This just defaults to getting the default currency
+   * as other currencies are not supported on the membership
+   * forms at the moment.
+   *
+   * @param array $submittedValues
+   *
+   * @return string
+   */
+  public function getCurrency($submittedValues = []): string {
+    return CRM_Core_Config::singleton()->defaultCurrency;
   }
 
 }

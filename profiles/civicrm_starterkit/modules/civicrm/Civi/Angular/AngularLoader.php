@@ -73,7 +73,7 @@ class AngularLoader {
     $this->res = \CRM_Core_Resources::singleton();
     $this->angular = \Civi::service('angular');
     $this->region = \CRM_Utils_Request::retrieve('snippet', 'String') ? 'ajax-snippet' : 'html-header';
-    $this->pageName = $_GET['q'] ?? NULL;
+    $this->pageName = \CRM_Utils_System::currentPath();
     $this->modules = [];
   }
 
@@ -143,7 +143,6 @@ class AngularLoader {
     });
 
     $res->addScriptFile('civicrm', 'bower_components/angular/angular.min.js', 100, $this->getRegion(), FALSE);
-    $res->addScriptFile('civicrm', 'js/crm.angular.js', 101, $this->getRegion(), FALSE);
 
     $headOffset = 0;
     $config = \CRM_Core_Config::singleton();

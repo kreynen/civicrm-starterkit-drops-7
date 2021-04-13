@@ -1,5 +1,8 @@
 <?php
 
+use Civi\Token\Event\TokenValueEvent;
+use Civi\Token\TokenProcessor;
+
 trait CRM_Core_TokenTrait {
 
   private $basicTokens;
@@ -16,9 +19,13 @@ trait CRM_Core_TokenTrait {
   }
 
   /**
-   * @inheritDoc
+   * Check if the token processor is active.
+   *
+   * @param \Civi\Token\TokenProcessor $processor
+   *
+   * @return bool
    */
-  public function checkActive(\Civi\Token\TokenProcessor $processor) {
+  public function checkActive(TokenProcessor $processor) {
     return in_array($this->getEntityContextSchema(), $processor->context['schema']) ||
       (!empty($processor->context['actionMapping'])
         && $processor->context['actionMapping']->getEntity() === $this->getEntityTableName());
@@ -27,7 +34,7 @@ trait CRM_Core_TokenTrait {
   /**
    * @inheritDoc
    */
-  public function getActiveTokens(\Civi\Token\Event\TokenValueEvent $e) {
+  public function getActiveTokens(TokenValueEvent $e) {
     $messageTokens = $e->getTokenProcessor()->getMessageTokens();
     if (!isset($messageTokens[$this->entity])) {
       return NULL;
@@ -77,7 +84,7 @@ trait CRM_Core_TokenTrait {
    * Get the tokens for custom fields
    * @return array token name => token label
    */
-  protected function getCustomFieldTokens() {
+  protected function getCustomFieldTokens(): array {
     if (!isset($this->customFieldTokens)) {
       $this->customFieldTokens = \CRM_Utils_Token::getCustomFieldTokens(ucfirst($this->getEntityName()));
     }

@@ -2599,7 +2599,11 @@ LEFT JOIN civicrm_email    ON ( civicrm_contact.id = civicrm_email.contact_id )
       if ($contact->birth_date) {
         $birthDate = CRM_Utils_Date::customFormat($contact->birth_date, '%Y%m%d');
         if ($birthDate < date('Ymd')) {
-          $age = CRM_Utils_Date::calculateAge($birthDate);
+          $deceasedDate = NULL;
+          if (!empty($contact->is_deceased) && !empty($contact->deceased_date)) {
+            $deceasedDate = $contact->deceased_date;
+          }
+          $age = CRM_Utils_Date::calculateAge($birthDate, $deceasedDate);
           $values['age']['y'] = $age['years'] ?? NULL;
           $values['age']['m'] = $age['months'] ?? NULL;
         }
@@ -3677,7 +3681,6 @@ LEFT JOIN civicrm_address ON ( civicrm_address.contact_id = civicrm_contact.id )
       ['key' => 'organization_name', 'value' => ts('Employer name'), 'type' => 'text', 'condition' => ['contact_type' => 'Individual']],
       ['key' => 'gender_id', 'value' => ts('Gender'), 'condition' => ['contact_type' => 'Individual']],
       ['key' => 'is_deceased', 'value' => ts('Deceased'), 'condition' => ['contact_type' => 'Individual']],
-      ['key' => 'contact_id', 'value' => ts('Contact ID'), 'type' => 'text'],
       ['key' => 'external_identifier', 'value' => ts('External ID'), 'type' => 'text'],
       ['key' => 'source', 'value' => ts('Contact Source'), 'type' => 'text'],
     ];
