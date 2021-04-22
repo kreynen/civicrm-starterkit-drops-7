@@ -172,6 +172,9 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
       if (!$cid) {
         continue;
       }
+      if (!empty($contact['update_contact_ref'])) {
+        $this->saveContactRefs($contact, $cid);
+      }
       $this->saveCurrentEmployer($contact, $cid);
 
       $this->fillHiddenContactFields($cid, $c);
@@ -1187,6 +1190,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
             'source_contact_id' => $cid,
             'activity_type_id' => 'Membership Renewal',
             'target_id' => $cid,
+            'source_record_id' => $result['id'],
           ];
           $memType = wf_civicrm_api('MembershipType', 'getsingle', ['id' => $membership['membership_type_id']]);
           $memStatus = wf_civicrm_api('MembershipStatus', 'getsingle', ['id' => $membership['status_id']]);
@@ -1299,17 +1303,30 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
           $this->handleEntityTags('case', $result['id'], $n, $params);
           // Store id
           $this->ent['case'][$n]['id'] = $result['id'];
+          $relationshipStartDate = date('Ymd');
           // Save case roles
           foreach ($params as $param => $val) {
             if ($val && strpos($param, 'role_') === 0) {
               foreach ((array) $params['client_id'] as $client) {
                 foreach ((array) $val as $contactB) {
-                  wf_civicrm_api('relationship', 'create', [
+                  $relationshipParams = [
                     'relationship_type_id' => substr($param, 5),
                     'contact_id_a' => $client,
                     'contact_id_b' => $contactB,
                     'case_id' => $result['id'],
-                  ]);
+                    'is_active' => TRUE,
+                  ];
+                  // We can't create a duplicate relationship so check if active relationship exists first.
+                  $existingRelationships = wf_civicrm_api('relationship', 'get', $relationshipParams);
+                  if (!empty($existingRelationships['count'])) {
+                    // Update the existing active relationship (case role)
+                    $relationshipParams['id'] = reset($existingRelationships['values'])['id'];
+                  }
+                  else {
+                    // We didn't used to set start_date - now we do when creating new relationships (case roles)
+                    $relationshipParams['start_date'] = $relationshipStartDate;
+                  }
+                  wf_civicrm_api('relationship', 'create', $relationshipParams);
                 }
               }
             }
@@ -1450,7 +1467,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
       list($set, $type) = explode('_', $fid, 2);
       if ($set == $entityType && isset($field['table']) && $field['table'] == 'tag') {
         $field_name = 'civicrm_' . $n . '_' . $entityType. '_1_' . $fid;
-        if (isset($this->enabled[$field_name]) && isset($this->data[$entityType][$n])) {
+        if ((isset($params['tag']) || isset($this->enabled[$field_name])) && isset($this->data[$entityType][$n])) {
           $add = wf_crm_aval($this->data[$entityType][$n], $entityType . ":1:$type", []);
           $remove = $this->getExposedOptions($field_name, $add);
           $this->addOrRemoveMultivaluedData('tag', $entityType, $entityId, $add, $remove);
@@ -1978,7 +1995,13 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
       $paymentProcessor->doTransferCheckout($params, 'contribute');
     }
     else {
-      $paymentProcessor->doPayment($params);
+      try {
+        $paymentProcessor->doPayment($params);
+      }
+      catch (\Civi\Payment\Exception\PaymentProcessorException $e) {
+        drupal_set_message(ts('Payment approval failed with message: ') . $e->getMessage(),'error');
+        CRM_Utils_System::redirect($this->getIpnRedirectUrl('cancel'));
+      }
     }
 
   }
@@ -2163,11 +2186,6 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
         }
       }
 
-      // Format (and round) monetary values before saving the line items
-      isset($item['unit_price']) ? $item['unit_price'] = CRM_Utils_Money::format($item['unit_price'], NULL, NULL, TRUE) : NULL;
-      isset($item['line_total']) ? $item['line_total'] = CRM_Utils_Money::format($item['line_total'], NULL, NULL, TRUE) : NULL;
-      isset($item['tax_amount']) ? $item['tax_amount'] = CRM_Utils_Money::format($item['tax_amount'], NULL, NULL, TRUE) : NULL;
-
       // Save the line_item
       $line_result = wf_civicrm_api('line_item', 'create', $item);
       $item['id'] = $line_result['id'];
@@ -2232,6 +2250,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
     static $c = '';
     static $table = '';
     static $n = '';
+    $customName = NULL;
     if ($values === NULL) {
       $values = $this->data;
     }
@@ -2240,7 +2259,7 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
       if ($depth < 4 && is_array($val)) {
         $this->fillContactRefs($customOnly, $val, $depth + 1);
       }
-      elseif ($depth == 4 && $val && wf_crm_aval($this->all_fields, "{$table}_$name:data_type") == 'ContactReference') {
+      elseif ($depth == 4 && $val && wf_crm_aval($this->all_fields, "{$table}_{$name}:data_type") == 'ContactReference') {
         if ($customOnly && substr($name, 0, 6) != 'custom') {
           return;
         }
@@ -2248,16 +2267,28 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
           $this->data[$ent][$c][$table][$n][$name] = [];
           foreach ($val as $v) {
             if (is_numeric($v) && !empty($this->ent['contact'][$v]['id'])) {
-              $table = $customOnly ? $ent : $table;
-              $this->data[$ent][$c][$table][$n][$name][] = $this->ent['contact'][$v]['id'];
+              $tableName = $customOnly ? $ent : $table;
+              $this->data[$ent][$c][$tableName][$n][$name][] = $this->ent['contact'][$v]['id'];
             }
           }
         }
         else {
-          unset($this->data[$ent][$c][$table][$n][$name]);
+          $createModeKey = 'civicrm_' . $c . '_contact_' . $n . '_' . $table . '_createmode';
+          $multivaluesCreateMode = $this->data['config']['create_mode'][$createModeKey] ?? NULL;
+          $cgMaxInstance = $this->all_sets[$table]['max_instances'] ?? 1;
+          if (substr($name, 0, 6) == 'custom' && $cgMaxInstance > 1) {
+            // Retrieve name for multi value custom fields.
+            $customName = $this->getNameForMultiValueFields($multivaluesCreateMode, $name, $table, $c, $n);
+            $n = $c;
+          }
           if (!empty($this->ent['contact'][$val]['id'])) {
-            $table = $customOnly ? $ent : $table;
-            $this->data[$ent][$c][$table][$n][$name] = $this->ent['contact'][$val]['id'];
+            unset($this->data[$ent][$c][$table][$n][$name]);
+            $tableName = substr($name, 0, 6) == 'custom' ? $ent : $table;
+            $fld = $customName ?? $name;
+            $this->data[$ent][$c][$tableName][$n][$fld] = $this->ent['contact'][$val]['id'];
+          }
+          elseif (substr($name, 0, 6) == 'custom') {
+            $this->data[$ent][$c]['update_contact_ref'][] = $name;
           }
         }
       }
@@ -2386,11 +2417,10 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
               $createModeKey = 'civicrm_' . $c . '_contact_' . $n . '_' . $table . '_createmode';
               $multivaluesCreateMode = $this->data['config']['create_mode'][$createModeKey] ?? NULL;
               $cgMaxInstance = $this->all_sets[$table]['max_instances'] ?? 1;
-              if ($cgMaxInstance > 1 && empty($multivaluesCreateMode) && !empty($this->existing_contacts[$c])) {
-                $existingValue = $this->getCustomData($this->existing_contacts[$c], NULL, FALSE)[$table] ?? NULL;
-                if (!empty($existingValue)) {
-                  $name = "{$name}_" . key($existingValue);
-                }
+              // Is this a multi-value custom field?
+              if ($cgMaxInstance > 1) {
+                $name = $this->getNameForMultiValueFields($multivaluesCreateMode, $name, $table, $c, $n);
+                $n = $c;
               }
             }
             $this->data[$ent][$c][$ent][$n][$name] = $customValue ?? $val;
@@ -2612,6 +2642,66 @@ class wf_crm_webform_postprocess extends wf_crm_webform_base {
     }
 
     return $reorderedArray;
+  }
+
+  /**
+   * Retrieve name for multi-value custom fields.
+   *
+   * For edit mode, update the $name key to 'custom_<fieldID>_<existing_value_id>.
+   *
+   * If webform is configured to only "insert" new values,
+   * modify the params in the format of custom_<fieldID>_-1, custom_<fieldID>_-2, etc.
+   *
+   * @param bool $multivaluesCreateMode
+   * @param string $name
+   * @param string $table
+   * @param int $c
+   * @param int $n
+   *
+   * @return string $name
+   */
+  private function getNameForMultiValueFields($multivaluesCreateMode, $name, $table, $c, $n): string {
+    $existingValue = NULL;
+    if (empty($multivaluesCreateMode) && !empty($this->existing_contacts[$c])) {
+      $existingValue = $this->getCustomData($this->existing_contacts[$c], NULL, FALSE)[$table] ?? NULL;
+      if (!empty($existingValue) && is_array($existingValue)) {
+        $existingValue = key(array_slice($existingValue, $n - 1, 1, TRUE));
+        if (!empty($existingValue)) {
+          return "{$name}_{$existingValue}";
+        }
+      }
+    }
+
+    // No existing value found, insert a new value.
+    if (empty($existingValue)) {
+      return "{$name}_-{$n}";
+    }
+    return $name;
+  }
+
+  /**
+   * Save custom contact reference created
+   * during the current submission of the webform.
+   *
+   * @param array $params
+   * @param int $cid
+   */
+  private function saveContactRefs($params, $cid): void {
+    $updateParams = [
+      'id' => $cid,
+    ];
+    foreach ($params['update_contact_ref'] as $refKey) {
+      foreach ($params['contact'] as $contactParams) {
+        foreach ($contactParams as $key => $value) {
+          if (strpos($key, $refKey) === 0 && !isset($updateParams[$key])) {
+            $updateParams[$key] = $value;
+          }
+        }
+      }
+    }
+    if (count($updateParams) > 1) {
+      wf_civicrm_api('contact', 'create', $updateParams);
+    }
   }
 
   private function unsetEmptyValueIndexes($values, $entity) {

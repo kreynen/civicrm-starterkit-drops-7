@@ -30,10 +30,10 @@
   </div>
 </div>
 <div ng-if="$ctrl.node['af-repeat'] || $ctrl.node['af-repeat'] === ''" class="af-gui-button">
-  <button class="btn btn-xs btn-primary disabled">
+  <button type="button" class="btn btn-xs btn-primary disabled">
     <span class="crm-editable-enabled" ng-click="pickAddIcon()" >
       <i class="crm-i {{ $ctrl.node['add-icon'] || 'fa-plus' }}"></i>
     </span>
-    <span af-gui-editable ng-model="$ctrl.node['af-repeat']">{{ $ctrl.node['af-repeat'] }}</span>
+    <span crm-ui-editable ng-model="$ctrl.node['af-repeat']">{{ $ctrl.node['af-repeat'] }}</span>
   </button>
 </div>

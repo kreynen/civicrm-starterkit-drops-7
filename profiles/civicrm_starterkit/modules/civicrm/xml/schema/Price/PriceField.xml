@@ -13,6 +13,9 @@
     <type>int unsigned</type>
     <required>true</required>
     <comment>Price Field</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>1.8</add>
   </field>
   <primaryKey>
@@ -21,7 +24,7 @@
   </primaryKey>
   <field>
     <name>price_set_id</name>
-    <title>Price Set</title>
+    <title>Price Set ID</title>
     <type>int unsigned</type>
     <required>true</required>
     <comment>FK to civicrm_price_set</comment>
@@ -31,6 +34,10 @@
       <nameColumn>name</nameColumn>
       <labelColumn>title</labelColumn>
     </pseudoconstant>
+    <html>
+      <type>Select</type>
+      <label>Price Set</label>
+    </html>
     <add>1.8</add>
   </field>
   <foreignKey>
@@ -80,6 +87,7 @@
     <add>1.8</add>
     <html>
       <type>Select</type>
+      <label>Html Type</label>
     </html>
   </field>
   <field>

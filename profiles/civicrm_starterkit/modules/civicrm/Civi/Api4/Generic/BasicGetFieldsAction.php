@@ -125,6 +125,7 @@ class BasicGetFieldsAction extends BasicGetAction {
         'title' => empty($field['name']) ? NULL : ucwords(str_replace('_', ' ', $field['name'])),
         'entity' => $this->getEntityName(),
         'required' => FALSE,
+        'readonly' => FALSE,
         'options' => !empty($field['pseudoconstant']),
         'data_type' => \CRM_Utils_Array::value('type', $field, 'String'),
       ], array_flip($fields));
@@ -254,10 +255,31 @@ class BasicGetFieldsAction extends BasicGetAction {
       [
         'name' => 'data_type',
         'data_type' => 'String',
+        'options' => [
+          'Array' => ts('Array'),
+          'Boolean' => ts('Boolean'),
+          'Date' => ts('Date'),
+          'Float' => ts('Float'),
+          'Integer' => ts('Integer'),
+          'String' => ts('String'),
+          'Text' => ts('Text'),
+          'Timestamp' => ts('Timestamp'),
+        ],
       ],
       [
         'name' => 'input_type',
         'data_type' => 'String',
+        'options' => [
+          'ChainSelect' => ts('ChainSelect'),
+          'CheckBox' => ts('CheckBox'),
+          'Date' => ts('Date'),
+          'EntityRef' => ts('EntityRef'),
+          'File' => ts('File'),
+          'Number' => ts('Number'),
+          'Radio' => ts('Radio'),
+          'Select' => ts('Select'),
+          'Text' => ts('Text'),
+        ],
       ],
       [
         'name' => 'input_attrs',
@@ -274,6 +296,10 @@ class BasicGetFieldsAction extends BasicGetAction {
       [
         'name' => 'entity',
         'data_type' => 'String',
+      ],
+      [
+        'name' => 'readonly',
+        'data_type' => 'Boolean',
       ],
     ];
   }

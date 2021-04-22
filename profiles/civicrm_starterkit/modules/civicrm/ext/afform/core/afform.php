@@ -197,6 +197,8 @@ function afform_civicrm_angularModules(&$angularModules) {
       'basePages' => [],
       'partialsCallback' => '_afform_get_partials',
       '_afform' => $afform['name'],
+      // TODO: Allow afforms to declare their own theming requirements
+      'bundles' => ['bootstrap3'],
       'exports' => [
         $afform['directive_name'] => 'E',
       ],
@@ -385,5 +387,18 @@ function _afform_angular_module_name($fileBaseName, $format = 'camel') {
 
     default:
       throw new \Exception("Unrecognized format");
+  }
+}
+
+/**
+ * Implements hook_civicrm_alterApiRoutePermissions().
+ *
+ * @see CRM_Utils_Hook::alterApiRoutePermissions
+ */
+function afform_civicrm_alterApiRoutePermissions(&$permissions, $entity, $action) {
+  if ($entity == 'Afform') {
+    if ($action == 'prefill' || $action == 'submit') {
+      $permissions = CRM_Core_Permission::ALWAYS_ALLOW_PERMISSION;
+    }
   }
 }

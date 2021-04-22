@@ -241,6 +241,7 @@
           if ($scope.controls.join) {
             ctrl.savedSearch.api_params.join = ctrl.savedSearch.api_params.join || [];
             var join = searchMeta.getJoin($scope.controls.join),
+              entity = searchMeta.getEntity(join.entity),
               params = [$scope.controls.join, false];
             _.each(_.cloneDeep(join.conditions), function(condition) {
               params.push(condition);
@@ -249,9 +250,30 @@
               params.push(condition);
             });
             ctrl.savedSearch.api_params.join.push(params);
+            if (entity.label_field) {
+              ctrl.savedSearch.api_params.select.push(join.alias + '.' + entity.label_field);
+            }
             loadFieldOptions();
           }
           $scope.controls.join = '';
+        });
+      };
+
+      // Remove an explicit join + all SELECT, WHERE & other JOINs that use it
+      this.removeJoin = function(index) {
+        var alias = searchMeta.getJoin(ctrl.savedSearch.api_params.join[index][0]).alias;
+        ctrl.clearParam('join', index);
+        _.remove(ctrl.savedSearch.api_params.select, function(item) {
+          var pattern = new RegExp('\\b' + alias + '\\.');
+          return pattern.test(item.split(' AS ')[0]);
+        });
+        _.remove(ctrl.savedSearch.api_params.where, function(clause) {
+          return clauseUsesJoin(clause, alias);
+        });
+        _.eachRight(ctrl.savedSearch.api_params.join, function(item, i) {
+          if (searchMeta.getJoin(item[0]).alias.indexOf(alias) === 0) {
+            ctrl.removeJoin(i);
+          }
         });
       };
 
@@ -271,6 +293,34 @@
           });
         }
       };
+
+      function clauseUsesJoin(clause, alias) {
+        if (clause[0].indexOf(alias + '.') === 0) {
+          return true;
+        }
+        if (_.isArray(clause[1])) {
+          return clause[1].some(function(subClause) {
+            return clauseUsesJoin(subClause, alias);
+          });
+        }
+        return false;
+      }
+
+      // Returns true if a clause contains one of the
+      function clauseUsesFields(clause, fields) {
+        if (!fields || !fields.length) {
+          return false;
+        }
+        if (_.includes(fields, clause[0])) {
+          return true;
+        }
+        if (_.isArray(clause[1])) {
+          return clause[1].some(function(subClause) {
+            return clauseUsesField(subClause, fields);
+          });
+        }
+        return false;
+      }
 
       function validate() {
         var errors = [],
@@ -311,6 +361,7 @@
        * @param $event
        */
       $scope.setOrderBy = function(col, $event) {
+        col = _.last(col.split(' AS '));
         var dir = $scope.getOrderBy(col) === 'fa-sort-asc' ? 'DESC' : 'ASC';
         if (!$event.shiftKey || !ctrl.savedSearch.api_params.orderBy) {
           ctrl.savedSearch.api_params.orderBy = {};
@@ -327,6 +378,7 @@
        * @returns {string}
        */
       $scope.getOrderBy = function(col) {
+        col = _.last(col.split(' AS '));
         var dir = ctrl.savedSearch.api_params.orderBy && ctrl.savedSearch.api_params.orderBy[col];
         if (dir) {
           return 'fa-sort-' + dir.toLowerCase();
@@ -367,7 +419,7 @@
         if (ctrl.savedSearch.api_params.groupBy.length) {
           _.each(ctrl.savedSearch.api_params.select, function(col, pos) {
             if (!_.contains(col, '(') && ctrl.canAggregate(col)) {
-              ctrl.savedSearch.api_params.select[pos] = ctrl.DEFAULT_AGGREGATE_FN + '(DISTINCT ' + col + ')';
+              ctrl.savedSearch.api_params.select[pos] = ctrl.DEFAULT_AGGREGATE_FN + '(DISTINCT ' + col + ') AS ' + ctrl.DEFAULT_AGGREGATE_FN + '_DISTINCT_' + col.replace(/[.:]/g, '_');
             }
           });
         }
@@ -377,7 +429,19 @@
       function _loadResultsCallback() {
         // Multiply limit to read 2 pages at once & save ajax requests
         var params = _.merge(_.cloneDeep(ctrl.savedSearch.api_params), {debug: true, limit: ctrl.limit * 2});
-        // Select the ids of joined entities (helps with displaying links)
+        // Select the ids of implicitly joined entities (helps with displaying links)
+        _.each(params.select, function(fieldName) {
+          if (_.includes(fieldName, '.') && !_.includes(fieldName, ' AS ')) {
+            var info = searchMeta.parseExpr(fieldName);
+            if (info.field && !info.suffix && !info.fn && (info.field.entity !== info.field.baseEntity)) {
+              var idField = fieldName.substr(0, fieldName.lastIndexOf('.')) + '_id';
+              if (!_.includes(params.select, idField) && !ctrl.canAggregate(idField)) {
+                params.select.push(idField);
+              }
+            }
+          }
+        });
+        // Select the ids of explicitly joined entities (helps with displaying links)
         _.each(params.join, function(join) {
           var idField = join[0].split(' AS ')[1] + '.id';
           if (!_.includes(params.select, idField) && !ctrl.canAggregate(idField)) {
@@ -457,7 +521,7 @@
 
       this.refreshAll = function() {
         ctrl.stale = true;
-        ctrl.selectedRows.length = 0;
+        clearSelection();
         loadResults();
       };
 
@@ -494,9 +558,13 @@
       };
 
       function onChangeSelect(newSelect, oldSelect) {
-        // When removing a column from SELECT, also remove from ORDER BY
-        _.each(_.difference(_.keys(ctrl.savedSearch.api_params.orderBy), newSelect), function(col) {
+        // When removing a column from SELECT, also remove from ORDER BY & HAVING
+        _.each(_.difference(oldSelect, newSelect), function(col) {
+          col = _.last(col.split(' AS '));
           delete ctrl.savedSearch.api_params.orderBy[col];
+          _.remove(ctrl.savedSearch.api_params.having, function(clause) {
+            return clauseUsesFields(clause, [col]);
+          });
         });
         // Re-arranging or removing columns doesn't merit a refresh, only adding columns does
         if (!oldSelect || _.difference(newSelect, oldSelect).length) {
@@ -506,27 +574,25 @@
             ctrl.stale = true;
           }
         }
-        if (ctrl.load) {
-          ctrl.saved = false;
-        }
       }
 
       function onChangeFilters() {
         ctrl.stale = true;
-        ctrl.selectedRows.length = 0;
-        if (ctrl.load) {
-          ctrl.saved = false;
-        }
+        clearSelection();
         if (ctrl.autoSearch) {
           ctrl.refreshAll();
         }
       }
 
+      function clearSelection() {
+        ctrl.allRowsSelected = false;
+        ctrl.selectedRows.length = 0;
+      }
+
       $scope.selectAllRows = function() {
         // Deselect all
         if (ctrl.allRowsSelected) {
-          ctrl.allRowsSelected = false;
-          ctrl.selectedRows.length = 0;
+          clearSelection();
           return;
         }
         // Select all
@@ -581,12 +647,12 @@
 
       $scope.formatResult = function(row, col) {
         var info = searchMeta.parseExpr(col),
-          value = row[info.alias + info.suffix];
+          value = row[info.alias];
         if (info.fn && info.fn.name === 'COUNT') {
           return value;
         }
         // Output user-facing name/label fields as a link, if possible
-        if (info.field && _.includes(['display_name', 'title', 'label', 'subject'], info.field.name) && !info.fn && typeof value === 'string') {
+        if (info.field && _.last(info.field.name.split('.')) === searchMeta.getEntity(info.field.entity).label_field && !info.fn && typeof value === 'string') {
           var link = getEntityUrl(row, info);
           if (link) {
             return '<a href="' + _.escape(link.url) + '" title="' + _.escape(link.title) + '">' + formatFieldValue(info.field, value) + '</a>';
@@ -603,12 +669,17 @@
         if (path) {
           // Replace tokens in the path (e.g. [id])
           var tokens = path.match(/\[\w*]/g) || [],
-            replacements = _.transform(tokens, function(replacements, token) {
-              var fieldName = info.prefix + token.slice(1, token.length - 1);
-              if (row[fieldName]) {
-                replacements.push(row[fieldName]);
-              }
-            });
+            prefix = info.prefix;
+          // For implicit join fields
+          if (info.field.name.split('.').length > 1) {
+            prefix += info.field.name.split('.')[0] + '_';
+          }
+          var replacements = _.transform(tokens, function(replacements, token) {
+            var fieldName = prefix + token.slice(1, token.length - 1);
+            if (row[fieldName]) {
+              replacements.push(row[fieldName]);
+            }
+          });
           // Only proceed if the row contains all the necessary data to resolve tokens
           if (tokens.length === replacements.length) {
             _.each(tokens, function(token, index) {
@@ -640,28 +711,25 @@
       }
 
       $scope.fieldsForGroupBy = function() {
-        return {results: getAllFields('', function(key) {
+        return {results: ctrl.getAllFields('', function(key) {
             return _.contains(ctrl.savedSearch.api_params.groupBy, key);
           })
         };
       };
 
       $scope.fieldsForSelect = function() {
-        return {results: getAllFields(':label', function(key) {
+        return {results: ctrl.getAllFields(':label', function(key) {
             return _.contains(ctrl.savedSearch.api_params.select, key);
           })
         };
       };
 
       $scope.fieldsForWhere = function() {
-        return {results: getAllFields(':name', _.noop)};
+        return {results: ctrl.getAllFields(':name')};
       };
 
       $scope.fieldsForHaving = function() {
-        return {results: _.transform(ctrl.savedSearch.api_params.select, function(fields, name) {
-          var info = searchMeta.parseExpr(name);
-          fields.push({id: info.alias + info.suffix, text: ctrl.getFieldLabel(name)});
-        })};
+        return {results: ctrl.getSelectFields()};
       };
 
       $scope.sortableColumnOptions = {
@@ -677,15 +745,16 @@
 
       // Sets the default select clause based on commonly-named fields
       function getDefaultSelect() {
-        var whitelist = ['id', 'name', 'subject', 'display_name', 'label', 'title'];
-        return _.transform(searchMeta.getEntity(ctrl.savedSearch.api_entity).fields, function(select, field) {
-          if (_.includes(whitelist, field.name) || _.includes(field.name, '_type_id')) {
-            select.push(field.name + (field.options ? ':label' : ''));
+        var entity = searchMeta.getEntity(ctrl.savedSearch.api_entity);
+        return _.transform(entity.fields, function(defaultSelect, field) {
+          if (field.name === 'id' || field.name === entity.label_field) {
+            defaultSelect.push(field.name);
           }
         });
       }
 
-      function getAllFields(suffix, disabledIf) {
+      this.getAllFields = function(suffix, disabledIf) {
+        disabledIf = disabledIf || _.noop;
         function formatFields(entityName, join) {
           var prefix = join ? join.alias + '.' : '',
             result = [];
@@ -732,7 +801,23 @@
           });
         });
         return result;
-      }
+      };
+
+      this.getSelectFields = function(disabledIf) {
+        disabledIf = disabledIf || _.noop;
+        return _.transform(ctrl.savedSearch.api_params.select, function(fields, name) {
+          var info = searchMeta.parseExpr(name);
+          var item = {
+            id: info.alias,
+            text: ctrl.getFieldLabel(name),
+            description: info.field && info.field.description
+          };
+          if (disabledIf(item.id)) {
+            item.disabled = true;
+          }
+          fields.push(item);
+        });
+      };
 
       /**
        * Fetch pseudoconstants for main entity + joined entities
