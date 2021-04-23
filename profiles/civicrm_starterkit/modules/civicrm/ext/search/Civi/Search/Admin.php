@@ -11,6 +11,8 @@
 
 namespace Civi\Search;
 
+use CRM_Search_ExtensionUtil as E;
+
 /**
  * Class Admin
  * @package Civi\Search
@@ -22,20 +24,16 @@ class Admin {
    */
   public static function getAdminSettings():array {
     $schema = self::getSchema();
+    $extensions = \CRM_Extension_System::singleton()->getMapper();
     return [
       'schema' => $schema,
       'joins' => self::getJoins(array_column($schema, NULL, 'name')),
       'operators' => \CRM_Utils_Array::makeNonAssociative(self::getOperators()),
       'functions' => \CRM_Api4_Page_Api4Explorer::getSqlFunctions(),
       'displayTypes' => Display::getDisplayTypes(['id', 'name', 'label', 'description', 'icon']),
-      'afformEnabled' => (bool) \CRM_Utils_Array::findAll(
-        \CRM_Extension_System::singleton()->getMapper()->getActiveModuleFiles(),
-        ['fullName' => 'org.civicrm.afform']
-      ),
-      'afformAdminEnabled' => (bool) \CRM_Utils_Array::findAll(
-        \CRM_Extension_System::singleton()->getMapper()->getActiveModuleFiles(),
-        ['fullName' => 'org.civicrm.afform_admin']
-      ),
+      'styles' => \CRM_Utils_Array::makeNonAssociative(self::getStyles()),
+      'afformEnabled' => $extensions->isActiveModule('afform'),
+      'afformAdminEnabled' => $extensions->isActiveModule('afform_admin'),
     ];
   }
 
@@ -50,15 +48,29 @@ class Admin {
       '<' => '<',
       '>=' => '≥',
       '<=' => '≤',
-      'CONTAINS' => ts('Contains'),
-      'IN' => ts('Is One Of'),
-      'NOT IN' => ts('Not One Of'),
-      'LIKE' => ts('Is Like'),
-      'NOT LIKE' => ts('Not Like'),
-      'BETWEEN' => ts('Is Between'),
-      'NOT BETWEEN' => ts('Not Between'),
-      'IS NULL' => ts('Is Null'),
-      'IS NOT NULL' => ts('Not Null'),
+      'CONTAINS' => E::ts('Contains'),
+      'IN' => E::ts('Is One Of'),
+      'NOT IN' => E::ts('Not One Of'),
+      'LIKE' => E::ts('Is Like'),
+      'NOT LIKE' => E::ts('Not Like'),
+      'BETWEEN' => E::ts('Is Between'),
+      'NOT BETWEEN' => E::ts('Not Between'),
+      'IS EMPTY' => E::ts('Is Empty'),
+      'IS NOT EMPTY' => E::ts('Not Empty'),
+    ];
+  }
+
+  /**
+   * @return string[]
+   */
+  public static function getStyles():array {
+    return [
+      'default' => E::ts('Default'),
+      'primary' => E::ts('Primary'),
+      'success' => E::ts('Success'),
+      'info' => E::ts('Info'),
+      'warning' => E::ts('Warning'),
+      'danger' => E::ts('Danger'),
     ];
   }
 
@@ -69,13 +81,13 @@ class Admin {
   public static function getSchema() {
     $schema = [];
     $entities = \Civi\Api4\Entity::get()
-      ->addSelect('name', 'title', 'type', 'title_plural', 'description', 'icon', 'paths', 'dao', 'bridge', 'ui_join_filters')
+      ->addSelect('name', 'title', 'type', 'title_plural', 'description', 'label_field', 'icon', 'paths', 'dao', 'bridge', 'ui_join_filters')
       ->addWhere('searchable', '=', TRUE)
       ->addOrderBy('title_plural')
       ->setChain([
         'get' => ['$name', 'getActions', ['where' => [['name', '=', 'get']]], ['params']],
       ])->execute();
-    $getFields = ['name', 'label', 'description', 'options', 'input_type', 'input_attrs', 'data_type', 'serialize', 'fk_entity'];
+    $getFields = ['name', 'title', 'label', 'description', 'options', 'input_type', 'input_attrs', 'data_type', 'serialize', 'entity', 'fk_entity'];
     foreach ($entities as $entity) {
       // Skip if entity doesn't have a 'get' action or the user doesn't have permission to use get
       if ($entity['get']) {
@@ -84,15 +96,15 @@ class Admin {
           unset($entity['paths'][$action]);
           switch ($action) {
             case 'view':
-              $title = ts('View %1', [1 => $entity['title']]);
+              $title = E::ts('View %1', [1 => $entity['title']]);
               break;
 
             case 'update':
-              $title = ts('Edit %1', [1 => $entity['title']]);
+              $title = E::ts('Edit %1', [1 => $entity['title']]);
               break;
 
             case 'delete':
-              $title = ts('Delete %1', [1 => $entity['title']]);
+              $title = E::ts('Delete %1', [1 => $entity['title']]);
               break;
 
             default:
@@ -114,11 +126,26 @@ class Admin {
         if (!array_diff(['select', 'where', 'orderBy', 'limit', 'offset'], array_keys($params))) {
           \CRM_Utils_Array::remove($params, 'checkPermissions', 'debug', 'chain', 'language', 'select', 'where', 'orderBy', 'limit', 'offset');
           unset($entity['get']);
-          $schema[] = ['params' => array_keys($params)] + array_filter($entity);
+          $schema[$entity['name']] = ['params' => array_keys($params)] + array_filter($entity);
         }
       }
     }
-    return $schema;
+    // Add in FK fields for implicit joins
+    // For example, add a `campaign.title` field to the Contribution entity
+    foreach ($schema as &$entity) {
+      foreach (array_reverse($entity['fields'], TRUE) as $index => $field) {
+        if (!empty($field['fk_entity']) && !$field['options'] && !empty($schema[$field['fk_entity']]['label_field'])) {
+          // The original field will get title instead of label since it represents the id (title usually ends in ID but label does not)
+          $entity['fields'][$index]['label'] = $field['title'];
+          // Add the label field from the other entity to this entity's list of fields
+          $newField = \CRM_Utils_Array::findAll($schema[$field['fk_entity']]['fields'], ['name' => $schema[$field['fk_entity']]['label_field']])[0];
+          $newField['name'] = str_replace('_id', '', $field['name']) . '.' . $schema[$field['fk_entity']]['label_field'];
+          $newField['label'] = $field['label'] . ' ' . $newField['label'];
+          array_splice($entity['fields'], $index, 0, [$newField]);
+        }
+      }
+    }
+    return array_values($schema);
   }
 
   /**
@@ -224,7 +251,7 @@ class Admin {
               $alias = $baseEntity['name'] . "_{$bridge}_" . $targetEntityName;
               $joins[$baseEntity['name']][] = [
                 'label' => $baseEntity['title'] . ' ' . $targetsTitle,
-                'description' => ts('Multiple %1 per %2', [1 => $targetsTitle, 2 => $baseEntity['title']]),
+                'description' => E::ts('Multiple %1 per %2', [1 => $targetsTitle, 2 => $baseEntity['title']]),
                 'entity' => $targetEntityName,
                 'conditions' => array_merge(
                   [$bridge],
@@ -239,7 +266,7 @@ class Admin {
                 $alias = $targetEntityName . "_{$bridge}_" . $baseEntity['name'];
                 $joins[$targetEntityName][] = [
                   'label' => $targetEntity['title'] . ' ' . $baseEntity['title_plural'],
-                  'description' => ts('Multiple %1 per %2', [1 => $baseEntity['title_plural'], 2 => $targetEntity['title']]),
+                  'description' => E::ts('Multiple %1 per %2', [1 => $baseEntity['title_plural'], 2 => $targetEntity['title']]),
                   'entity' => $baseEntity['name'],
                   'conditions' => array_merge(
                     [$bridge],

@@ -3,7 +3,17 @@
             <tr><td class="label">{$label|escape}</td><td><a href="{$url|escape}">{$url|escape}</a></td></tr>
         {/foreach}
     <tr>
-        <td class="label">{ts}Author{/ts}</td><td>{$extension.maintainer.author|escape} (<a href="mailto:{$extension.maintainer.email|escape}">{$extension.maintainer.email|escape}</a>)</td>
+        <td class="label">{ts}Author{/ts}</td>
+        <td>
+          {foreach from=$extension.authors item=author}
+            {capture assign=authorDetails}
+              {if $author.role}{$author.role|escape};{/if}
+              {if $author.email}<a href="mailto:{$author.email|escape}">{$author.email|escape}</a>;{/if}
+              {if $author.homepage}<a href="{$author.homepage|escape}">{$author.homepage|escape}</a>;{/if}
+            {/capture}
+            {$author.name|escape} {if $authorDetails}({$authorDetails|trim:'; '}){/if}<br/>
+          {/foreach}
+        </td>
     </tr>
     <tr>
       <td class="label">{ts}Comments{/ts}</td><td>{$extension.comments|escape}</td>

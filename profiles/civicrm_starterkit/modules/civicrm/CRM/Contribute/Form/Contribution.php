@@ -196,6 +196,11 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
   public $_softCreditItemCount = 11;
 
   /**
+   * @var bool
+   */
+  public $submitOnce = TRUE;
+
+  /**
    * Explicitly declare the form context.
    */
   public function getDefaultContext() {
@@ -371,7 +376,7 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
     $amountFields = ['non_deductible_amount', 'fee_amount'];
     foreach ($amountFields as $amt) {
       if (isset($defaults[$amt])) {
-        $defaults[$amt] = CRM_Utils_Money::format($defaults[$amt], NULL, '%a');
+        $defaults[$amt] = CRM_Utils_Money::formatLocaleNumericRoundedForDefaultCurrency($defaults[$amt]);
       }
     }
 
@@ -627,10 +632,10 @@ class CRM_Contribute_Form_Contribution extends CRM_Contribute_Form_AbstractEditP
     if (!$this->_mode) {
       // payment_instrument isn't required in edit and will not be present when payment block is enabled.
       $required = !$this->_id;
-      $checkPaymentID = array_search('Check', CRM_Contribute_PseudoConstant::paymentInstrument('name'));
+      $checkPaymentID = array_search('Check', CRM_Contribute_BAO_Contribution::buildOptions('payment_instrument_id', 'validate'));
       $paymentInstrument = $this->add('select', 'payment_instrument_id',
         ts('Payment Method'),
-        ['' => ts('- select -')] + CRM_Contribute_PseudoConstant::paymentInstrument(),
+        ['' => ts('- select -')] + CRM_Contribute_BAO_Contribution::buildOptions('payment_instrument_id', 'create'),
         $required, ['onChange' => "return showHideByValue('payment_instrument_id','{$checkPaymentID}','checkNumber','table-row','select',false);"]
       );
     }

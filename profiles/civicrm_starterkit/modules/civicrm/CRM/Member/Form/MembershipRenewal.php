@@ -199,10 +199,10 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
       $defaults['payment_instrument_id'] = key(CRM_Core_OptionGroup::values('payment_instrument', FALSE, FALSE, FALSE, 'AND is_default = 1'));
     }
 
-    $defaults['total_amount'] = CRM_Utils_Money::format(CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipType',
+    $defaults['total_amount'] = CRM_Utils_Money::formatLocaleNumericRoundedForDefaultCurrency(CRM_Core_DAO::getFieldValue('CRM_Member_DAO_MembershipType',
       $this->_memType,
       'minimum_fee'
-    ), NULL, '%a');
+    ));
 
     $defaults['record_contribution'] = 0;
     $defaults['num_terms'] = 1;
@@ -287,7 +287,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
         // membership type is selected.
         $allMembershipInfo[$key] = [
           'financial_type_id' => $values['financial_type_id'] ?? NULL,
-          'total_amount' => CRM_Utils_Money::format($totalAmount, NULL, '%a'),
+          'total_amount' => CRM_Utils_Money::formatLocaleNumericRoundedForDefaultCurrency($totalAmount),
           'total_amount_numeric' => $totalAmount,
           'tax_message' => $taxAmount ? ts("Includes %1 amount of %2", [1 => $this->getSalesTaxTerm(), 2 => CRM_Utils_Money::format($taxAmount)]) : $taxAmount,
         ];
@@ -507,7 +507,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
     $this->assign('module', 'Membership');
     $this->assign('receiptType', 'membership renewal');
     $this->_params['currencyID'] = CRM_Core_Config::singleton()->defaultCurrency;
-    $this->_params['invoice_id'] = $this->_params['invoiceID'] = md5(uniqid(rand(), TRUE));
+    $this->_params['invoice_id'] = $this->getInvoiceID();
 
     if (!empty($this->_params['send_receipt'])) {
       $this->_params['receipt_date'] = $now;
@@ -546,7 +546,7 @@ class CRM_Member_Form_MembershipRenewal extends CRM_Member_Form {
           'financial_type_id' => $this->_params['financial_type_id'],
           'is_email_receipt' => !empty($this->_params['send_receipt']),
           'payment_instrument_id' => $this->_params['payment_instrument_id'],
-          'invoice_id' => $this->_params['invoice_id'],
+          'invoice_id' => $this->getInvoiceID(),
         ], $paymentParams['membership_type_id'][1]);
 
         $contributionRecurID = $contributionRecurParams['contributionRecurID'];

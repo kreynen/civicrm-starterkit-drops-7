@@ -37,14 +37,8 @@ abstract class AbstractProcessor extends \Civi\Api4\Generic\AbstractAction {
    * @throws \API_Exception
    */
   public function _run(Result $result) {
-    // This will throw an exception if the form doesn't exist
-    $this->_afform = (array) civicrm_api4('Afform', 'get', ['checkPermissions' => FALSE, 'where' => [['name', '=', $this->name]]], 0);
-    if ($this->getCheckPermissions()) {
-      if (!\CRM_Core_Permission::check("@afform:" . $this->_afform['name'])) {
-        throw new \Civi\API\Exception\UnauthorizedException("Authorization failed: Cannot process form " . $this->_afform['name']);
-      }
-    }
-
+    // This will throw an exception if the form doesn't exist or user lacks permission
+    $this->_afform = (array) civicrm_api4('Afform', 'get', ['where' => [['name', '=', $this->name]]], 0);
     $this->_formDataModel = new FormDataModel($this->_afform['layout']);
     $this->validateArgs();
     $result->exchangeArray($this->processForm());

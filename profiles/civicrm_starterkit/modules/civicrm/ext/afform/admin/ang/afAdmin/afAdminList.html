@@ -14,19 +14,19 @@
       <a ng-if="types[$ctrl.tab].default" href="{{ types[$ctrl.tab].default }}" class="btn btn-primary">
         {{ ts('New %1', {1: types[$ctrl.tab].label }) }}
       </a>
-      <button ng-click="$ctrl.createLinks()" type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+      <button type="button" ng-click="$ctrl.createLinks()" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         <span ng-class="{'sr-only': types[$ctrl.tab].default}">{{ ts('New %1', {1: types[$ctrl.tab].label }) }}</span>
         <span class="caret"></span>
       </button>
       <ul class="dropdown-menu">
         <li>
-          <input ng-if="types[$ctrl.tab].options.length" type="search" class="form-control" placeholder="&#xf002" ng-model="$ctrl.searchCreateLinks">
+          <input ng-if="types[$ctrl.tab].options.length" type="search" class="form-control" placeholder="&#xf002" ng-model="searchCreateLinks.label">
           <a href ng-if="!types[$ctrl.tab].options.length"><i class="crm-i fa-spinner fa-spin"></i></a>
         </li>
-        <li ng-repeat="link in types[$ctrl.tab].options | filter:$ctrl.searchCreateLinks">
-          <a href="{{ link.url }}">
-            <i class="crm-i {{ link.icon }}"></i>
-            {{ link.label }}
+        <li ng-repeat="link in types[$ctrl.tab].options | filter:searchCreateLinks" class="{{:: link.class }}">
+          <a ng-if=":: link.url" href="{{:: link.url }}">
+            <i class="crm-i {{:: link.icon }}"></i>
+            {{:: link.label }}
           </a>
         </li>
       </ul>

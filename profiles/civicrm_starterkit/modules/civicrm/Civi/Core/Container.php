@@ -224,6 +224,9 @@ class Container {
     $container->setDefinition('crypto.token', new Definition('Civi\Crypto\CryptoToken', []))
       ->setPublic(TRUE);
 
+    $container->setDefinition('crypto.jwt', new Definition('Civi\Crypto\CryptoJwt', []))
+      ->setPublic(TRUE);
+
     if (empty(\Civi::$statics[__CLASS__]['boot'])) {
       throw new \RuntimeException('Cannot initialize container. Boot services are undefined.');
     }
@@ -566,6 +569,10 @@ class Container {
         $container->set($name, $obj);
       }
       \Civi::$statics[__CLASS__]['container'] = $container;
+      // Ensure all container-based serivces have a chance to add their listeners.
+      // Without this, it's a matter of happenstance (dependent upon particular page-request/configuration/etc).
+      $container->get('dispatcher');
+
     }
     else {
       $bootServices['dispatcher.boot']->setDispatchPolicy($mainDispatchPolicy);

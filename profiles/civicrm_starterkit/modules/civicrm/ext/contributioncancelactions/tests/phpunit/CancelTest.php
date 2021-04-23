@@ -296,45 +296,6 @@ class CancelTest extends TestCase implements HeadlessInterface, HookInterface, T
   }
 
   /**
-   * Test cancelling a contribution with a membership on the contribution edit
-   * form.
-   *
-   * @throws \API_Exception
-   * @throws \CRM_Core_Exception
-   * @throws \CiviCRM_API3_Exception
-   */
-  public function testCancelFromContributionForm(): void {
-    $this->createContact();
-    $this->createMembershipType();
-    $this->createMembershipOrder();
-    $this->createLoggedInUser();
-    $formValues = [
-      'id' => $this->ids['Contribution'][0],
-      'contact_id' => $this->ids['contact'][0],
-      'contribution_status_id' => CRM_Core_PseudoConstant::getKey('CRM_Contribute_BAO_Contribution', 'contribution_status_id', 'Cancelled'),
-    ];
-    $form = new CRM_Contribute_Form_Contribution();
-    $_SERVER['REQUEST_METHOD'] = 'GET';
-    $form->controller = new CRM_Core_Controller();
-    $form->controller->setStateMachine(new CRM_Core_StateMachine($form->controller));
-    $form->testSubmit($formValues, CRM_Core_Action::UPDATE);
-
-    $contribution = Contribution::get()
-      ->addWhere('id', '=', $this->ids['Contribution'][0])
-      ->addSelect('contribution_status_id:name')
-      ->execute()->first();
-    $this->assertEquals('Cancelled', $contribution['contribution_status_id:name']);
-    $membership = $this->callAPISuccessGetSingle('Membership', []);
-    $this->assertEquals('Cancelled', CRM_Core_PseudoConstant::getName('CRM_Member_BAO_Membership', 'status_id', $membership['status_id']));
-    $activity = Activity::get()
-      ->addSelect('subject', 'source_record_id', 'status_id')
-      ->addWhere('activity_type_id:name', '=', 'Change Membership Status')
-      ->execute();
-    $this->assertCount(1, $activity);
-    $this->assertEquals('Status changed from Pending to Cancelled', $activity->first()['subject']);
-  }
-
-  /**
    * Create an event and an order for a participant in that event.
    *
    * @return int

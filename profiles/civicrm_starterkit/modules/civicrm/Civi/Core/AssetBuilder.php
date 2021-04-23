@@ -188,7 +188,6 @@ class AssetBuilder {
       if (!file_exists($this->getCachePath())) {
         mkdir($this->getCachePath());
       }
-
       try {
         $rendered = $this->render($name, $params);
         file_put_contents($this->getCachePath($fileName), $rendered['content']);

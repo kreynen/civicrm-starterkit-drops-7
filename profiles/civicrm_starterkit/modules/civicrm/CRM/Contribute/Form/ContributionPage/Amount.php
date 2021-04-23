@@ -146,7 +146,7 @@ class CRM_Contribute_Form_ContributionPage_Amount extends CRM_Contribute_Form_Co
     }
 
     $this->addField('price_set_id', [
-      'entity' => 'PriceSet',
+      'entity' => 'PriceField',
       'options' => $price,
       'onchange' => "showHideAmountBlock( this.value, 'price_set_id' );",
     ]);
@@ -269,10 +269,10 @@ class CRM_Contribute_Form_ContributionPage_Amount extends CRM_Contribute_Form_Co
 
     // fix the display of the monetary value, CRM-4038
     if (isset($defaults['min_amount'])) {
-      $defaults['min_amount'] = CRM_Utils_Money::format($defaults['min_amount'], NULL, '%a');
+      $defaults['min_amount'] = CRM_Utils_Money::formatLocaleNumericRoundedForDefaultCurrency($defaults['min_amount']);
     }
     if (isset($defaults['max_amount'])) {
-      $defaults['max_amount'] = CRM_Utils_Money::format($defaults['max_amount'], NULL, '%a');
+      $defaults['max_amount'] = CRM_Utils_Money::formatLocaleNumericRoundedForDefaultCurrency($defaults['max_amount']);
     }
 
     if (!empty($defaults['payment_processor'])) {
