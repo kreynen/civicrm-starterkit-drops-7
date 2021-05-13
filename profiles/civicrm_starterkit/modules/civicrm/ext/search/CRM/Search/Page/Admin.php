@@ -9,6 +9,8 @@
  +--------------------------------------------------------------------+
  */
 
+use CRM_Search_ExtensionUtil as E;
+
 /**
  * Angular base page for search admin
  */
@@ -16,18 +18,15 @@ class CRM_Search_Page_Admin extends CRM_Core_Page {
 
   public function run() {
     $breadCrumb = [
-      'title' => ts('Search Kit'),
+      'title' => E::ts('Search Kit'),
       'url' => CRM_Utils_System::url('civicrm/admin/search', NULL, FALSE, '/list'),
     ];
     CRM_Utils_System::appendBreadCrumb([$breadCrumb]);
 
     // Load angular module
-    $loader = new Civi\Angular\AngularLoader();
-    $loader->setPageName('civicrm/admin/search');
-    $loader->useApp([
-      'defaultRoute' => '/list',
-    ]);
-    $loader->load();
+    Civi::service('angularjs.loader')
+      ->useApp(['defaultRoute' => '/list']);
+
     parent::run();
   }
 

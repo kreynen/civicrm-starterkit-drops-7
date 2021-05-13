@@ -584,20 +584,10 @@ abstract class CRM_Core_Payment {
     // not documented clearly above.
     switch ($context) {
       case 'contributionPageRecurringHelp':
-        // require exactly two parameters
-        if (array_keys($params) == [
-          'is_recur_installments',
-          'is_email_receipt',
-        ]) {
-          $gotText = ts('Your recurring contribution will be processed automatically.');
-          if ($params['is_recur_installments']) {
-            $gotText .= ' ' . ts('You can specify the number of installments, or you can leave the number of installments blank if you want to make an open-ended commitment. In either case, you can choose to cancel at any time.');
-          }
-          if ($params['is_email_receipt']) {
-            $gotText .= ' ' . ts('You will receive an email receipt for each recurring contribution.');
-          }
+        if ($params['is_recur_installments']) {
+          return ts('You can specify the number of installments, or you can leave the number of installments blank if you want to make an open-ended commitment. In either case, you can choose to cancel at any time.');
         }
-        return $gotText;
+        return '';
 
       case 'contributionPageContinueText':
         return ts('Click the <strong>Continue</strong> button to proceed with the payment.');
@@ -1176,9 +1166,9 @@ abstract class CRM_Core_Payment {
   protected function getAmount($params = []) {
     if (!CRM_Utils_Rule::numeric($params['amount'])) {
       CRM_Core_Error::deprecatedWarning('Passing Amount value that is not numeric is deprecated please report this in gitlab');
-      return CRM_Utils_Money::formatLocaleNumericRoundedByPrecision(filter_var($params['amount'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION), 2);
+      return CRM_Utils_Money::formatUSLocaleNumericRounded(filter_var($params['amount'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION), 2);
     }
-    return CRM_Utils_Money::formatLocaleNumericRoundedByPrecision($params['amount'], 2);
+    return CRM_Utils_Money::formatUSLocaleNumericRounded($params['amount'], 2);
   }
 
   /**

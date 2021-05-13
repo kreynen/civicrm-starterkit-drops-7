@@ -345,6 +345,7 @@
     <html>
       <label>Modified Date</label>
     </html>
+    <readonly>true</readonly>
    <add>4.7</add>
   </field>
   <field>
@@ -503,6 +504,7 @@
     <type>varchar</type>
     <length>16</length>
     <comment>Key for validating requests related to this mailing.</comment>
+    <readonly>true</readonly>
     <add>4.5</add>
   </field>
   <index>

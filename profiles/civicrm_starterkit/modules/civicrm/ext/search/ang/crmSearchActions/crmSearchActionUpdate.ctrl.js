@@ -2,7 +2,7 @@
   "use strict";
 
   angular.module('crmSearchActions').controller('crmSearchActionUpdate', function ($scope, $timeout, crmApi4, dialogService) {
-    var ts = $scope.ts = CRM.ts(),
+    var ts = $scope.ts = CRM.ts('org.civicrm.search'),
       model = $scope.model,
       ctrl = this;
 
@@ -13,6 +13,7 @@
 
     crmApi4(model.entity, 'getFields', {
       action: 'update',
+      select: ['name', 'label', 'description', 'data_type', 'serialize', 'options'],
       loadOptions: ['id', 'name', 'label', 'description', 'color', 'icon'],
       where: [["readonly", "=", false]],
     }).then(function(fields) {

@@ -5,6 +5,7 @@ namespace Civi\Api4\Action\SearchDisplay;
 use Civi\API\Exception\UnauthorizedException;
 use Civi\Api4\SavedSearch;
 use Civi\Api4\SearchDisplay;
+use Civi\Api4\Utils\CoreUtil;
 
 /**
  * Load the results for rendering a SearchDisplay.
@@ -31,7 +32,7 @@ class Run extends \Civi\Api4\Generic\AbstractAction {
    * Array of fields to use for ordering the results
    * @var array
    */
-  protected $sort;
+  protected $sort = [];
 
   /**
    * Should this api call return a page of results or the row_count or the ids
@@ -79,6 +80,7 @@ class Run extends \Civi\Api4\Generic\AbstractAction {
     }
     if (is_string($this->display) && !empty($this->savedSearch['id'])) {
       $this->display = SearchDisplay::get(FALSE)
+        ->setSelect(['*', 'type:name'])
         ->addWhere('name', '=', $this->display)
         ->addWhere('saved_search_id', '=', $this->savedSearch['id'])
         ->execute()->first();
@@ -88,6 +90,8 @@ class Run extends \Civi\Api4\Generic\AbstractAction {
     }
     $entityName = $this->savedSearch['api_entity'];
     $apiParams =& $this->savedSearch['api_params'];
+    $apiParams['checkPermissions'] = $this->checkPermissions;
+    $apiParams += ['where' => []];
     $settings = $this->display['settings'];
     $page = NULL;
 
@@ -134,6 +138,12 @@ class Run extends \Civi\Api4\Generic\AbstractAction {
             $apiParams['select'][] = $idField;
           }
         }
+        // Select value fields for in-place editing
+        foreach ($settings['columns'] ?? [] as $column) {
+          if (isset($column['editable']['value']) && !in_array($column['editable']['value'], $apiParams['select'])) {
+            $apiParams['select'][] = $column['editable']['value'];
+          }
+        }
     }
 
     $this->applyFilters();
@@ -145,13 +155,24 @@ class Run extends \Civi\Api4\Generic\AbstractAction {
   }
 
   /**
+   * Checks if a filter contains a non-empty value
+   *
+   * "Empty" search values are [], '', and NULL.
+   * Also recursively checks arrays to ensure they contain at least one non-empty value.
+   *
+   * @param $value
+   * @return bool
+   */
+  private function hasValue($value) {
+    return $value !== '' && $value !== NULL && (!is_array($value) || array_filter($value, [$this, 'hasValue']));
+  }
+
+  /**
    * Applies supplied filters to the where clause
    */
   private function applyFilters() {
     // Ignore empty strings
-    $filters = array_filter($this->filters, function($value) {
-      return isset($value) && (strlen($value) || !is_string($value));
-    });
+    $filters = array_filter($this->filters, [$this, 'hasValue']);
     if (!$filters) {
       return;
     }
@@ -178,37 +199,58 @@ class Run extends \Civi\Api4\Generic\AbstractAction {
 
   /**
    * @param string $fieldName
-   * @param string $value
+   * @param mixed $value
    */
-  private function applyFilter(string $fieldName, string $value) {
-    $field = $this->getField($fieldName);
-
-    // Global setting determines if % wildcard should be added to both sides (default) or only the end of the search term
+  private function applyFilter(string $fieldName, $value) {
+    // Global setting determines if % wildcard should be added to both sides (default) or only the end of a search string
     $prefixWithWildcard = \Civi::settings()->get('includeWildCardInName');
 
-    // Not a real field. It must be an aggregated column. Add to HAVING clause.
+    $field = $this->getField($fieldName);
+    // If field is not found it must be an aggregated column & belongs in the HAVING clause.
     if (!$field) {
-      if ($prefixWithWildcard) {
-        $this->savedSearch['api_params']['having'][] = [$fieldName, 'CONTAINS', $value];
+      $this->savedSearch['api_params']['having'] = $this->savedSearch['api_params']['having'] ?? [];
+      $clause =& $this->savedSearch['api_params']['having'];
+    }
+    // If field belongs to an EXCLUDE join, it should be added as a join condition
+    else {
+      $prefix = strpos($fieldName, '.') ? explode('.', $fieldName)[0] : NULL;
+      foreach ($this->savedSearch['api_params']['join'] ?? [] as $idx => $join) {
+        if (($join[1] ?? 'LEFT') === 'EXCLUDE' && (explode(' AS ', $join[0])[1] ?? '') === $prefix) {
+          $clause =& $this->savedSearch['api_params']['join'][$idx];
+        }
       }
-      else {
-        $this->savedSearch['api_params']['having'][] = [$fieldName, 'LIKE', $value . '%'];
-      }
-      return;
+    }
+    // Default: add filter to WHERE clause
+    if (!isset($clause)) {
+      $clause =& $this->savedSearch['api_params']['where'];
     }
 
-    $dataType = $field['data_type'];
-    if (!empty($field['serialize'])) {
-      $this->savedSearch['api_params']['where'][] = [$fieldName, 'CONTAINS', $value];
+    $dataType = $field['data_type'] ?? NULL;
+
+    // Array is either associative `OP => VAL` or sequential `IN (...)`
+    if (is_array($value)) {
+      $value = array_filter($value, [$this, 'hasValue']);
+      // Use IN if array does not contain operators as keys
+      if (array_diff_key($value, array_flip(CoreUtil::getOperators()))) {
+        $clause[] = [$fieldName, 'IN', $value];
+      }
+      else {
+        foreach ($value as $operator => $val) {
+          $clause[] = [$fieldName, $operator, $val];
+        }
+      }
+    }
+    elseif (!empty($field['serialize'])) {
+      $clause[] = [$fieldName, 'CONTAINS', $value];
     }
     elseif (!empty($field['options']) || in_array($dataType, ['Integer', 'Boolean', 'Date', 'Timestamp'])) {
-      $this->savedSearch['api_params']['where'][] = [$fieldName, '=', $value];
+      $clause[] = [$fieldName, '=', $value];
     }
     elseif ($prefixWithWildcard) {
-      $this->savedSearch['api_params']['where'][] = [$fieldName, 'CONTAINS', $value];
+      $clause[] = [$fieldName, 'CONTAINS', $value];
     }
     else {
-      $this->savedSearch['api_params']['where'][] = [$fieldName, 'LIKE', $value . '%'];
+      $clause[] = [$fieldName, 'LIKE', $value . '%'];
     }
   }
 
@@ -294,10 +336,20 @@ class Run extends \Civi\Api4\Generic\AbstractAction {
    */
   private function getAfformFilters() {
     $afform = $this->loadAfform();
-    return array_column(\CRM_Utils_Array::findAll(
+    if (!$afform) {
+      return [];
+    }
+    // Get afform field filters
+    $filters = array_column(\CRM_Utils_Array::findAll(
       $afform['layout'] ?? [],
       ['#tag' => 'af-field']
     ), 'name');
+    // Get filters passed into search display directive
+    $filterAttr = $afform['searchDisplay']['filters'] ?? NULL;
+    if ($filterAttr && is_string($filterAttr) && $filterAttr[0] === '{') {
+      $filters = array_unique(array_merge($filters, array_keys(\CRM_Utils_JS::getRawProps($filterAttr))));
+    }
+    return $filters;
   }
 
   /**
@@ -317,10 +369,11 @@ class Run extends \Civi\Api4\Generic\AbstractAction {
         ->setLayoutFormat('shallow')
         ->execute()->first();
       // Validate that the afform contains this search display
-      if (\CRM_Utils_Array::findAll(
+      $afform['searchDisplay'] = \CRM_Utils_Array::findAll(
         $afform['layout'] ?? [],
-        ['#tag' => "crm-search-display-{$this->display['type']}", 'display-name' => $this->display['name']])
-      ) {
+        ['#tag' => "{$this->display['type:name']}", 'display-name' => $this->display['name']]
+      )[0] ?? NULL;
+      if ($afform['searchDisplay']) {
         $this->_afform = $afform;
       }
     }

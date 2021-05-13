@@ -23,6 +23,10 @@
                 'label',
                 'api_entity',
                 'api_params',
+                'created.display_name',
+                'modified.display_name',
+                'created_date',
+                'modified_date',
                 'GROUP_CONCAT(display.name ORDER BY display.id) AS display_name',
                 'GROUP_CONCAT(display.label ORDER BY display.id) AS display_label',
                 'GROUP_CONCAT(display.type:icon ORDER BY display.id) AS display_icon',
@@ -50,7 +54,7 @@
             return crmApi4('SavedSearch', 'get', {
               where: [['id', '=', params.id]],
               chain: {
-                groups: ['Group', 'get', {select: ['id', 'title', 'description', 'visibility', 'group_type'], where: [['saved_search_id', '=', '$id']]}],
+                groups: ['Group', 'get', {select: ['id', 'title', 'description', 'visibility', 'group_type', 'custom.*'], where: [['saved_search_id', '=', '$id']]}],
                 displays: ['SearchDisplay', 'get', {where: [['saved_search_id', '=', '$id']]}]
               }
             }, 0);

@@ -84,4 +84,53 @@ class CRM_Search_Upgrader extends CRM_Search_Upgrader_Base {
     return TRUE;
   }
 
+  /**
+   * Upgrade 1002 - embellish search display link data
+   * @return bool
+   */
+  public function upgrade_1002() {
+    $this->ctx->log->info('Applying update 1002 - embellish search display link data.');
+    $displays = \Civi\Api4\SearchDisplay::get(FALSE)
+      ->setSelect(['id', 'settings'])
+      ->execute();
+    foreach ($displays as $display) {
+      $update = FALSE;
+      foreach ($display['settings']['columns'] ?? [] as $c => $column) {
+        if (!empty($column['link'])) {
+          $display['settings']['columns'][$c]['link'] = ['path' => $column['link']];
+          $update = TRUE;
+        }
+      }
+      if ($update) {
+        \Civi\Api4\SearchDisplay::update(FALSE)
+          ->setValues($display)
+          ->execute();
+      }
+    }
+    return TRUE;
+  }
+
+  /**
+   * Upgrade 1003 - update APIv4 join syntax in saved searches
+   * @return bool
+   */
+  public function upgrade_1003() {
+    $this->ctx->log->info('Applying 1003 - update APIv4 join syntax in saved searches.');
+    $savedSearches = \Civi\Api4\SavedSearch::get(FALSE)
+      ->addSelect('id', 'api_params')
+      ->addWhere('api_params', 'IS NOT NULL')
+      ->execute();
+    foreach ($savedSearches as $savedSearch) {
+      foreach ($savedSearch['api_params']['join'] ?? [] as $i => $join) {
+        $savedSearch['api_params']['join'][$i][1] = empty($join[1]) ? 'LEFT' : 'INNER';
+      }
+      if (!empty($savedSearch['api_params']['join'])) {
+        \Civi\Api4\SavedSearch::update(FALSE)
+          ->setValues($savedSearch)
+          ->execute();
+      }
+    }
+    return TRUE;
+  }
+
 }

@@ -4405,7 +4405,7 @@ INSERT INTO civicrm_state_province (id, country_id, abbreviation, name) VALUES
 (NULL, 1226, "BGE", "Bridgend"),
 (NULL, 1226, "CAY", "Caerphilly"),
 (NULL, 1226, "CRF", "Cardiff"),
-(NULL, 1226, "CRF", "Carmarthenshire"),
+(NULL, 1226, "CMN", "Carmarthenshire"),
 (NULL, 1226, "CGN", "Ceredigion"),
 (NULL, 1226, "CWY", "Conwy"),
 (NULL, 1226, "DEN", "Denbighshire"),
@@ -5460,9 +5460,9 @@ VALUES
   (@option_group_id_paperSize, 'ISO SRA4',        '{"metric":"pt","width":637.8,"height":907.09}',    'sra4',        NULL, NULL, 0, 62, NULL, 0, 0, 1, NULL, NULL, NULL),
 
 -- activity_contacts
-   (@option_group_id_aco, 'Activity Assignees', 1, 'Activity Assignees', NULL, 0, NULL, 1, NULL, 0, 0, 1, NULL, NULL, NULL),
+   (@option_group_id_aco, 'Activity Assignees', 1, 'Activity Assignees', NULL, 0, NULL, 3, NULL, 0, 0, 1, NULL, NULL, NULL),
    (@option_group_id_aco, 'Activity Source', 2, 'Activity Source', NULL, 0, NULL, 2, NULL, 0, 0, 1, NULL, NULL, NULL),
-   (@option_group_id_aco, 'Activity Targets', 3, 'Activity Targets', NULL, 0, NULL, 3, NULL, 0, 0, 1, NULL, NULL, NULL),
+   (@option_group_id_aco, 'Activity Targets', 3, 'Activity Targets', NULL, 0, NULL, 1, NULL, 0, 0, 1, NULL, NULL, NULL),
 
 -- financial_account_type
 -- grouping field is specific to Quickbooks for mapping to .iif format
@@ -23069,6 +23069,8 @@ INSERT IGNORE INTO civicrm_extension (type, full_name, name, label, file, is_act
 INSERT IGNORE INTO civicrm_extension (type, full_name, name, label, file, is_active) VALUES ('module', 'eventcart', 'Event cart', 'Event cart', 'eventcart', 1);
 INSERT IGNORE INTO civicrm_extension (type, full_name, name, label, file, is_active) VALUES ('module', 'financialacls', 'Financial ACLs', 'Financial ACLs', 'financialacls', 1);
 INSERT IGNORE INTO civicrm_extension (type, full_name, name, label, file, is_active) VALUES ('module', 'contributioncancelactions', 'Contribution cancel actions', 'Contribution cancel actions', 'contributioncancelactions', 1);
+INSERT IGNORE INTO civicrm_extension (type, full_name, name, label, file, is_active) VALUES ('module', 'recaptcha', 'reCAPTCHA', 'reCAPTCHA', 'recaptcha', 1);
+
 -- +--------------------------------------------------------------------+
 -- | Copyright CiviCRM LLC. All rights reserved.                        |
 -- |                                                                    |
@@ -23459,7 +23461,7 @@ VALUES
     ( @domainID, 'civicrm/admin/setting/path?reset=1',                  'Directories',        'Directories',                                  'administer CiviCRM', '', @systemSettingslastID, '1', NULL, 7 ),
     ( @domainID, 'civicrm/admin/mapping?reset=1',                       'Import/Export Mappings', 'Import/Export Mappings',                   'administer CiviCRM', '', @systemSettingslastID, '1', NULL, 8 ),
     ( @domainID, 'civicrm/admin/setting/mapping?reset=1',               'Mapping and Geocoding', 'Mapping and Geocoding',                     'administer CiviCRM', '', @systemSettingslastID, '1', NULL, 9 ),
-    ( @domainID, 'civicrm/admin/setting/misc?reset=1',                  'Misc (Undelete, PDFs, Limits, Logging, Captcha, etc.)', 'Misc (Undelete, PDFs, Limits, Logging, Captcha, etc.)', 'administer CiviCRM', '', @systemSettingslastID, '1', NULL, 10 ),
+    ( @domainID, 'civicrm/admin/setting/misc?reset=1',                  'Misc (Undelete, PDFs, Limits, Logging, etc.)', 'misc_admin_settings', 'administer CiviCRM', '', @systemSettingslastID, '1', NULL, 10 ),
     ( @domainID, 'civicrm/admin/setting/preferences/multisite?reset=1', 'Multi Site Settings', 'Multi Site Settings',                         'administer CiviCRM', '', @systemSettingslastID, '1', NULL, 11 ),
     ( @domainID, 'civicrm/admin/options?reset=1',                       'Option Groups', 'Option Groups',                                     'administer CiviCRM', '', @systemSettingslastID, '1', NULL, 12 ),
     ( @domainID, 'civicrm/admin/setting/smtp?reset=1',                  'Outbound Email (SMTP/Sendmail)', 'Outbound Email',                   'administer CiviCRM', '', @systemSettingslastID, '1', NULL, 13 ),
@@ -23873,4 +23875,4 @@ INSERT INTO `civicrm_report_instance`
     ( `domain_id`, `title`, `report_id`, `description`, `permission`, `form_values`)
 VALUES
     (  @domainID, 'Survey Details', 'survey/detail', 'Detailed report for canvassing, phone-banking, walk lists or other surveys.', 'access CiviReport', 'a:39:{s:6:"fields";a:2:{s:9:"sort_name";s:1:"1";s:6:"result";s:1:"1";}s:22:"assignee_contact_id_op";s:2:"eq";s:25:"assignee_contact_id_value";s:0:"";s:12:"sort_name_op";s:3:"has";s:15:"sort_name_value";s:0:"";s:17:"street_number_min";s:0:"";s:17:"street_number_max";s:0:"";s:16:"street_number_op";s:3:"lte";s:19:"street_number_value";s:0:"";s:14:"street_name_op";s:3:"has";s:17:"street_name_value";s:0:"";s:15:"postal_code_min";s:0:"";s:15:"postal_code_max";s:0:"";s:14:"postal_code_op";s:3:"lte";s:17:"postal_code_value";s:0:"";s:7:"city_op";s:3:"has";s:10:"city_value";s:0:"";s:20:"state_province_id_op";s:2:"in";s:23:"state_province_id_value";a:0:{}s:13:"country_id_op";s:2:"in";s:16:"country_id_value";a:0:{}s:12:"survey_id_op";s:2:"in";s:15:"survey_id_value";a:0:{}s:12:"status_id_op";s:2:"eq";s:15:"status_id_value";s:1:"1";s:11:"custom_1_op";s:2:"in";s:14:"custom_1_value";a:0:{}s:11:"custom_2_op";s:2:"in";s:14:"custom_2_value";a:0:{}s:17:"custom_3_relative";s:1:"0";s:13:"custom_3_from";s:0:"";s:11:"custom_3_to";s:0:"";s:11:"description";s:75:"Detailed report for canvassing, phone-banking, walk lists or other surveys.";s:13:"email_subject";s:0:"";s:8:"email_to";s:0:"";s:8:"email_cc";s:0:"";s:10:"permission";s:17:"access CiviReport";s:6:"groups";s:0:"";s:9:"domain_id";i:1;}');
-UPDATE civicrm_domain SET version = '5.36.1';
+UPDATE civicrm_domain SET version = '5.37.2';

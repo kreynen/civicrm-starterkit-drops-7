@@ -20,4 +20,19 @@ class SearchDisplay extends Generic\DAOEntity {
       ->setCheckPermissions($checkPermissions);
   }
 
+  /**
+   * @param bool $checkPermissions
+   * @return Action\SearchDisplay\GetSearchTasks
+   */
+  public static function getSearchTasks($checkPermissions = TRUE) {
+    return (new Action\SearchDisplay\GetSearchTasks(__CLASS__, __FUNCTION__))
+      ->setCheckPermissions($checkPermissions);
+  }
+
+  public static function permissions() {
+    $permissions = parent::permissions();
+    $permissions['run'] = [];
+    return $permissions;
+  }
+
 }

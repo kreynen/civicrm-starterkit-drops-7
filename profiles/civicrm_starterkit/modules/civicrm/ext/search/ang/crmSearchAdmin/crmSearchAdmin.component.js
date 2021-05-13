@@ -7,7 +7,7 @@
     },
     templateUrl: '~/crmSearchAdmin/crmSearchAdmin.html',
     controller: function($scope, $element, $location, $timeout, crmApi4, dialogService, searchMeta, formatForSelect2) {
-      var ts = $scope.ts = CRM.ts(),
+      var ts = $scope.ts = CRM.ts('org.civicrm.search'),
         ctrl = this;
 
       this.DEFAULT_AGGREGATE_FN = 'GROUP_CONCAT';
@@ -24,15 +24,20 @@
       // Have the filters (WHERE, HAVING, GROUP BY, JOIN) changed?
       this.stale = true;
 
-      $scope.controls = {tab: 'compose'};
-      $scope.joinTypes = [{k: false, v: ts('Optional')}, {k: true, v: ts('Required')}];
-      $scope.groupOptions = CRM.crmSearchActions.groupOptions;
+      $scope.controls = {tab: 'compose', joinType: 'LEFT'};
+      $scope.joinTypes = [
+        {k: 'LEFT', v: ts('With (optional)')},
+        {k: 'INNER', v: ts('With (required)')},
+        {k: 'EXCLUDE', v: ts('Without')},
+      ];
       // Try to create a sensible list of entities one might want to search for,
       // excluding those whos primary purpose is to provide joins or option lists to other entities
       var primaryEntities = _.filter(CRM.crmSearchAdmin.schema, function(entity) {
         return !_.includes(entity.type, 'EntityBridge') && !_.includes(entity.type, 'OptionList');
       });
       $scope.entities = formatForSelect2(primaryEntities, 'name', 'title_plural', ['description', 'icon']);
+      $scope.getEntity = searchMeta.getEntity;
+      $scope.getField = searchMeta.getField;
       this.perm = {
         editGroups: CRM.checkPerm('edit groups')
       };
@@ -170,6 +175,7 @@
 
       $scope.selectTab = function(tab) {
         if (tab === 'group') {
+          loadFieldOptions('Group');
           $scope.smartGroupColumns = searchMeta.getSmartGroupColumns(ctrl.savedSearch.api_entity, ctrl.savedSearch.api_params);
           var smartGroupColumns = _.map($scope.smartGroupColumns, 'id');
           if (smartGroupColumns.length && !_.includes(smartGroupColumns, ctrl.savedSearch.api_params.select[0])) {
@@ -182,6 +188,7 @@
 
       this.removeGroup = function() {
         ctrl.groupExists = !ctrl.groupExists;
+        $scope.status = 'unsaved';
         if (!ctrl.groupExists && (!ctrl.savedSearch.groups.length || !ctrl.savedSearch.groups[0].id)) {
           ctrl.savedSearch.groups.length = 0;
         }
@@ -242,7 +249,7 @@
             ctrl.savedSearch.api_params.join = ctrl.savedSearch.api_params.join || [];
             var join = searchMeta.getJoin($scope.controls.join),
               entity = searchMeta.getEntity(join.entity),
-              params = [$scope.controls.join, false];
+              params = [$scope.controls.join, $scope.controls.joinType || 'LEFT'];
             _.each(_.cloneDeep(join.conditions), function(condition) {
               params.push(condition);
             });
@@ -250,7 +257,7 @@
               params.push(condition);
             });
             ctrl.savedSearch.api_params.join.push(params);
-            if (entity.label_field) {
+            if (entity.label_field && $scope.controls.joinType !== 'EXCLUDE') {
               ctrl.savedSearch.api_params.select.push(join.alias + '.' + entity.label_field);
             }
             loadFieldOptions();
@@ -263,6 +270,10 @@
       this.removeJoin = function(index) {
         var alias = searchMeta.getJoin(ctrl.savedSearch.api_params.join[index][0]).alias;
         ctrl.clearParam('join', index);
+        removeJoinStuff(alias);
+      };
+
+      function removeJoinStuff(alias) {
         _.remove(ctrl.savedSearch.api_params.select, function(item) {
           var pattern = new RegExp('\\b' + alias + '\\.');
           return pattern.test(item.split(' AS ')[0]);
@@ -271,10 +282,17 @@
           return clauseUsesJoin(clause, alias);
         });
         _.eachRight(ctrl.savedSearch.api_params.join, function(item, i) {
-          if (searchMeta.getJoin(item[0]).alias.indexOf(alias) === 0) {
+          var joinAlias = searchMeta.getJoin(item[0]).alias;
+          if (joinAlias !== alias && joinAlias.indexOf(alias) === 0) {
             ctrl.removeJoin(i);
           }
         });
+      }
+
+      this.changeJoinType = function(join) {
+        if (join[1] === 'EXCLUDE') {
+          removeJoinStuff(searchMeta.getJoin(join[0]).alias);
+        }
       };
 
       $scope.changeGroupBy = function(idx) {
@@ -823,8 +841,10 @@
        * Fetch pseudoconstants for main entity + joined entities
        *
        * Sets an optionsLoaded property on each entity to avoid duplicate requests
+       *
+       * @var string entity - optional additional entity to load
        */
-      function loadFieldOptions() {
+      function loadFieldOptions(entity) {
         var mainEntity = searchMeta.getEntity(ctrl.savedSearch.api_entity),
           entities = {};
 
@@ -840,6 +860,12 @@
         if (typeof mainEntity.optionsLoaded === 'undefined') {
           enqueue(mainEntity);
         }
+
+        // Optional additional entity
+        if (entity && typeof searchMeta.getEntity(entity).optionsLoaded === 'undefined') {
+          enqueue(searchMeta.getEntity(entity));
+        }
+
         _.each(ctrl.savedSearch.api_params.join, function(join) {
           var joinInfo = searchMeta.getJoin(join[0]),
             joinEntity = searchMeta.getEntity(joinInfo.entity),

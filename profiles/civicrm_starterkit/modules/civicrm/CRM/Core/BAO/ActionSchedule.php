@@ -506,7 +506,7 @@ FROM civicrm_action_schedule cas
         'casMailingJoinType' => ($actionSchedule->limit_to == 0) ? 'LEFT JOIN' : 'INNER JOIN',
         'casMappingId' => $mapping->getId(),
         'casMappingEntity' => $mapping->getEntity(),
-        'casEntityJoinExpr' => 'e.id = reminder.entity_id',
+        'casEntityJoinExpr' => 'e.id = IF(reminder.entity_table = "civicrm_contact", reminder.contact_id, reminder.entity_id)',
       ]);
 
     if ($actionSchedule->limit_to == 0) {
@@ -588,7 +588,7 @@ FROM civicrm_action_schedule cas
     $domainValues = CRM_Core_BAO_Domain::getNameAndEmail();
     $fromEmailAddress = "$domainValues[0] <$domainValues[1]>";
     if ($actionSchedule->from_email) {
-      $fromEmailAddress = "$actionSchedule->from_name <$actionSchedule->from_email>";
+      $fromEmailAddress = "\"$actionSchedule->from_name\" <$actionSchedule->from_email>";
       return $fromEmailAddress;
     }
     return $fromEmailAddress;

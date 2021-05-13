@@ -9,7 +9,7 @@
     },
     templateUrl: '~/crmSearchActions/crmSearchActions.html',
     controller: function($scope, crmApi4, dialogService) {
-      var ts = $scope.ts = CRM.ts(),
+      var ts = $scope.ts = CRM.ts('org.civicrm.search'),
         ctrl = this,
         initialized = false,
         unwatchIDs = $scope.$watch('$ctrl.ids.length', watchIDs);
@@ -25,19 +25,10 @@
       function initialize() {
         crmApi4({
           entityInfo: ['Entity', 'get', {select: ['name', 'title', 'title_plural'], where: [['name', '=', ctrl.entity]]}, 0],
-          allowed: [ctrl.entity, 'getActions', {where: [['name', 'IN', ['update', 'delete']]]}, ['name']]
+          tasks: ['SearchDisplay', 'getSearchTasks', {entity: ctrl.entity}]
         }).then(function(result) {
           ctrl.entityInfo = result.entityInfo;
-          _.each(result.allowed, function(action) {
-            CRM.crmSearchActions.tasks[action].entities.push(ctrl.entity);
-          });
-          var actions = _.transform(_.cloneDeep(CRM.crmSearchActions.tasks), function(actions, action) {
-            if (_.includes(action.entities, ctrl.entity)) {
-              action.title = action.title.replace('%1', ctrl.entityInfo.title_plural);
-              actions.push(action);
-            }
-          }, []);
-          ctrl.actions = _.sortBy(actions, 'title');
+          ctrl.tasks = result.tasks;
         });
       }
 

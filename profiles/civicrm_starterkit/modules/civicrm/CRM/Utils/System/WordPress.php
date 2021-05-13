@@ -767,12 +767,21 @@ class CRM_Utils_System_WordPress extends CRM_Utils_System_Base {
   public function createUser(&$params, $mail) {
     $user_data = [
       'ID' => '',
-      'user_pass' => $params['cms_pass'],
       'user_login' => $params['cms_name'],
       'user_email' => $params[$mail],
       'nickname' => $params['cms_name'],
       'role' => get_option('default_role'),
     ];
+
+    // If there's a password add it, otherwise generate one.
+    if (!empty($params['cms_pass'])) {
+      $user_data['user_pass'] = $params['cms_pass'];
+    }
+    else {
+      $user_data['user_pass'] = wp_generate_password(12, FALSE);;
+    }
+
+    // Assign WordPress User "name" field(s).
     if (isset($params['contactID'])) {
       $contactType = CRM_Contact_BAO_Contact::getContactType($params['contactID']);
       if ($contactType == 'Individual') {
@@ -783,17 +792,55 @@ class CRM_Utils_System_WordPress extends CRM_Utils_System_Base {
           $params['contactID'], 'last_name'
         );
       }
+      if ($contactType == 'Organization') {
+        $user_data['first_name'] = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact',
+          $params['contactID'], 'organization_name'
+        );
+      }
+      if ($contactType == 'Household') {
+        $user_data['first_name'] = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact',
+          $params['contactID'], 'household_name'
+        );
+      }
     }
 
+    /**
+     * Broadcast that CiviCRM is about to create a WordPress User.
+     *
+     * @since 5.37
+     */
+    do_action('civicrm_pre_create_user');
+
+    // Remove the CiviCRM-WordPress listeners.
+    $this->hooks_core_remove();
+
+    // Now go ahead and create a WordPress User.
     $uid = wp_insert_user($user_data);
 
-    $creds = [];
-    $creds['user_login'] = $params['cms_name'];
-    $creds['user_password'] = $params['cms_pass'];
-    $creds['remember'] = TRUE;
-    $user = wp_signon($creds, FALSE);
+    /*
+     * Call wp_signon if we aren't already logged in.
+     * For example, we might be creating a new user from the Contact record.
+     */
+    if (!current_user_can('create_users')) {
+      $creds = [];
+      $creds['user_login'] = $params['cms_name'];
+      $creds['remember'] = TRUE;
+      wp_signon($creds, FALSE);
+    }
 
-    wp_new_user_notification($uid, $user_data['user_pass']);
+    // Fire the new user action. Sends notification email by default.
+    do_action('register_new_user', $uid);
+
+    // Restore the CiviCRM-WordPress listeners.
+    $this->hooks_core_add();
+
+    /**
+     * Broadcast that CiviCRM has creates a WordPress User.
+     *
+     * @since 5.37
+     */
+    do_action('civicrm_post_create_user');
+
     return $uid;
   }
 
@@ -872,7 +919,7 @@ class CRM_Utils_System_WordPress extends CRM_Utils_System_Base {
    * @inheritDoc
    */
   public function isPasswordUserGenerated() {
-    return TRUE;
+    return FALSE;
   }
 
   /**
@@ -990,6 +1037,13 @@ class CRM_Utils_System_WordPress extends CRM_Utils_System_Base {
     if ($e->asset == 'crm-menubar.css') {
       $e->params['breakpoint'] = 783;
     }
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function checkPermissionAddUser() {
+    return current_user_can('create_users');
   }
 
   /**
@@ -1252,6 +1306,40 @@ class CRM_Utils_System_WordPress extends CRM_Utils_System_Base {
    */
   public function getCMSPermissionsUrlParams() {
     return ['ufAccessURL' => CRM_Utils_System::url('civicrm/admin/access/wp-permissions', 'reset=1')];
+  }
+
+  /**
+   * Remove CiviCRM's callbacks.
+   *
+   * These may cause recursive updates when creating or editing a WordPress
+   * user. This doesn't seem to have been necessary in the past, but seems
+   * to be causing trouble when newer versions of BuddyPress and CiviCRM are
+   * active.
+   *
+   * Based on the civicrm-wp-profile-sync plugin by Christian Wach.
+   *
+   * @see self::hooks_core_add()
+   */
+  public function hooks_core_remove() {
+    $civicrm = civi_wp();
+
+    // Remove current CiviCRM plugin filters.
+    remove_action('user_register', [$civicrm->users, 'update_user']);
+    remove_action('profile_update', [$civicrm->users, 'update_user']);
+  }
+
+  /**
+   * Add back CiviCRM's callbacks.
+   * This method undoes the removal of the callbacks above.
+   *
+   * @see self::hooks_core_remove()
+   */
+  public function hooks_core_add() {
+    $civicrm = civi_wp();
+
+    // Re-add current CiviCRM plugin filters.
+    add_action('user_register', [$civicrm->users, 'update_user']);
+    add_action('profile_update', [$civicrm->users, 'update_user']);
   }
 
 }

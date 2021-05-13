@@ -396,6 +396,7 @@ class CRM_Contact_BAO_Query {
     'im',
     'address_name',
     'master_id',
+    'location_type',
   ];
 
   /**
@@ -1276,6 +1277,14 @@ class CRM_Contact_BAO_Query {
                   $this->_pseudoConstantsSelect["{$name}-{$elementFullName}"]['table'] = $tName;
                   $this->_pseudoConstantsSelect["{$name}-{$elementFullName}"]['join']
                     = "\nLEFT JOIN $tableName `$tName` ON `$tName`.id = $aName.state_province_id";
+                  if ($addWhere) {
+                    $this->_whereTables["{$name}-address"] = $addressJoin;
+                  }
+                  break;
+
+                case 'civicrm_location_type':
+                  $this->_tables[$tName] = "\nLEFT JOIN $tableName `$tName` ON `$tName`.id = $aName.location_type_id";
+
                   if ($addWhere) {
                     $this->_whereTables["{$name}-address"] = $addressJoin;
                   }
@@ -3284,7 +3293,8 @@ WHERE  $smartGroupClause
     $tagTree = CRM_Core_BAO_Tag::getChildTags();
     foreach ((array) $value as $tagID) {
       if (!empty($tagTree[$tagID])) {
-        $value = array_unique(array_merge($value, $tagTree[$tagID]));
+        // make sure value is an array here (see CORE-2502)
+        $value = array_unique(array_merge((array) $value, $tagTree[$tagID]));
       }
     }
 
